@@ -1,0 +1,12 @@
+{
+  "name": "@paladin/codemod",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "jscodeshift": "^17"
+  },
+  "devDependencies": {
+    "@types/jscodeshift": "^0.12"
+  }
+}

@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@import "@paladin/ui/globals.css";
+@source "./";
+@source "../../packages/ui/src";
