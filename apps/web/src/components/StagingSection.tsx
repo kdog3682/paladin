@@ -1,6 +1,6 @@
 // @paladin/web/src/components/StagingSection.tsx
 
-import { useStore } from "../store"
+import { useStore } from "../stores/app"
 import { StagingEntry } from "./StagingEntry"
 import { Plus, X, GitCommit, Loader2 } from "lucide-react"
 import type { GitStatusEntry } from "@paladin/types"

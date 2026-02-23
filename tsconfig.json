@@ -19,9 +19,9 @@
     "types": [
       "bun-types"
     ],
+    "baseUrl": ".",
     "paths": {
-      "@paladin/web/*": ["./apps/web/src/*"],
-      "@paladin/api/*": ["./apps/api/src/*"],
+      "@/*": ["./apps/web/src/*"],
       "@paladin/*": [
         "./packages/*/src"
       ]

@@ -1,20 +1,3 @@
-/**
- * CUSTOM MULTI-THEME CONFIGURATION (Tailwind v4)
- * --------------------------------------------
- * Layers:
- * - @theme: Bridges CSS variables to Tailwind utility classes (e.g., bg-primary).
- * - @layer base: Defines the raw HSL values for each theme.
- * * Themes Included:
- * 1. Default (Professional/Zinc)
- * 2. Cafe (Warm Espresso/Seafoam)
- * 3. Hawaii (Tropical/Volcanic)
- * 4. GitHub (Dev-friendly/High-Contrast)
- */
-
-@import "tailwindcss";
-
-@import "tailwindcss";
-
 @theme {
   /* Mapping the background and primary text 
     Generates: bg-background, text-foreground
@@ -48,102 +31,42 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 }
+
 @layer base {
-  /* 1. DEFAULT THEME (Zinc/Neutral) */
   :root {
-    --background: hsl(0 0% 100%);
-    --foreground: hsl(240 10% 3.9%);
-    --card: hsl(0 0% 100%);
-    --card-foreground: hsl(240 10% 3.9%);
-    --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(240 10% 3.9%);
-    --primary: hsl(240 5.9% 10%);
-    --primary-foreground: hsl(0 0% 98%);
-    --secondary: hsl(240 4.8% 95.9%);
-    --secondary-foreground: hsl(240 5.9% 10%);
-    --muted: hsl(240 4.8% 95.9%);
-    --muted-foreground: hsl(240 3.8% 46.1%);
-    --accent: hsl(240 4.8% 95.9%);
-    --accent-foreground: hsl(240 5.9% 10%);
-    --destructive: hsl(0 84.2% 60.2%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(240 5.9% 90%);
-    --input: hsl(240 5.9% 90%);
-    --ring: hsl(240 5.9% 10%);
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: hsl(240 10% 3.9%);
-    --foreground: hsl(0 0% 98%);
-    --primary: hsl(0 0% 98%);
-    --primary-foreground: hsl(240 5.9% 10%);
-    --border: hsl(240 3.7% 15.9%);
-    --ring: hsl(240 4.9% 83.9%);
-  }
-
-  /* 2. CAFE THEME (Cozy/Warm) */
-  [data-theme="cafe"] {
-    --background: hsl(30 40% 98%);
-    --foreground: hsl(20 50% 10%);
-    --primary: hsl(25 40% 35%); /* Espresso */
-    --primary-foreground: hsl(30 40% 98%);
-    --secondary: hsl(35 30% 88%); /* Steamed Milk */
-    --secondary-foreground: hsl(25 40% 20%);
-    --accent: hsl(170 40% 40%); /* Seafoam */
-    --accent-foreground: hsl(30 40% 98%);
-    --border: hsl(30 20% 85%);
-    --radius: 1rem;
-  }
-
-  .dark[data-theme="cafe"] {
-    --background: hsl(25 30% 5%); /* Dark Roast */
-    --foreground: hsl(30 20% 95%);
-    --primary: hsl(25 50% 50%);
-    --secondary: hsl(25 20% 12%);
-    --border: hsl(25 30% 15%);
-  }
-
-  /* 3. HAWAII THEME (Tropical/Beach) */
-  [data-theme="hawaii"] {
-    --background: hsl(195 60% 98%);
-    --foreground: hsl(200 80% 15%);
-    --primary: hsl(340 80% 60%); /* Hibiscus */
-    --primary-foreground: hsl(0 0% 100%);
-    --secondary: hsl(45 90% 60%); /* Sand */
-    --secondary-foreground: hsl(45 90% 10%);
-    --accent: hsl(160 60% 45%); /* Palm */
-    --accent-foreground: hsl(160 100% 98%);
-    --border: hsl(195 40% 85%);
-    --radius: 0.75rem;
-  }
-
-  .dark[data-theme="hawaii"] {
-    --background: hsl(220 50% 6%); /* Deep Pacific */
-    --foreground: hsl(190 20% 95%);
-    --primary: hsl(20 90% 60%); /* Lava */
-    --secondary: hsl(160 40% 15%);
-    --accent: hsl(185 80% 50%); /* Bioluminescent */
-    --border: hsl(220 30% 15%);
-  }
-
-  /* 4. GITHUB THEME (Clean/Developer) */
-  [data-theme="github"] {
+    /* Main Canvas */
     --background: hsl(0 0% 100%);
     --foreground: hsl(210 12% 16%);
-    --primary: hsl(136 53% 43%); /* GitHub Green */
-    --primary-foreground: hsl(0 0% 100%);
-    --secondary: hsl(210 17% 95%);
-    --accent: hsl(212 92% 45%); /* GitHub Blue */
-    --border: hsl(210 18% 87%);
-    --radius: 0.375rem;
-  }
 
-  .dark[data-theme="github"] {
-    --background: hsl(210 15% 9%); /* GitHub Dimmed */
-    --foreground: hsl(210 17% 82%);
-    --primary: hsl(136 53% 51%);
-    --secondary: hsl(210 15% 15%);
-    --border: hsl(210 15% 20%);
+    /* Cards & Popovers */
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(210 12% 16%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(210 12% 16%);
+
+    /* GitHub Green (Action Buttons) */
+    --primary: hsl(137 55% 40%); /* #2da44e */
+    --primary-foreground: hsl(0 0% 100%);
+
+    /* GitHub Gray (Secondary Buttons/Muted) */
+    --secondary: hsl(210 17% 98%); 
+    --secondary-foreground: hsl(210 12% 16%);
+    --muted: hsl(210 17% 96%);
+    --muted-foreground: hsl(210 8% 45%);
+
+    /* GitHub Blue (Links/Selected States) */
+    --accent: hsl(212 92% 85%); /* #0969da */
+    --accent-foreground: hsl(0 0% 100%);
+
+    /* Destructive (Red) */
+    --destructive: hsl(354 70% 54%);
+    --destructive-foreground: hsl(0 0% 100%);
+
+    /* Borders & Inputs */
+    --border: hsl(210 18% 87%);
+    --input: hsl(210 18% 87%);
+    --ring: hsl(212 92% 45%); /* Blue ring for focus */
+    
+    --radius: 0.375rem;
   }
 }

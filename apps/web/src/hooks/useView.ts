@@ -1,7 +1,7 @@
 // @paladin/web/src/hooks/useView.ts
 
 import { useEffect } from "react"
-import { useStore } from "../store"
+import { useStore } from "../stores/app"
 
 export type ViewId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 

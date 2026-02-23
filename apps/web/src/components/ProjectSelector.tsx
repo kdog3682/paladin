@@ -2,18 +2,16 @@
 
 import { useState } from "react"
 import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
   Command,
-  CommandInput,
-  CommandList,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
-} from "@paladin/ui"
+  CommandList,
+} from "./ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { ChevronDown, Check, Folder } from "lucide-react"
-import { useStore } from "../store"
+import { useStore } from "../stores/app"
 
 export function ProjectSelector() {
   const projectName = useStore((s) => s.projectName)

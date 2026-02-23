@@ -1,14 +1,8 @@
 // @paladin/web/src/components/SettingsModal.tsx
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Button,
-} from "@paladin/ui"
-import { Settings, Bot, Wrench } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
+import { Settings, Bot } from "lucide-react"
 import { useSettingsStore, type ModelAlias, type ProjectType } from "../stores/settings"
 
 const TABS = [

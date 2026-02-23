@@ -1,7 +1,8 @@
 // @paladin/web/src/views/LogView.tsx
 
 import { useState, useEffect } from "react"
-import { ScrollArea, Button } from "@paladin/ui"
+import { Button } from "../components/ui/button"
+import { ScrollArea } from "../components/ui/scroll-area"
 import { useLogStore, type LogEntry } from "../stores/log"
 import { useStore } from "../stores/app"
 import { Terminal, GitBranch, Trash2, Info, CheckCircle, AlertTriangle, XCircle } from "lucide-react"
