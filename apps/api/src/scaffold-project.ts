@@ -3,7 +3,7 @@
 import { writeFile, mkdir, stat } from "fs/promises"
 import { join } from "path"
 import { $ } from "bun"
-import { GitRepo } from "./vcs"
+import type { GitRepo } from "./vcs"
 
 export interface ScaffoldEvent {
   event: "projectScaffolded"

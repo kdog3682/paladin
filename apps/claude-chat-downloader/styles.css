@@ -1,0 +1,29 @@
+#claude-download-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 1000;
+}
+
+#claude-download-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+#claude-download-btn:active {
+  transform: scale(0.95);
+}
+
+#claude-download-btn svg {
+  color: #374151;
+}

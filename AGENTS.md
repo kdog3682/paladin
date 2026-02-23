@@ -1,0 +1,1 @@
+- Avoid hacky solutions; for example, prefer a dedicated script file over long inline `bun -e` commands in `package.json`.

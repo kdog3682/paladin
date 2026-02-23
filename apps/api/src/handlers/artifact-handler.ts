@@ -29,6 +29,24 @@ function matchSuffix(path: string, patterns: Record<string, unknown>): string | 
   }
   return null
 }
+import { stat } from "fs/promises"
+
+export async function waitForStableFile(
+  path: string,
+  { interval = 50, timeout = 2000 } = {}
+): Promise<void> {
+  let lastSize = -1
+  const start = Date.now()
+
+  while (Date.now() - start < timeout) {
+    try {
+      const s = await stat(path)
+      if (s.size > 0 && s.size === lastSize) return
+      lastSize = s.size
+    } catch {}
+    await Bun.sleep(interval)
+  }
+}
 
 export class ArtifactHandler {
   private seen = new Set<string>()
@@ -95,25 +113,28 @@ export class ArtifactHandler {
       if (!ext) return
 
       const filepath = join(this.watchDir, filename)
-      let content: string
-      try { content = await readFile(filepath, "utf-8") } catch { return }
 
-      if (ext === "json") await this.handleJsonFile(content)
-      else if (["ts", "tsx", "py"].includes(ext)) await this.handleCodeFile(content, filename)
+      if (ext === "json") await this.handleJsonFile(filepath)
+      else if (["ts", "tsx", "py"].includes(ext)) await this.handleCodeFile(await readFile(filepath, "utf-8"), filename)
     })
     console.log(`Watching ${this.watchDir}`)
   }
 
-  private async handleJsonFile(content: string): Promise<void> {
-    try {
-      const modified = this.processConversation(JSON.parse(content))
-      if (modified.length > 0) {
+  private async handleJsonFile(filepath: string): Promise<void> {
+  await waitForStableFile(filepath)
+  const content = await readFile(filepath, "utf-8")
+  try {
+    const modified = this.processConversation(JSON.parse(content))
+    if (modified.length > 0) {
         this.maybeSetImplicitProject(modified)
         this.server.broadcast({ type: "artifactsModified", artifacts: modified })
         if (this.autoWriteFiles) await this.writeFiles(modified)
       }
-    } catch (e) { console.error("Error processing JSON:", e) }
+  } catch (e) {
+    console.error("JSON parse error — first 200 chars:", content.slice(0, 200))
+    console.error(e)
   }
+}
 
   private async handleCodeFile(content: string, filename: string): Promise<void> {
     const pathFromComment = parsePathFromComment(content)

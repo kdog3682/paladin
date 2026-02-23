@@ -1,7 +1,8 @@
 // @paladin/api/src/handlers/project-handler.ts
 
 import { readdir } from "fs/promises"
-import { join, homedir } from "path"
+import { join, homedir } from "os"
+import { join } from "path"
 import type { WebSocketServer } from "../server"
 
 export class ProjectHandler {

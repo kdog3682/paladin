@@ -1,0 +1,30 @@
+
+{
+  "compilerOptions": {
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "downlevelIteration": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "types": [
+      "bun-types"
+    ],
+    "paths": {
+      "@paladin/web/*": ["./apps/web/src/*"],
+      "@paladin/api/*": ["./apps/api/src/*"],
+      "@paladin/*": [
+        "./packages/*/src"
+      ]
+    }
+  }
+}

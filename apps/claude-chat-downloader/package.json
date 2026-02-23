@@ -1,0 +1,14 @@
+{
+  "name": "@paladin/claude-chat-downloader",
+  "type": "module",
+  "version": "0.2.0",
+  "scripts": {
+    "build": "bun ../../packages/tooling/build-chrome-ext.ts ."
+  },
+  "dependencies": {
+    "@paladin/types": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

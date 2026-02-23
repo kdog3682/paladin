@@ -7,10 +7,18 @@
   ],
   "scripts": {
     "dev": "bun run --filter '*' dev",
+    "dev:web": "bun run --filter '@paladin/web' dev",
+    "dev:api": "bun run --filter '@paladin/api' dev",
     "test": "bun run --filter '*' test",
-    "build": "bun run --filter '*' build"
+    "build": "bun run --filter '*' build",
+    "build:extension": "bun run --filter '@paladin/claude-chat-downloader' build",
+    "changeset": "changeset",
+    "sync:extension-version": "bun packages/tooling/sync-extension-version.ts",
+    "version:packages": "changeset version && bun run sync:extension-version",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "bun-types": "latest",
     "typescript": "^5"
   }
