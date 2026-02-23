@@ -1,4 +1,4 @@
-// @paladin/codemod/src/import-rewriter.ts
+// @paladin/tooling/codemods/import-rewriter.ts
 
 import { readdir, readFile, writeFile } from "fs/promises"
 import { join, relative, dirname, extname } from "path"

@@ -1,0 +1,14 @@
+{
+  "name": "@paladin/tooling",
+  "type": "module",
+  "exports": {
+    "./codemods/import-rewriter": "./codemods/import-rewriter.ts",
+    "./codemods/transform-relative-paths-to-aliased": "./codemods/transform-relative-paths-to-aliased.ts"
+  },
+  "dependencies": {
+    "jscodeshift": "^17"
+  },
+  "devDependencies": {
+    "@types/jscodeshift": "^0.12"
+  }
+}

@@ -9,7 +9,7 @@ import type { Artifact, Conversation, RunResult, FileInfo } from "@paladin/types
 import { GitRepo } from "../vcs"
 import { resolvePath, toAliasedPath, parsePathFromComment, extractOrg } from "../utils/path-ops"
 import { runTests } from "../run-tests"
-import { importRewriter } from "@paladin/codemod"
+import { importRewriter } from "@paladin/tooling/codemods/import-rewriter"
 import { gitCommit } from "@paladin/ai"
 import { scaffoldProject } from "../scaffold-project"
 import { ensureBunPackageDependencies } from "../hooks/ensure-bun-package-dependencies"

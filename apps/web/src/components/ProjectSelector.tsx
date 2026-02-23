@@ -8,10 +8,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "./ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
+} from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ChevronDown, Check, Folder } from "lucide-react"
-import { useStore } from "../stores/app"
+import { useStore } from "@/stores/app"
 
 export function ProjectSelector() {
   const projectName = useStore((s) => s.projectName)

@@ -1,9 +1,9 @@
 // @paladin/web/src/components/StatusBar.tsx
 
-import { useStore } from "../stores/app"
-import type { ViewId } from "../hooks/useView"
-import { ProjectSelector } from "./ProjectSelector"
-import { SettingsModal } from "./SettingsModal"
+import { useStore } from "@/stores/app"
+import type { ViewId } from "@/hooks/useView"
+import { ProjectSelector } from "@/components/ProjectSelector"
+import { SettingsModal } from "@/components/SettingsModal"
 import { Wifi, WifiOff } from "lucide-react"
 
 interface ViewConfig {

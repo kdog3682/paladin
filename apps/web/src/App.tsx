@@ -1,12 +1,12 @@
 // @paladin/web/src/App.tsx
 
 import { useEffect } from "react"
-import { useStore } from "./stores/app"
-import { StatusBar } from "./components/StatusBar"
-import { StagingView } from "./views/StagingView"
-import { LogView } from "./views/LogView"
-import { PlaceholderView } from "./views/PlaceholderView"
-import { useView } from "./hooks/useView"
+import { useStore } from "@/stores/app"
+import { StatusBar } from "@/components/StatusBar"
+import { StagingView } from "@/views/StagingView"
+import { LogView } from "@/views/LogView"
+import { PlaceholderView } from "@/views/PlaceholderView"
+import { useView } from "@/hooks/useView"
 
 export function App() {
   const connect = useStore((s) => s.connect)

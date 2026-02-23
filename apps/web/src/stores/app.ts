@@ -10,8 +10,8 @@ import type {
   GitStatusEntry,
   RunResult,
 } from "@paladin/types"
-import type { ViewId } from "../hooks/useView"
-import { useLogStore } from "./log"
+import type { ViewId } from "@/hooks/useView"
+import { useLogStore } from "@/stores/log"
 
 interface AppState {
   // persistence

@@ -7,7 +7,7 @@
   "dependencies": {
     "@paladin/types": "workspace:*",
     "@paladin/ai": "workspace:*",
-    "@paladin/codemod": "workspace:*"
+    "@paladin/tooling": "workspace:*"
   },
   "devDependencies": {}
 }

@@ -1,10 +1,10 @@
 // @paladin/web/src/views/StagingView.tsx
 
 import { useState, useMemo } from "react"
-import { Button } from "../components/ui/button"
-import { ScrollArea } from "../components/ui/scroll-area"
-import { useStore } from "../stores/app"
-import { StagingSection } from "../components/StagingSection"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useStore } from "@/stores/app"
+import { StagingSection } from "@/components/StagingSection"
 import { Code, GitCommit, Loader2 } from "lucide-react"
 import type { GitStatusEntry } from "@paladin/types"
 

@@ -4,7 +4,10 @@
   "scripts": {
     "dev": "vite --open",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "bun test",
+    "test:app-snapshot": "bun test ./tests/app.test.tsx -u",
+    "test:visual": "bun ./tests/visual.test.ts"
   },
   "dependencies": {
     "@paladin/types": "workspace:*",
@@ -25,6 +28,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@vitejs/plugin-react": "^4",
+    "puppeteer": "^24.37.5",
     "tailwindcss": "^4",
     "vite": "^5",
     "vite-tsconfig-paths": "^6.0.5"
