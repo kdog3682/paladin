@@ -14,6 +14,7 @@
     "build:extension": "bun run --filter '@paladin/claude-chat-downloader' build",
     "lint": "tsgo --noEmit",
     "scaffold": "bun run --filter '@paladin/scaffold' start",
+    "dev:scaffold": "bun run --filter '@paladin/scaffold' dev",
     "bootstrap": "bun run --filter '@paladin/bootstrap' start"
   },
   "workspaces": [
