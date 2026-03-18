@@ -1,0 +1,10 @@
+{
+  "name": "@paladin/bootstrap",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "bun src/pack.ts"
+  },
+  "dependencies": {
+    "bun": "^1.3.11"
+  }
+}

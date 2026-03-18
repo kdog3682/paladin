@@ -1,0 +1,962 @@
+{
+  "/home/kdog3682/projects/paladin/packages/codeform/src/documenter.ts": {
+    "modifiedAt": 1772225516235,
+    "data": {
+      "path": "src/documenter.ts",
+      "imports": [
+        {
+          "symbols": [],
+          "source": "tree-sitter"
+        },
+        {
+          "symbols": [],
+          "source": "tree-sitter-typescript"
+        },
+        {
+          "symbols": [
+            "readFile",
+            "stat"
+          ],
+          "source": "fs/promises"
+        },
+        {
+          "symbols": [
+            "relative",
+            "dirname",
+            "join"
+          ],
+          "source": "path"
+        },
+        {
+          "symbols": [
+            "FileCache"
+          ],
+          "source": "./cache",
+          "resolved": "src/cache.ts"
+        },
+        {
+          "symbols": [
+            "FileDoc",
+            "SymbolDoc",
+            "FunctionDoc",
+            "ClassDoc",
+            "TypeDoc",
+            "ConstDoc",
+            "MethodDoc",
+            "Param",
+            "ImportRef",
+            "DirectoryDoc",
+            "SymbolRef"
+          ],
+          "source": "./documenter.types",
+          "resolved": "src/documenter.types.ts"
+        }
+      ],
+      "symbols": [
+        {
+          "name": "parser",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "new Parser()"
+        },
+        {
+          "name": "getText",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "getJSDoc",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "parseParams",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode | null",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "Param[]",
+          "async": false
+        },
+        {
+          "name": "parseReturnType",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "isExported",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            }
+          ],
+          "returns": "boolean",
+          "async": false
+        },
+        {
+          "name": "parseFunction",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "FunctionDoc | null",
+          "async": false
+        },
+        {
+          "name": "parseMethod",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "MethodDoc",
+          "async": false
+        },
+        {
+          "name": "parseClass",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "ClassDoc | null",
+          "async": false
+        },
+        {
+          "name": "parseTypeOrInterface",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "TypeDoc | null",
+          "async": false
+        },
+        {
+          "name": "parseConst",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "node",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "ConstDoc | null",
+          "async": false
+        },
+        {
+          "name": "parseImports",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "root",
+              "type": "Parser.SyntaxNode",
+              "optional": false
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "ImportRef[]",
+          "async": false
+        },
+        {
+          "name": "resolveImports",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "file",
+              "type": "FileDoc",
+              "optional": false
+            },
+            {
+              "name": "allPaths",
+              "type": "string[]",
+              "optional": false
+            }
+          ],
+          "returns": "void",
+          "async": false
+        },
+        {
+          "name": "parseFile",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "source",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "path",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "FileDoc",
+          "async": false
+        },
+        {
+          "name": "buildIndex",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "files",
+              "type": "FileDoc[]",
+              "optional": false
+            }
+          ],
+          "returns": "Record<string, SymbolRef>",
+          "async": false
+        },
+        {
+          "name": "document",
+          "kind": "function",
+          "description": "Parse and document a list of TypeScript files using tree-sitter.\nExtracts all symbols (functions, classes, types, interfaces, enums, consts)\nalong with their JSDoc descriptions, parameters, and import references.\nResults are cached by file mtime — unchanged files are skipped.",
+          "exported": true,
+          "params": [
+            {
+              "name": "root",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "files",
+              "type": "string[]",
+              "optional": false
+            },
+            {
+              "name": "cache",
+              "type": "FileCache<FileDoc>",
+              "optional": false
+            }
+          ],
+          "returns": "Promise<DirectoryDoc>",
+          "async": true
+        }
+      ]
+    }
+  },
+  "/home/kdog3682/projects/paladin/packages/codeform/src/formatter.ts": {
+    "modifiedAt": 1772225292432,
+    "data": {
+      "path": "src/formatter.ts",
+      "imports": [
+        {
+          "symbols": [
+            "DirectoryDoc",
+            "SymbolDoc",
+            "FunctionDoc",
+            "ClassDoc",
+            "TypeDoc",
+            "MethodDoc",
+            "Param"
+          ],
+          "source": "./documenter.types",
+          "resolved": "src/documenter.types.ts"
+        }
+      ],
+      "symbols": [
+        {
+          "name": "params",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "p",
+              "type": "Param[]",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "desc",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "d",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "formatFunction",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "f",
+              "type": "FunctionDoc",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "formatMethod",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "m",
+              "type": "MethodDoc",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "formatClass",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "c",
+              "type": "ClassDoc",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "formatType",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "t",
+              "type": "TypeDoc",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        },
+        {
+          "name": "isCallable",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "s",
+              "type": "SymbolDoc",
+              "optional": false
+            }
+          ],
+          "returns": "s is FunctionDoc | ClassDoc",
+          "async": false
+        },
+        {
+          "name": "collectReferenced",
+          "kind": "function",
+          "description": "",
+          "exported": false,
+          "params": [
+            {
+              "name": "doc",
+              "type": "DirectoryDoc",
+              "optional": false
+            }
+          ],
+          "returns": "Map<string, SymbolDoc>",
+          "async": false
+        },
+        {
+          "name": "format",
+          "kind": "function",
+          "description": "Format a DirectoryDoc into a concise spec string for agents.\nOnly functions and classes are shown per file.\nReferenced types/interfaces/enums are hoisted to a Shared section.",
+          "exported": true,
+          "params": [
+            {
+              "name": "doc",
+              "type": "DirectoryDoc",
+              "optional": false
+            }
+          ],
+          "returns": "string",
+          "async": false
+        }
+      ]
+    }
+  },
+  "/home/kdog3682/projects/paladin/packages/codeform/src/formatter.test.ts": {
+    "modifiedAt": 1772225292432,
+    "data": {
+      "path": "src/formatter.test.ts",
+      "imports": [
+        {
+          "symbols": [
+            "describe",
+            "it",
+            "expect",
+            "beforeAll",
+            "afterAll"
+          ],
+          "source": "bun:test"
+        },
+        {
+          "symbols": [
+            "mkdtemp",
+            "writeFile",
+            "mkdir",
+            "rm"
+          ],
+          "source": "fs/promises"
+        },
+        {
+          "symbols": [
+            "join"
+          ],
+          "source": "path"
+        },
+        {
+          "symbols": [
+            "tmpdir"
+          ],
+          "source": "os"
+        },
+        {
+          "symbols": [
+            "document"
+          ],
+          "source": "./documenter",
+          "resolved": "src/documenter.ts"
+        },
+        {
+          "symbols": [
+            "format"
+          ],
+          "source": "./formatter",
+          "resolved": "src/formatter.ts"
+        },
+        {
+          "symbols": [
+            "FileCache"
+          ],
+          "source": "./cache",
+          "resolved": "src/cache.ts"
+        },
+        {
+          "symbols": [
+            "FileDoc"
+          ],
+          "source": "./documenter.types",
+          "resolved": "src/documenter.types.ts"
+        }
+      ],
+      "symbols": [
+        {
+          "name": "TYPES",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "`\n/** A user in the system */\nexport type User = {\n  id: string\n  name: string\n  email?: string\n}\n\n/** Available roles */\nexport enum Role {\n  Admin,\n  Member,\n  Guest\n}\n\n/** Pagination options */\nexport interface PageOpts {\n  page: number\n  limit: number\n  sort?: string\n}\n\n/** Max retry attempts */\nexport const MAX_RETRIES = 3\n\n/** Internal — not imported anywhere */\nexport type InternalMeta = {\n  created: number\n}\n`"
+        },
+        {
+          "name": "SERVICE",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "`\nimport { User, Role, PageOpts } from \"../types\"\n\n/** User service for managing accounts */\nexport class UserService {\n  /** All cached users */\n  public users: User[]\n\n  /** Service name */\n  private name: string\n\n  /** Whether the service is running */\n  protected active: boolean\n\n  /** Get the current user count */\n  get count(): number {\n    return this.users.length\n  }\n\n  /** Set the active state */\n  set running(val: boolean) {\n    this.active = val\n  }\n\n  /** Find users by role */\n  async findByRole(role: Role, opts: PageOpts): Promise<User[]> {\n    return []\n  }\n\n  /** Reset all users */\n  static reset(): void {}\n\n  /** Internal cleanup */\n  private cleanup(): void {}\n}\n\n/** Fetch a user by id */\nexport async function getUser(id: string): Promise<User> {\n  return { id, name: \"test\" }\n}\n`"
+        },
+        {
+          "name": "HANDLER",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "`\nimport { User } from \"../types\"\nimport { UserService } from \"./service\"\n\n/** Handle an incoming request */\nexport function handle(req: Request, user: User): Response {\n  return new Response(\"ok\")\n}\n\n/** Create a new handler with defaults */\nexport function create(svc: UserService): (req: Request) => Response {\n  return (req) => new Response(\"ok\")\n}\n`"
+        },
+        {
+          "name": "dir",
+          "kind": "variable",
+          "description": "",
+          "exported": false,
+          "type": "string"
+        },
+        {
+          "name": "cache",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "new FileCache<FileDoc>(\"/dev/null\")"
+        },
+        {
+          "name": "files",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "[\n      join(dir, \"types.ts\"),\n      join(dir, \"lib/service.ts\"),\n      join(dir, \"lib/handler.ts\"),\n    ]"
+        },
+        {
+          "name": "result",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "await document(dir, files, cache)"
+        },
+        {
+          "name": "spec",
+          "kind": "const",
+          "description": "",
+          "exported": false,
+          "type": "unknown",
+          "value": "format(result)"
+        }
+      ]
+    }
+  },
+  "/home/kdog3682/projects/paladin/packages/codeform/src/cache.ts": {
+    "modifiedAt": 1772225292431,
+    "data": {
+      "path": "src/cache.ts",
+      "imports": [
+        {
+          "symbols": [
+            "stat",
+            "readFile",
+            "writeFile",
+            "mkdir"
+          ],
+          "source": "fs/promises"
+        },
+        {
+          "symbols": [
+            "dirname",
+            "join"
+          ],
+          "source": "path"
+        }
+      ],
+      "symbols": [
+        {
+          "name": "Entry",
+          "kind": "type",
+          "description": "",
+          "exported": false,
+          "properties": [],
+          "signature": "type Entry<T> = {\n  modifiedAt: number\n  data: T\n}"
+        },
+        {
+          "name": "Store",
+          "kind": "type",
+          "description": "",
+          "exported": false,
+          "properties": [],
+          "signature": "type Store<T> = Record<string, Entry<T>>"
+        },
+        {
+          "name": "FileCache",
+          "kind": "class",
+          "description": "",
+          "exported": true,
+          "properties": [
+            {
+              "name": "store",
+              "type": "Store<T>",
+              "optional": false
+            },
+            {
+              "name": "path",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "dirty",
+              "type": "unknown",
+              "optional": false
+            }
+          ],
+          "methods": [
+            {
+              "name": "constructor",
+              "kind": "method",
+              "description": "",
+              "params": [
+                {
+                  "name": "path",
+                  "type": "string",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "load",
+              "kind": "method",
+              "description": "",
+              "params": [],
+              "returns": "void",
+              "async": true,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "save",
+              "kind": "method",
+              "description": "",
+              "params": [],
+              "returns": "void",
+              "async": true,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "get",
+              "kind": "method",
+              "description": "",
+              "params": [
+                {
+                  "name": "filepath",
+                  "type": "string",
+                  "optional": false
+                }
+              ],
+              "returns": "Promise<T | null>",
+              "async": true,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "set",
+              "kind": "method",
+              "description": "",
+              "params": [
+                {
+                  "name": "filepath",
+                  "type": "string",
+                  "optional": false
+                },
+                {
+                  "name": "modifiedAt",
+                  "type": "number",
+                  "optional": false
+                },
+                {
+                  "name": "data",
+                  "type": "T",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "delete",
+              "kind": "method",
+              "description": "",
+              "params": [
+                {
+                  "name": "filepath",
+                  "type": "string",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "clear",
+              "kind": "method",
+              "description": "",
+              "params": [],
+              "returns": "void",
+              "async": false,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            },
+            {
+              "name": "keys",
+              "kind": "method",
+              "description": "",
+              "params": [],
+              "returns": "string[]",
+              "async": false,
+              "static": false,
+              "getter": false,
+              "setter": false,
+              "visibility": "public"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "/home/kdog3682/projects/paladin/packages/codeform/src/documenter.types.ts": {
+    "modifiedAt": 1772225292431,
+    "data": {
+      "path": "src/documenter.types.ts",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "Param",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type Param = {\n  name: string\n  type: string\n  optional: boolean\n  description?: string\n}"
+        },
+        {
+          "name": "SymbolKind",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type SymbolKind =\n  | \"function\"\n  | \"class\"\n  | \"method\"\n  | \"interface\"\n  | \"type\"\n  | \"enum\"\n  | \"const\"\n  | \"variable\""
+        },
+        {
+          "name": "BaseDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type BaseDoc = {\n  name: string\n  description: string\n  exported: boolean\n}"
+        },
+        {
+          "name": "FunctionDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type FunctionDoc = BaseDoc & {\n  kind: \"function\"\n  params: Param[]\n  returns: string\n  async: boolean\n}"
+        },
+        {
+          "name": "MethodDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type MethodDoc = Omit<BaseDoc, \"exported\"> & {\n  kind: \"method\"\n  params: Param[]\n  returns: string\n  async: boolean\n  static: boolean\n  getter: boolean\n  setter: boolean\n  visibility: \"public\" | \"private\" | \"protected\"\n}"
+        },
+        {
+          "name": "ClassDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type ClassDoc = BaseDoc & {\n  kind: \"class\"\n  properties: Param[]\n  methods: MethodDoc[]\n}"
+        },
+        {
+          "name": "TypeDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type TypeDoc = BaseDoc & {\n  kind: \"type\" | \"interface\" | \"enum\"\n  properties: Param[]\n  signature?: string\n}"
+        },
+        {
+          "name": "ConstDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type ConstDoc = BaseDoc & {\n  kind: \"const\" | \"variable\"\n  type: string\n  value?: string\n}"
+        },
+        {
+          "name": "SymbolDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type SymbolDoc = FunctionDoc | ClassDoc | TypeDoc | ConstDoc"
+        },
+        {
+          "name": "ImportRef",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type ImportRef = {\n  symbols: string[]\n  source: string\n  resolved?: string\n}"
+        },
+        {
+          "name": "FileDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type FileDoc = {\n  path: string\n  imports: ImportRef[]\n  symbols: SymbolDoc[]\n}"
+        },
+        {
+          "name": "SymbolRef",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type SymbolRef = {\n  file: string\n  kind: SymbolKind\n}"
+        },
+        {
+          "name": "DirectoryDoc",
+          "kind": "type",
+          "description": "",
+          "exported": true,
+          "properties": [],
+          "signature": "type DirectoryDoc = {\n  root: string\n  files: FileDoc[]\n  index: Record<string, SymbolRef>\n  generated: number\n}"
+        }
+      ]
+    }
+  }
+}

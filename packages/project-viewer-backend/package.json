@@ -1,0 +1,12 @@
+{
+  "name": "@paladin/project-viewer-backend",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "bun": "^1.3.10",
+    "hono": "^4.12.5"
+  }
+}

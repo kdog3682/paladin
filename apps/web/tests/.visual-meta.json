@@ -1,9 +1,0 @@
-{
-  "snapshotHash": "a1da542f2e4664e1f7a2e11eebd14fe4c347da7d96d393374f48f4ffb4b6223f",
-  "updatedAt": "2026-02-23T21:56:26.754Z",
-  "screenshots": {
-    "initial": "tests/screenshots/view-initial.png",
-    "one": "tests/screenshots/view-1.png",
-    "two": "tests/screenshots/view-2.png"
-  }
-}

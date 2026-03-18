@@ -1,25 +1,22 @@
 {
   "name": "paladin",
+  "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260304.1",
+    "bun-types": "latest",
+    "jscodeshift": "^17.3.0"
+  },
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "dev": "bun run --filter '*' dev",
+    "dev": "bun run --filter '@paladin/{api, web}' dev",
     "dev:web": "bun run --filter '@paladin/web' dev",
     "dev:api": "bun run --filter '@paladin/api' dev",
-    "test": "bun run --filter '*' test",
-    "build": "bun run --filter '*' build",
+    "build:web": "bun run --filter '@paladin/web' build",
     "build:extension": "bun run --filter '@paladin/claude-chat-downloader' build",
-    "changeset": "changeset",
-    "sync:extension-version": "bun packages/tooling/sync-extension-version.ts",
-    "version:packages": "changeset version && bun run sync:extension-version",
-    "release": "changeset publish"
+    "lint": "tsgo --noEmit",
+    "scaffold": "bun run --filter '@paladin/scaffold' start",
+    "bootstrap": "bun run --filter '@paladin/bootstrap' start"
   },
-  "devDependencies": {
-    "@changesets/cli": "^2.29.8",
-    "bun-types": "latest",
-    "typescript": "^5"
-  }
+  "workspaces": [
+    "packages/*"
+  ]
 }

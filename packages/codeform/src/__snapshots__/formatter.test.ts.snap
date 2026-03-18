@@ -1,0 +1,31 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`formatter generates agent spec 1`] = `
+"# /tmp/codeform-SOuAWd
+
+## Shared
+type User = {
+  id: string
+  name: string
+  email?: string
+} — A user in the system
+enum Role { Admin, Member, Guest } — Available roles
+interface PageOpts { page: number, limit: number, sort?: string } — Pagination options
+
+## lib/service.ts
+class UserService — User service for managing accounts
+  .users: User[]
+  .name: string
+  .active: boolean
+  .get count(): number — Get the current user count
+  .set running(val: boolean): void — Set the active state
+  .async findByRole(role: Role, opts: PageOpts): Promise<User[]> — Find users by role
+  .static reset(): void — Reset all users
+  .cleanup(): void — Internal cleanup
+async fn getUser(id: string): Promise<User> — Fetch a user by id
+
+## lib/handler.ts
+fn handle(req: Request, user: User): Response — Handle an incoming request
+fn create(svc: UserService): (req: Request) => Response — Create a new handler with defaults
+"
+`;

@@ -7,6 +7,7 @@
     ],
     "module": "esnext",
     "target": "esnext",
+    "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "allowImportingTsExtensions": true,
@@ -19,12 +20,16 @@
     "types": [
       "bun-types"
     ],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./apps/web/src/*"],
       "@paladin/*": [
         "./packages/*/src"
       ]
     }
-  }
+  },
+  "exclude": [
+    "scripts",
+    "apps/claude-chat-downloader",
+    "packages/ai",
+    "packages/codeform"
+  ]
 }

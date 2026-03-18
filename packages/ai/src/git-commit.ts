@@ -2,7 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk"
 import { resolveModel, getModel, type ModelAlias } from "./query"
-import type { GitRepo } from "@paladin/api/src/vcs"
+import type { GitRepo } from "@paladin/scaffold/src/vcs"
 
 const client = new Anthropic()
 
