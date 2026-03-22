@@ -1,13 +1,19 @@
 import { observe, addDownloadButton } from './scaffold';
 import type { ChatMessage, FoundMessagesEvent } from './types';
 
-function injectMessageFinder(): void {
-  const script = document.createElement('script');
-  script.src = chrome.runtime.getURL('injected.js');
-  script.onload = function(this: HTMLScriptElement) {
-    this.remove();
-  };
-  (document.head || document.documentElement).appendChild(script);
+function injectMessageFinder(): boolean {
+  try {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('injected.js');
+    script.onload = function(this: HTMLScriptElement) {
+      this.remove();
+    };
+    (document.head || document.documentElement).appendChild(script);
+    return true;
+  } catch {
+    alert('Extension was reloaded — please refresh this page.');
+    return false;
+  }
 }
 
 async function collectChatData(): Promise<ChatMessage[]> {
@@ -20,7 +26,11 @@ async function collectChatData(): Promise<ChatMessage[]> {
     };
     
     window.addEventListener('message', handler);
-    injectMessageFinder();
+    if (!injectMessageFinder()) {
+      window.removeEventListener('message', handler);
+      resolve([]);
+      return;
+    }
     
     setTimeout(() => {
       window.removeEventListener('message', handler);

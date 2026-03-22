@@ -1,12 +1,17 @@
 import type { ChatMessage, SnapshotNode } from "./types"
-import type { ConversationError } from "@paladin/types/events"
 
 // ─────────────────────────────────────────────────────────────
 // Conversation + output envelope
 // ─────────────────────────────────────────────────────────────
 
+interface ConversationError {
+    command: string
+    artifactId: string
+    title: string | null
+}
+
 interface Conversation {
-    uuid: string
+    id: string
     name: string
     url: string
     created_at: string
@@ -191,7 +196,7 @@ async function findConversation(): Promise<FoundConversationEvent> {
     const { artifacts, errors } = reducer.process(allMessages)
 
     const conversation: Conversation = {
-        uuid,
+        id: uuid,
         name,
         url: window.location.href,
         created_at: first.created_at,

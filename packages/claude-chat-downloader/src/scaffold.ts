@@ -38,7 +38,7 @@ export function addDownloadButton(downloadFunction: () => void): void {
     });
 
     function save(result) {
-      download('__CODE__.json', result)
+      download(`conversation.${result.id}.json`, result)
     }
     function downloadFunctionWrapper() {
         downloadFunction().then(save)

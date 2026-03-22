@@ -157,6 +157,6 @@ export interface ChatMessage {
  * ============================ */
 
 export interface FoundMessagesEvent {
-  type: 'FOUND_MESSAGES';
-  messages: ChatMessage[];
+  type: 'FOUND_CONVERSATION';
+  conversation: unknown;
 }

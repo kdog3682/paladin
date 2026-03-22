@@ -45,6 +45,31 @@ function extractAllPaths(obj: unknown): Set<string> {
   return paths
 }
 
+async function bumpPatchVersion(projectDir: string): Promise<string> {
+  const packageJsonPath = join(projectDir, "package.json")
+  const manifestPath = join(projectDir, "manifest.json")
+
+  const packageJson = await file(packageJsonPath).json() as { version?: string }
+  const version = packageJson.version
+  if (!version) throw new Error(`package.json is missing a version field: ${packageJsonPath}`)
+
+  const parts = version.split(".")
+  parts[2] = String(Number(parts[2]) + 1)
+  const next = parts.join(".")
+
+  packageJson.version = next
+  await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n", "utf8")
+
+  if (await exists(manifestPath)) {
+    const manifest = await file(manifestPath).json() as Record<string, unknown>
+    manifest.version = next
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8")
+  }
+
+  detail(`Bumped version ${version} -> ${next}`)
+  return next
+}
+
 async function readVersion(projectDir: string): Promise<string> {
   const packageJsonPath = join(projectDir, "package.json")
   const packageJson = await file(packageJsonPath).json() as { version?: string }
@@ -201,8 +226,8 @@ async function buildChromeExtension(projectDir: string): Promise<void> {
     process.exit(1)
   }
 
-  const version = await readVersion(projectDir)
-  detail(`Detected version ${version} from package.json`)
+  log("Bump patch version")
+  const version = await bumpPatchVersion(projectDir)
 
   await buildExtension(projectDir)
   const { copied, dest } = await copyChromeExtensionFiles(projectDir, version)
