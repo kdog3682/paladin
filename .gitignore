@@ -8,6 +8,6 @@ dist/
 *.local
 .turbo
 coverage/
-**/__snapshots__/
+**/__snapshots__/*.png
 packages/ui/
 *.db
