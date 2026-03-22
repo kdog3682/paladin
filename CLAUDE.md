@@ -12,9 +12,12 @@ Frontend:
   base shadcn components are imported from @org/ui 
   always Use semantic utility classes.
 
-Artifacts: 
+Artifacts:
   Always create artifacts.
   Include a comment at the top with the path: ie // @org/scaffold/App.tsx
   Keep the artifact title short.
+
+Paths:
+  Google Drive: /mnt/chromeos/GoogleDrive/MyDrive/
 
 

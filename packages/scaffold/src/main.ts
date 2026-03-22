@@ -31,6 +31,7 @@ async function waitForStable(path: string, { interval = 50, timeout = 2000 } = {
 watch(WATCH_DIR, async (event, filename) => {
     if (event !== "rename" || !filename) return
     if (filename.endsWith(".crdownload")) return
+    if (!filename.endsWith(".json")) return
     const filepath = join(WATCH_DIR, filename)
     await waitForStable(filepath)
 
@@ -39,9 +40,13 @@ watch(WATCH_DIR, async (event, filename) => {
     try {
         const raw = await readFile(filepath, "utf-8")
         const conversation = JSON.parse(raw)
+        console.log('top-level keys:', Object.keys(conversation))
         const artifacts = conversation.artifacts ?? []
+        console.log('artifacts:', JSON.stringify(artifacts))
         if (!artifacts.length) return
+        console.log('calling scaffold...')
         const result = await scaffold(artifacts)
+        console.log('scaffold result:', JSON.stringify(result, null, 2))
         const root = result.projectRoot
         const files = result.files.map((f: string) => `  ${f.replace(root + "/", "")}`).join("\n")
         console.log(`scaffolded → ${root}\n${files}`)

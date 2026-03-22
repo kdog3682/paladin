@@ -1,0 +1,109 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`documenter parses a single file 1`] = `
+{
+  "imports": [],
+  "path": "math.ts",
+  "symbols": [
+    {
+      "async": false,
+      "description": "Add two numbers",
+      "exported": true,
+      "kind": "function",
+      "name": "add",
+      "params": [
+        {
+          "name": "a",
+          "optional": false,
+          "type": "number",
+        },
+        {
+          "name": "b",
+          "optional": false,
+          "type": "number",
+        },
+      ],
+      "returns": "number",
+    },
+    {
+      "async": true,
+      "description": "Multiply two numbers",
+      "exported": true,
+      "kind": "function",
+      "name": "multiply",
+      "params": [
+        {
+          "name": "x",
+          "optional": false,
+          "type": "number",
+        },
+        {
+          "name": "y",
+          "optional": false,
+          "type": "number",
+        },
+      ],
+      "returns": "Promise<number>",
+    },
+    {
+      "async": false,
+      "description": "Internal helper",
+      "exported": false,
+      "kind": "function",
+      "name": "clamp",
+      "params": [
+        {
+          "name": "n",
+          "optional": false,
+          "type": "number",
+        },
+        {
+          "name": "min",
+          "optional": false,
+          "type": "number",
+        },
+        {
+          "name": "max",
+          "optional": false,
+          "type": "number",
+        },
+      ],
+      "returns": "number",
+    },
+    {
+      "description": "Precision constant",
+      "exported": true,
+      "kind": "const",
+      "name": "PRECISION",
+      "type": "unknown",
+      "value": "6",
+    },
+  ],
+}
+`;
+
+exports[`documenter builds index from exported symbols 1`] = `
+{
+  "PRECISION": {
+    "file": "math.ts",
+    "kind": "const",
+  },
+  "add": {
+    "file": "math.ts",
+    "kind": "function",
+  },
+  "multiply": {
+    "file": "math.ts",
+    "kind": "function",
+  },
+}
+`;
+
+exports[`documenter formats a single file 1`] = `
+"# /tmp/codeform-documenter-oQfaYL
+
+## math.ts
+fn add(a: number, b: number): number — Add two numbers
+async fn multiply(x: number, y: number): Promise<number> — Multiply two numbers
+"
+`;

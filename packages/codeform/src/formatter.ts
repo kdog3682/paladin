@@ -88,6 +88,109 @@ function collectReferenced(doc: DirectoryDoc): Map<string, SymbolDoc> {
   return result
 }
 
+function paramsTable(p: Param[]): string {
+  if (!p.length) return ""
+  const rows = p.map(x =>
+    `| \`${x.name}${x.optional ? "?" : ""}\` | \`${x.type}\` |`
+  ).join("\n")
+  return "\n| Param | Type |\n|-------|------|\n" + rows
+}
+
+function humanFunction(f: FunctionDoc): string {
+  const mods = [f.async ? "async" : "", "function"].filter(Boolean).join(" ")
+  const sig = `\`\`\`ts\n${mods} ${f.name}${params(f.params)}: ${f.returns}\n\`\`\``
+  const lines = [`### \`${f.name}\``, ""]
+  if (f.description) lines.push(f.description, "")
+  lines.push(sig)
+  const table = paramsTable(f.params)
+  if (table) lines.push(table)
+  return lines.join("\n")
+}
+
+function humanMethod(m: MethodDoc): string {
+  const mods = [
+    m.visibility !== "public" ? m.visibility : "",
+    m.static ? "static" : "",
+    m.getter ? "get" : "",
+    m.setter ? "set" : "",
+    m.async ? "async" : "",
+  ].filter(Boolean).join(" ")
+  const sig = `${mods ? mods + " " : ""}${m.name}${params(m.params)}: ${m.returns}`
+  const lines = [`#### \`${m.name}\``]
+  if (m.description) lines.push("", m.description)
+  lines.push("", `\`\`\`ts\n${sig}\n\`\`\``)
+  const table = paramsTable(m.params)
+  if (table) lines.push(table)
+  return lines.join("\n")
+}
+
+function humanClass(c: ClassDoc): string {
+  const lines = [`### \`${c.name}\``, ""]
+  if (c.description) lines.push(c.description, "")
+  if (c.properties.length) {
+    lines.push("**Properties**", "")
+    lines.push("| Name | Type |", "|------|------|")
+    for (const p of c.properties) {
+      lines.push(`| \`${p.name}${p.optional ? "?" : ""}\` | \`${p.type}\` |`)
+    }
+    lines.push("")
+  }
+  if (c.methods.length) {
+    lines.push("**Methods**", "")
+    for (const m of c.methods) lines.push(humanMethod(m), "")
+  }
+  return lines.join("\n")
+}
+
+function humanType(t: TypeDoc): string {
+  const lines = [`### \`${t.name}\``]
+  if (t.description) lines.push("", t.description)
+  if (t.kind === "enum") {
+    lines.push("", "**Members**", "")
+    for (const p of t.properties) lines.push(`- \`${p.name}\``)
+  } else if (t.properties.length) {
+    lines.push("", "| Field | Type | Required |", "|-------|------|----------|")
+    for (const p of t.properties) {
+      lines.push(`| \`${p.name}\` | \`${p.type}\` | ${p.optional ? "No" : "Yes"} |`)
+    }
+  } else if (t.signature) {
+    lines.push("", `\`\`\`ts\n${t.signature}\n\`\`\``)
+  }
+  return lines.join("\n")
+}
+
+/**
+ * Format a DirectoryDoc into human-readable markdown documentation.
+ */
+export function formatHuman(doc: DirectoryDoc): string {
+  const lines: string[] = [`# ${doc.root}`, ""]
+  const shared = collectReferenced(doc)
+
+  if (shared.size) {
+    lines.push("## Types", "")
+    for (const [, sym] of shared) {
+      if (sym.kind === "type" || sym.kind === "interface" || sym.kind === "enum") {
+        lines.push(humanType(sym as TypeDoc), "")
+      }
+    }
+  }
+
+  for (const file of doc.files) {
+    const exported = file.symbols.filter(s => s.exported)
+    if (!exported.length) continue
+    lines.push(`## ${file.path}`, "")
+    for (const sym of exported) {
+      if (sym.kind === "function") lines.push(humanFunction(sym as FunctionDoc), "")
+      else if (sym.kind === "class") lines.push(humanClass(sym as ClassDoc), "")
+      else if (sym.kind === "type" || sym.kind === "interface" || sym.kind === "enum") {
+        if (!shared.has(sym.name)) lines.push(humanType(sym as TypeDoc), "")
+      }
+    }
+  }
+
+  return lines.join("\n")
+}
+
 /**
  * Format a DirectoryDoc into a concise spec string for agents.
  * Only functions and classes are shown per file.

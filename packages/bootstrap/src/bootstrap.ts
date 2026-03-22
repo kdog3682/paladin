@@ -3,7 +3,7 @@
 // Single self-contained bootstrap executable.
 // Run on the target machine: bun ./bootstrap
 
-import { PAYLOAD } from "./dist/__payload"
+
 import { chmod, mkdir, symlink, unlink } from "node:fs/promises"
 import { join, dirname } from "node:path"
 import { existsSync } from "node:fs"
@@ -13,7 +13,9 @@ const HOME = process.env.HOME!
 const DIRS = {
   dotfiles: join(HOME, "dotfiles"),
   projects: join(HOME, "projects"),
-  downloads: join(HOME, "downloads"),
+  scratch: join(HOME, "scratch"),
+  documents: join(HOME, "documents"),
+  trash: join(HOME, "trash"),
   ssh: join(HOME, ".ssh"),
 }
 
@@ -87,8 +89,9 @@ function commandExists(cmd: string): boolean {
 
 // ---- 1. install tools ----
 
-async function installTools() {
+async function installTools(): Promise<boolean> {
   log("🔧", "Installing tools...\n")
+  let installed = false
 
   const tools = [
     {
@@ -116,6 +119,21 @@ async function installTools() {
       check: "typst",
       cmd: "curl -fsSL https://typst.app/install.sh | sh",
     },
+    {
+      name: "gh",
+      check: "gh",
+      cmd: "curl -sS https://webi.sh/gh | sh",
+    },
+    {
+      name: "jq",
+      check: "jq",
+      cmd: `curl -fsSL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o ${HOME}/.local/bin/jq && chmod +x ${HOME}/.local/bin/jq`,
+    },
+    {
+      name: "rtk",
+      check: "rtk",
+      cmd: `curl -fsSL https://github.com/rtk-ai/rtk/releases/download/v0.31.0/rtk-x86_64-unknown-linux-musl.tar.gz | tar -xz -C /tmp && mv /tmp/rtk ${HOME}/.local/bin/rtk && chmod +x ${HOME}/.local/bin/rtk`,
+    },
   ]
 
   for (const tool of tools) {
@@ -125,14 +143,18 @@ async function installTools() {
       log("  ↓", "Installing " + tool.name + "...")
       run(tool.cmd)
       log("  ✓", tool.name + " installed")
+      installed = true
     }
   }
   console.log()
+  return installed
 }
 
 // ---- 2. restore ssh ----
 
-async function restoreSSH() {
+type Payload = Awaited<typeof import("./dist/__payload")>["PAYLOAD"]
+
+async function restoreSSH(PAYLOAD: Payload) {
   const allExist = Object.keys(PAYLOAD.ssh).every(p => existsSync(join(DIRS.ssh, p)))
   if (allExist) {
     log("🔑", "SSH keys already restored, skipping\n")
@@ -168,7 +190,7 @@ async function restoreSSH() {
 
 // ---- 3. restore + symlink dotfiles ----
 
-async function restoreDotfiles() {
+async function restoreDotfiles(PAYLOAD: Payload) {
   const aliasesLinked = existsSync(SYMLINK_MAP[".bash_aliases"])
   const allLinked = Object.entries(PAYLOAD.dotfiles).every(([p]) => {
     const target = SYMLINK_MAP[p]
@@ -238,7 +260,7 @@ async function restoreDotfiles() {
 
 // ---- 4. write .env.sh ----
 
-async function writeEnvSh() {
+async function writeEnvSh(PAYLOAD: Payload) {
   if (!PAYLOAD.envSh) {
     log("⚠️", "No .env.sh in payload, skipping\n")
     return
@@ -258,7 +280,7 @@ async function writeEnvSh() {
 
 // ---- 5. restore chrome extension ----
 
-async function restoreChromeExt() {
+async function restoreChromeExt(PAYLOAD: Payload) {
   log("🧩", "Restoring Chrome extension...\n")
 
   const parentDir = dirname(CHROME_EXT_DEST)
@@ -287,11 +309,12 @@ async function restoreChromeExt() {
 
 // ---- 6. clone repos ----
 
-async function cloneRepos() {
+async function cloneRepos(): Promise<boolean> {
   log("📡", "Cloning repositories...\n")
   await ensureDir(DIRS.projects)
 
   const repos = ["kdog3682/paladin"]
+  let freshlyCloned = false
 
   for (const repo of repos) {
     const name = repo.split("/").pop()!
@@ -303,9 +326,11 @@ async function cloneRepos() {
       log("  ↓", "Cloning " + repo + "...")
       run("git", ["clone", "git@github.com:" + repo + ".git", dest])
       log("  ✓", repo)
+      if (name === "paladin") freshlyCloned = true
     }
   }
   console.log()
+  return freshlyCloned
 }
 
 // ---- 7. run paladin scaffold ----
@@ -350,17 +375,22 @@ async function main() {
     await ensureDir(dir)
   }
 
-  await installTools()
-  await restoreSSH()
-  await restoreDotfiles()
-  await writeEnvSh()
-  await restoreChromeExt()
-  await cloneRepos()
-  runScaffold()
+  const toolsInstalled = await installTools()
+  const { PAYLOAD } = await import("./dist/__payload").catch(() => ({
+    PAYLOAD: { ssh: {}, dotfiles: {}, chromeExt: {}, envSh: "" } as const,
+  }))
+  await restoreSSH(PAYLOAD)
+  await restoreDotfiles(PAYLOAD)
+  await writeEnvSh(PAYLOAD)
+  await restoreChromeExt(PAYLOAD)
+  const freshlyCloned = await cloneRepos()
+  if (freshlyCloned) runScaffold()
 
   console.log("─".repeat(40))
   log("🎉", "Bootstrap complete!\n")
-  log("  ", "Restart your shell or run: source ~/.bashrc\n")
+  if (toolsInstalled || freshlyCloned) {
+    log("  ", "Restart your shell or run: source ~/.bashrc\n")
+  }
 }
 
 main()

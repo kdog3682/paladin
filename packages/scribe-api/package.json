@@ -1,0 +1,16 @@
+{
+  "name": "@paladin/scribe-api",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.12.8",
+    "nanoid": "^5.1.7"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10"
+  }
+}

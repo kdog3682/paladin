@@ -1,0 +1,1600 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`analyzeFile parses doc from kitchen-sink 1`] = `
+{
+  "imports": [
+    {
+      "source": "zod",
+      "symbols": [
+        "z",
+      ],
+    },
+    {
+      "source": "hono",
+      "symbols": [
+        "Hono",
+      ],
+    },
+    {
+      "source": "drizzle-orm",
+      "symbols": [
+        "eq",
+      ],
+    },
+    {
+      "source": "hono",
+      "symbols": [
+        "Context",
+      ],
+    },
+    {
+      "source": "@org/db/schema",
+      "symbols": [
+        "users",
+      ],
+    },
+    {
+      "source": "@org/utils/logger",
+      "symbols": [
+        "createLogger",
+      ],
+    },
+    {
+      "source": "../../middleware/validation",
+      "symbols": [
+        "validateRequest",
+      ],
+    },
+    {
+      "source": "../types",
+      "symbols": [
+        "AppEnv",
+      ],
+    },
+  ],
+  "pathComment": "@org/scaffold/src/kitchen-sink.ts",
+  "statements": [
+    {
+      "lineRange": [
+        95,
+        96,
+      ],
+      "source": "bus.emit("userJoined", { id: "1", name: "Ada Lovelace", email: "ada@example.com", role: "admin" })",
+    },
+    {
+      "lineRange": [
+        96,
+        97,
+      ],
+      "source": "unsub()",
+    },
+  ],
+  "symbols": [
+    {
+      "docstr": "Represents the lifecycle state of an async operation.",
+      "exported": false,
+      "kind": "type",
+      "lineRange": [
+        12,
+        14,
+      ],
+      "name": "Status",
+      "properties": [],
+      "signature": "type Status = "idle" | "loading" | "success" | "error"",
+    },
+    {
+      "docstr": "Core user entity returned by the API.",
+      "exported": false,
+      "kind": "interface",
+      "lineRange": [
+        15,
+        22,
+      ],
+      "name": "User",
+      "properties": [
+        {
+          "docstr": undefined,
+          "name": "id",
+          "optional": false,
+          "type": "string",
+        },
+        {
+          "docstr": undefined,
+          "name": "name",
+          "optional": false,
+          "type": "string",
+        },
+        {
+          "docstr": undefined,
+          "name": "email",
+          "optional": false,
+          "type": "string",
+        },
+        {
+          "docstr": undefined,
+          "name": "role",
+          "optional": false,
+          "type": ""admin" | "member" | "guest"",
+        },
+      ],
+      "signature": undefined,
+    },
+    {
+      "docstr": "Generic wrapper for all API responses.",
+      "exported": false,
+      "kind": "interface",
+      "lineRange": [
+        23,
+        29,
+      ],
+      "name": "ApiResponse",
+      "properties": [
+        {
+          "docstr": undefined,
+          "name": "data",
+          "optional": false,
+          "type": "T",
+        },
+        {
+          "docstr": undefined,
+          "name": "status",
+          "optional": false,
+          "type": "Status",
+        },
+        {
+          "docstr": undefined,
+          "name": "meta",
+          "optional": true,
+          "type": "{ page: number, total: number }",
+        },
+      ],
+      "signature": undefined,
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "enum",
+      "lineRange": [
+        31,
+        37,
+      ],
+      "name": "LogLevel",
+      "properties": [],
+      "signature": undefined,
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        39,
+        40,
+      ],
+      "name": "MAX_RETRIES",
+      "type": "unknown",
+      "value": "3",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        40,
+        41,
+      ],
+      "name": "BASE_URL",
+      "type": "unknown",
+      "value": ""https://api.example.com" as const",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        43,
+        45,
+      ],
+      "name": "sleep",
+      "type": "unknown",
+      "value": 
+"(ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))"
+,
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        46,
+        48,
+      ],
+      "name": "slugify",
+      "type": "unknown",
+      "value": 
+"(text: string): string =>
+  text.toLowerCase().replace(/\\s+/g, "-").replace(/[^a-z0-9-]/g, "")"
+,
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        49,
+        51,
+      ],
+      "name": "clamp",
+      "type": "unknown",
+      "value": 
+"(value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max)"
+,
+    },
+    {
+      "docstr": "Type-safe pub/sub event bus with automatic cleanup.",
+      "exported": false,
+      "kind": "class",
+      "lineRange": [
+        53,
+        67,
+      ],
+      "methods": [
+        {
+          "async": false,
+          "docstr": "",
+          "getter": false,
+          "kind": "method",
+          "lineRange": [
+            57,
+            62,
+          ],
+          "name": "on",
+          "params": [
+            {
+              "name": "event",
+              "optional": false,
+              "type": "K",
+            },
+            {
+              "name": "handler",
+              "optional": false,
+              "type": "(payload: TEvents[K]) => void",
+            },
+          ],
+          "returns": "void",
+          "setter": false,
+          "static": false,
+          "visibility": "public",
+        },
+        {
+          "async": false,
+          "docstr": "",
+          "getter": false,
+          "kind": "method",
+          "lineRange": [
+            63,
+            66,
+          ],
+          "name": "emit",
+          "params": [
+            {
+              "name": "event",
+              "optional": false,
+              "type": "K",
+            },
+            {
+              "name": "payload",
+              "optional": false,
+              "type": "TEvents[K]",
+            },
+          ],
+          "returns": "void",
+          "setter": false,
+          "static": false,
+          "visibility": "public",
+        },
+      ],
+      "name": "EventBus",
+      "properties": [
+        {
+          "name": "listeners",
+          "optional": false,
+          "type": "unknown",
+        },
+      ],
+    },
+    {
+      "async": true,
+      "docstr": "",
+      "exported": false,
+      "kind": "function",
+      "lineRange": [
+        69,
+        77,
+      ],
+      "name": "fetchWithRetry",
+      "params": [
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string",
+        },
+        {
+          "name": "retries",
+          "optional": false,
+          "type": "unknown",
+        },
+      ],
+      "returns": "Promise<ApiResponse<T>>",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        79,
+        81,
+      ],
+      "name": "isUser",
+      "type": "unknown",
+      "value": 
+"(value: unknown): value is User =>
+  typeof value === "object" && value !== null && "email" in value"
+,
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "type",
+      "lineRange": [
+        83,
+        84,
+      ],
+      "name": "Readonly",
+      "properties": [],
+      "signature": "type Readonly<T> = { readonly [K in keyof T]: T[K] }",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "type",
+      "lineRange": [
+        84,
+        85,
+      ],
+      "name": "PickByType",
+      "properties": [],
+      "signature": "type PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "type",
+      "lineRange": [
+        86,
+        87,
+      ],
+      "name": "UserStringFields",
+      "properties": [],
+      "signature": "type UserStringFields = PickByType<User, string> // { id, name, email }",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        89,
+        90,
+      ],
+      "name": "bus",
+      "type": "unknown",
+      "value": "new EventBus<{ userJoined: User, log: string }>()",
+    },
+    {
+      "docstr": "",
+      "exported": false,
+      "kind": "const",
+      "lineRange": [
+        91,
+        94,
+      ],
+      "name": "unsub",
+      "type": "unknown",
+      "value": 
+"bus.on("userJoined", (user) => {
+  console.log(\`[\${LogLevel.Info}] \${user.name} (\${user.role}) joined\`)
+})"
+,
+    },
+  ],
+}
+`;
+
+exports[`analyzeFile builds chunks from kitchen-sink 1`] = `
+[
+  {
+    "id": "imports",
+    "kind": "imports",
+    "label": "Imports",
+    "lineRange": [
+      0,
+      0,
+    ],
+    "longForm": 
+"import { z } from "zod"
+import { Hono, Context } from "hono"
+import { eq } from "drizzle-orm"
+import { users } from "@org/db/schema"
+import { createLogger } from "@org/utils/logger"
+import { validateRequest } from "../../middleware/validation"
+import { AppEnv } from "../types""
+,
+    "shortForm": {
+      "signature": 
+"import { z } from "zod"
+import { Hono, Context } from "hono"
+import { eq } from "drizzle-orm"
+import { users } from "@org/db/schema"
+import { createLogger } from "@org/utils/logger"
+import { validateRequest } from "../../middleware/validation"
+import { AppEnv } from "../types""
+,
+    },
+  },
+  {
+    "id": "type-1-Status",
+    "kind": "type",
+    "label": "Status",
+    "lineRange": [
+      12,
+      14,
+    ],
+    "longForm": 
+"/** Represents the lifecycle state of an async operation. */
+type Status = "idle" | "loading" | "success" | "error""
+,
+    "shortForm": {
+      "docstr": "Represents the lifecycle state of an async operation.",
+      "signature": "type Status = "idle" | "loading" | "success" | "error"",
+    },
+  },
+  {
+    "id": "type-2-User",
+    "kind": "type",
+    "label": "User",
+    "lineRange": [
+      15,
+      22,
+    ],
+    "longForm": 
+"/** Core user entity returned by the API. */
+interface User {
+  id: string
+  name: string
+  email: string
+  role: "admin" | "member" | "guest"
+}"
+,
+    "shortForm": {
+      "docstr": "Core user entity returned by the API.",
+      "signature": 
+"interface User {
+  id: str
+  name: str
+  email: str
+  role: "admin" | "member" | "guest"
+}"
+,
+    },
+  },
+  {
+    "id": "type-3-ApiResponse",
+    "kind": "type",
+    "label": "ApiResponse",
+    "lineRange": [
+      23,
+      29,
+    ],
+    "longForm": 
+"/** Generic wrapper for all API responses. */
+interface ApiResponse<T> {
+  data: T
+  status: Status
+  meta?: { page: number, total: number }
+}"
+,
+    "shortForm": {
+      "docstr": "Generic wrapper for all API responses.",
+      "signature": "interface ApiResponse { data: T; status: Status; meta?: { page: num, total: num } }",
+    },
+  },
+  {
+    "id": "type-4-LogLevel",
+    "kind": "type",
+    "label": "LogLevel",
+    "lineRange": [
+      31,
+      37,
+    ],
+    "longForm": 
+"enum LogLevel {
+  Debug = "DEBUG",
+  Info = "INFO",
+  Warn = "WARN",
+  Error = "ERROR",
+}"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "enum LogLevel",
+    },
+  },
+  {
+    "id": "type-5-Readonly",
+    "kind": "type",
+    "label": "Readonly",
+    "lineRange": [
+      83,
+      84,
+    ],
+    "longForm": "type Readonly<T> = { readonly [K in keyof T]: T[K] }",
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "type Readonly<T> = { readonly [K in keyof T]: T[K] }",
+    },
+  },
+  {
+    "id": "type-6-PickByType",
+    "kind": "type",
+    "label": "PickByType",
+    "lineRange": [
+      84,
+      85,
+    ],
+    "longForm": "type PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }",
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "type PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }",
+    },
+  },
+  {
+    "id": "type-7-UserStringFields",
+    "kind": "type",
+    "label": "UserStringFields",
+    "lineRange": [
+      86,
+      87,
+    ],
+    "longForm": "type UserStringFields = PickByType<User, string> // { id, name, email }",
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "type UserStringFields = PickByType<User, str> // { id, name, email }",
+    },
+  },
+  {
+    "id": "const-1-MAX_RETRIES",
+    "kind": "const",
+    "label": "MAX_RETRIES",
+    "lineRange": [
+      39,
+      40,
+    ],
+    "longForm": "const MAX_RETRIES = 3",
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "const MAX_RETRIES = 3",
+    },
+  },
+  {
+    "id": "const-2-BASE_URL",
+    "kind": "const",
+    "label": "BASE_URL",
+    "lineRange": [
+      40,
+      41,
+    ],
+    "longForm": "const BASE_URL = "https://api.example.com" as const",
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "const BASE_URL = "https://api.example.com" as const",
+    },
+  },
+  {
+    "id": "const-3-sleep",
+    "kind": "const",
+    "label": "sleep",
+    "lineRange": [
+      43,
+      45,
+    ],
+    "longForm": 
+"const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": 
+"const sleep = (ms: number): Promise<void> =>
+  ne ... esolve) => setTimeout(resolve, ms))"
+,
+    },
+  },
+  {
+    "id": "const-4-slugify",
+    "kind": "const",
+    "label": "slugify",
+    "lineRange": [
+      46,
+      48,
+    ],
+    "longForm": 
+"const slugify = (text: string): string =>
+  text.toLowerCase().replace(/\\s+/g, "-").replace(/[^a-z0-9-]/g, "")"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": 
+"const slugify = (text: string): string =>
+  text.t ... g, "-").replace(/[^a-z0-9-]/g, "")"
+,
+    },
+  },
+  {
+    "id": "const-5-clamp",
+    "kind": "const",
+    "label": "clamp",
+    "lineRange": [
+      49,
+      51,
+    ],
+    "longForm": 
+"const clamp = (value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max)"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "const clamp = (value: number, min: number, max: n ... Math.min(Math.max(value, min), max)",
+    },
+  },
+  {
+    "id": "const-6-isUser",
+    "kind": "const",
+    "label": "isUser",
+    "lineRange": [
+      79,
+      81,
+    ],
+    "longForm": 
+"const isUser = (value: unknown): value is User =>
+  typeof value === "object" && value !== null && "email" in value"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": 
+"const isUser = (value: unknown): value is User =>
+ ...  value !== null && "email" in value"
+,
+    },
+  },
+  {
+    "id": "const-7-bus",
+    "kind": "const",
+    "label": "bus",
+    "lineRange": [
+      89,
+      90,
+    ],
+    "longForm": "const bus = new EventBus<{ userJoined: User, log: string }>()",
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "const bus = new EventBus<{ userJoined: User, log: string }>()",
+    },
+  },
+  {
+    "id": "const-8-unsub",
+    "kind": "const",
+    "label": "unsub",
+    "lineRange": [
+      91,
+      94,
+    ],
+    "longForm": 
+"const unsub = bus.on("userJoined", (user) => {
+  console.log(\`[\${LogLevel.Info}] \${user.name} (\${user.role}) joined\`)
+})"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": 
+"const unsub = bus.on("userJoined", (user) => {
+   ... er.name} (\${user.role}) joined\`)
+})"
+,
+    },
+  },
+  {
+    "id": "function-1-fetchWithRetry",
+    "kind": "function",
+    "label": "fetchWithRetry",
+    "lineRange": [
+      69,
+      77,
+    ],
+    "longForm": 
+"async function fetchWithRetry<T>(url: string, retries = MAX_RETRIES): Promise<ApiResponse<T>> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const res = await fetch(\`\${BASE_URL}\${url}\`)
+    if (res.ok) return { data: await res.json() as T, status: "success" }
+    if (attempt < retries) await sleep(2 ** attempt * 100)
+  }
+  throw new Error(\`Failed after \${retries} retries\`)
+}"
+,
+    "shortForm": {
+      "docstr": undefined,
+      "signature": "async fn fetchWithRetry(url: str, retries): P<ApiResponse<T>>",
+    },
+  },
+  {
+    "id": "class-1-EventBus",
+    "kind": "class",
+    "label": "EventBus",
+    "lineRange": [
+      53,
+      67,
+    ],
+    "longForm": 
+"/** Type-safe pub/sub event bus with automatic cleanup. */
+class EventBus<TEvents extends Record<string, unknown>> {
+  private listeners = new Map<keyof TEvents, Set<(payload: any) => void>>()
+
+  on<K extends keyof TEvents>(event: K, handler: (payload: TEvents[K]) => void) {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set())
+    this.listeners.get(event)!.add(handler)
+    return () => this.listeners.get(event)?.delete(handler)
+  }
+
+  emit<K extends keyof TEvents>(event: K, payload: TEvents[K]) {
+    this.listeners.get(event)?.forEach((fn) => fn(payload))
+  }
+}"
+,
+    "shortForm": {
+      "docstr": "Type-safe pub/sub event bus with automatic cleanup.",
+      "signature": 
+"class EventBus {
+  listeners
+  on(event: K, handler: (payload: TEvents[K]) => void)
+  emit(event: K, payload: TEvents[K])
+}"
+,
+    },
+  },
+  {
+    "id": "statement-0",
+    "kind": "statement",
+    "label": "statement",
+    "lineRange": [
+      95,
+      96,
+    ],
+    "longForm": "bus.emit("userJoined", { id: "1", name: "Ada Lovelace", email: "ada@example.com", role: "admin" })",
+    "shortForm": {
+      "signature": "bus.emit("userJoined", { id: "1", name: "Ada Lovelace", email: "ada@example.com", role: "a ...",
+    },
+  },
+  {
+    "id": "statement-1",
+    "kind": "statement",
+    "label": "statement",
+    "lineRange": [
+      96,
+      97,
+    ],
+    "longForm": "unsub()",
+    "shortForm": {
+      "signature": "unsub()",
+    },
+  },
+]
+`;
+
+exports[`analyzeFile full analysis of kitchen-sink 1`] = `
+{
+  "chunks": [
+    {
+      "id": "imports",
+      "kind": "imports",
+      "label": "Imports",
+      "lineRange": [
+        0,
+        0,
+      ],
+      "longForm": 
+"import { z } from "zod"
+import { Hono, Context } from "hono"
+import { eq } from "drizzle-orm"
+import { users } from "@org/db/schema"
+import { createLogger } from "@org/utils/logger"
+import { validateRequest } from "../../middleware/validation"
+import { AppEnv } from "../types""
+,
+      "shortForm": {
+        "signature": 
+"import { z } from "zod"
+import { Hono, Context } from "hono"
+import { eq } from "drizzle-orm"
+import { users } from "@org/db/schema"
+import { createLogger } from "@org/utils/logger"
+import { validateRequest } from "../../middleware/validation"
+import { AppEnv } from "../types""
+,
+      },
+    },
+    {
+      "id": "type-1-Status",
+      "kind": "type",
+      "label": "Status",
+      "lineRange": [
+        12,
+        14,
+      ],
+      "longForm": 
+"/** Represents the lifecycle state of an async operation. */
+type Status = "idle" | "loading" | "success" | "error""
+,
+      "shortForm": {
+        "docstr": "Represents the lifecycle state of an async operation.",
+        "signature": "type Status = "idle" | "loading" | "success" | "error"",
+      },
+    },
+    {
+      "id": "type-2-User",
+      "kind": "type",
+      "label": "User",
+      "lineRange": [
+        15,
+        22,
+      ],
+      "longForm": 
+"/** Core user entity returned by the API. */
+interface User {
+  id: string
+  name: string
+  email: string
+  role: "admin" | "member" | "guest"
+}"
+,
+      "shortForm": {
+        "docstr": "Core user entity returned by the API.",
+        "signature": 
+"interface User {
+  id: str
+  name: str
+  email: str
+  role: "admin" | "member" | "guest"
+}"
+,
+      },
+    },
+    {
+      "id": "type-3-ApiResponse",
+      "kind": "type",
+      "label": "ApiResponse",
+      "lineRange": [
+        23,
+        29,
+      ],
+      "longForm": 
+"/** Generic wrapper for all API responses. */
+interface ApiResponse<T> {
+  data: T
+  status: Status
+  meta?: { page: number, total: number }
+}"
+,
+      "shortForm": {
+        "docstr": "Generic wrapper for all API responses.",
+        "signature": "interface ApiResponse { data: T; status: Status; meta?: { page: num, total: num } }",
+      },
+    },
+    {
+      "id": "type-4-LogLevel",
+      "kind": "type",
+      "label": "LogLevel",
+      "lineRange": [
+        31,
+        37,
+      ],
+      "longForm": 
+"enum LogLevel {
+  Debug = "DEBUG",
+  Info = "INFO",
+  Warn = "WARN",
+  Error = "ERROR",
+}"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "enum LogLevel",
+      },
+    },
+    {
+      "id": "type-5-Readonly",
+      "kind": "type",
+      "label": "Readonly",
+      "lineRange": [
+        83,
+        84,
+      ],
+      "longForm": "type Readonly<T> = { readonly [K in keyof T]: T[K] }",
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "type Readonly<T> = { readonly [K in keyof T]: T[K] }",
+      },
+    },
+    {
+      "id": "type-6-PickByType",
+      "kind": "type",
+      "label": "PickByType",
+      "lineRange": [
+        84,
+        85,
+      ],
+      "longForm": "type PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }",
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "type PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }",
+      },
+    },
+    {
+      "id": "type-7-UserStringFields",
+      "kind": "type",
+      "label": "UserStringFields",
+      "lineRange": [
+        86,
+        87,
+      ],
+      "longForm": "type UserStringFields = PickByType<User, string> // { id, name, email }",
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "type UserStringFields = PickByType<User, str> // { id, name, email }",
+      },
+    },
+    {
+      "id": "const-1-MAX_RETRIES",
+      "kind": "const",
+      "label": "MAX_RETRIES",
+      "lineRange": [
+        39,
+        40,
+      ],
+      "longForm": "const MAX_RETRIES = 3",
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "const MAX_RETRIES = 3",
+      },
+    },
+    {
+      "id": "const-2-BASE_URL",
+      "kind": "const",
+      "label": "BASE_URL",
+      "lineRange": [
+        40,
+        41,
+      ],
+      "longForm": "const BASE_URL = "https://api.example.com" as const",
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "const BASE_URL = "https://api.example.com" as const",
+      },
+    },
+    {
+      "id": "const-3-sleep",
+      "kind": "const",
+      "label": "sleep",
+      "lineRange": [
+        43,
+        45,
+      ],
+      "longForm": 
+"const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": 
+"const sleep = (ms: number): Promise<void> =>
+  ne ... esolve) => setTimeout(resolve, ms))"
+,
+      },
+    },
+    {
+      "id": "const-4-slugify",
+      "kind": "const",
+      "label": "slugify",
+      "lineRange": [
+        46,
+        48,
+      ],
+      "longForm": 
+"const slugify = (text: string): string =>
+  text.toLowerCase().replace(/\\s+/g, "-").replace(/[^a-z0-9-]/g, "")"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": 
+"const slugify = (text: string): string =>
+  text.t ... g, "-").replace(/[^a-z0-9-]/g, "")"
+,
+      },
+    },
+    {
+      "id": "const-5-clamp",
+      "kind": "const",
+      "label": "clamp",
+      "lineRange": [
+        49,
+        51,
+      ],
+      "longForm": 
+"const clamp = (value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max)"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "const clamp = (value: number, min: number, max: n ... Math.min(Math.max(value, min), max)",
+      },
+    },
+    {
+      "id": "const-6-isUser",
+      "kind": "const",
+      "label": "isUser",
+      "lineRange": [
+        79,
+        81,
+      ],
+      "longForm": 
+"const isUser = (value: unknown): value is User =>
+  typeof value === "object" && value !== null && "email" in value"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": 
+"const isUser = (value: unknown): value is User =>
+ ...  value !== null && "email" in value"
+,
+      },
+    },
+    {
+      "id": "const-7-bus",
+      "kind": "const",
+      "label": "bus",
+      "lineRange": [
+        89,
+        90,
+      ],
+      "longForm": "const bus = new EventBus<{ userJoined: User, log: string }>()",
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "const bus = new EventBus<{ userJoined: User, log: string }>()",
+      },
+    },
+    {
+      "id": "const-8-unsub",
+      "kind": "const",
+      "label": "unsub",
+      "lineRange": [
+        91,
+        94,
+      ],
+      "longForm": 
+"const unsub = bus.on("userJoined", (user) => {
+  console.log(\`[\${LogLevel.Info}] \${user.name} (\${user.role}) joined\`)
+})"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": 
+"const unsub = bus.on("userJoined", (user) => {
+   ... er.name} (\${user.role}) joined\`)
+})"
+,
+      },
+    },
+    {
+      "id": "function-1-fetchWithRetry",
+      "kind": "function",
+      "label": "fetchWithRetry",
+      "lineRange": [
+        69,
+        77,
+      ],
+      "longForm": 
+"async function fetchWithRetry<T>(url: string, retries = MAX_RETRIES): Promise<ApiResponse<T>> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const res = await fetch(\`\${BASE_URL}\${url}\`)
+    if (res.ok) return { data: await res.json() as T, status: "success" }
+    if (attempt < retries) await sleep(2 ** attempt * 100)
+  }
+  throw new Error(\`Failed after \${retries} retries\`)
+}"
+,
+      "shortForm": {
+        "docstr": undefined,
+        "signature": "async fn fetchWithRetry(url: str, retries): P<ApiResponse<T>>",
+      },
+    },
+    {
+      "id": "class-1-EventBus",
+      "kind": "class",
+      "label": "EventBus",
+      "lineRange": [
+        53,
+        67,
+      ],
+      "longForm": 
+"/** Type-safe pub/sub event bus with automatic cleanup. */
+class EventBus<TEvents extends Record<string, unknown>> {
+  private listeners = new Map<keyof TEvents, Set<(payload: any) => void>>()
+
+  on<K extends keyof TEvents>(event: K, handler: (payload: TEvents[K]) => void) {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set())
+    this.listeners.get(event)!.add(handler)
+    return () => this.listeners.get(event)?.delete(handler)
+  }
+
+  emit<K extends keyof TEvents>(event: K, payload: TEvents[K]) {
+    this.listeners.get(event)?.forEach((fn) => fn(payload))
+  }
+}"
+,
+      "shortForm": {
+        "docstr": "Type-safe pub/sub event bus with automatic cleanup.",
+        "signature": 
+"class EventBus {
+  listeners
+  on(event: K, handler: (payload: TEvents[K]) => void)
+  emit(event: K, payload: TEvents[K])
+}"
+,
+      },
+    },
+    {
+      "id": "statement-0",
+      "kind": "statement",
+      "label": "statement",
+      "lineRange": [
+        95,
+        96,
+      ],
+      "longForm": "bus.emit("userJoined", { id: "1", name: "Ada Lovelace", email: "ada@example.com", role: "admin" })",
+      "shortForm": {
+        "signature": "bus.emit("userJoined", { id: "1", name: "Ada Lovelace", email: "ada@example.com", role: "a ...",
+      },
+    },
+    {
+      "id": "statement-1",
+      "kind": "statement",
+      "label": "statement",
+      "lineRange": [
+        96,
+        97,
+      ],
+      "longForm": "unsub()",
+      "shortForm": {
+        "signature": "unsub()",
+      },
+    },
+  ],
+  "doc": {
+    "imports": [
+      {
+        "source": "zod",
+        "symbols": [
+          "z",
+        ],
+      },
+      {
+        "source": "hono",
+        "symbols": [
+          "Hono",
+        ],
+      },
+      {
+        "source": "drizzle-orm",
+        "symbols": [
+          "eq",
+        ],
+      },
+      {
+        "source": "hono",
+        "symbols": [
+          "Context",
+        ],
+      },
+      {
+        "source": "@org/db/schema",
+        "symbols": [
+          "users",
+        ],
+      },
+      {
+        "source": "@org/utils/logger",
+        "symbols": [
+          "createLogger",
+        ],
+      },
+      {
+        "source": "../../middleware/validation",
+        "symbols": [
+          "validateRequest",
+        ],
+      },
+      {
+        "source": "../types",
+        "symbols": [
+          "AppEnv",
+        ],
+      },
+    ],
+    "pathComment": "@org/scaffold/src/kitchen-sink.ts",
+    "statements": [
+      {
+        "lineRange": [
+          95,
+          96,
+        ],
+        "source": "bus.emit("userJoined", { id: "1", name: "Ada Lovelace", email: "ada@example.com", role: "admin" })",
+      },
+      {
+        "lineRange": [
+          96,
+          97,
+        ],
+        "source": "unsub()",
+      },
+    ],
+    "symbols": [
+      {
+        "docstr": "Represents the lifecycle state of an async operation.",
+        "exported": false,
+        "kind": "type",
+        "lineRange": [
+          12,
+          14,
+        ],
+        "name": "Status",
+        "properties": [],
+        "signature": "type Status = "idle" | "loading" | "success" | "error"",
+      },
+      {
+        "docstr": "Core user entity returned by the API.",
+        "exported": false,
+        "kind": "interface",
+        "lineRange": [
+          15,
+          22,
+        ],
+        "name": "User",
+        "properties": [
+          {
+            "docstr": undefined,
+            "name": "id",
+            "optional": false,
+            "type": "string",
+          },
+          {
+            "docstr": undefined,
+            "name": "name",
+            "optional": false,
+            "type": "string",
+          },
+          {
+            "docstr": undefined,
+            "name": "email",
+            "optional": false,
+            "type": "string",
+          },
+          {
+            "docstr": undefined,
+            "name": "role",
+            "optional": false,
+            "type": ""admin" | "member" | "guest"",
+          },
+        ],
+        "signature": undefined,
+      },
+      {
+        "docstr": "Generic wrapper for all API responses.",
+        "exported": false,
+        "kind": "interface",
+        "lineRange": [
+          23,
+          29,
+        ],
+        "name": "ApiResponse",
+        "properties": [
+          {
+            "docstr": undefined,
+            "name": "data",
+            "optional": false,
+            "type": "T",
+          },
+          {
+            "docstr": undefined,
+            "name": "status",
+            "optional": false,
+            "type": "Status",
+          },
+          {
+            "docstr": undefined,
+            "name": "meta",
+            "optional": true,
+            "type": "{ page: number, total: number }",
+          },
+        ],
+        "signature": undefined,
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "enum",
+        "lineRange": [
+          31,
+          37,
+        ],
+        "name": "LogLevel",
+        "properties": [],
+        "signature": undefined,
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          39,
+          40,
+        ],
+        "name": "MAX_RETRIES",
+        "type": "unknown",
+        "value": "3",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          40,
+          41,
+        ],
+        "name": "BASE_URL",
+        "type": "unknown",
+        "value": ""https://api.example.com" as const",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          43,
+          45,
+        ],
+        "name": "sleep",
+        "type": "unknown",
+        "value": 
+"(ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))"
+,
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          46,
+          48,
+        ],
+        "name": "slugify",
+        "type": "unknown",
+        "value": 
+"(text: string): string =>
+  text.toLowerCase().replace(/\\s+/g, "-").replace(/[^a-z0-9-]/g, "")"
+,
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          49,
+          51,
+        ],
+        "name": "clamp",
+        "type": "unknown",
+        "value": 
+"(value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max)"
+,
+      },
+      {
+        "docstr": "Type-safe pub/sub event bus with automatic cleanup.",
+        "exported": false,
+        "kind": "class",
+        "lineRange": [
+          53,
+          67,
+        ],
+        "methods": [
+          {
+            "async": false,
+            "docstr": "",
+            "getter": false,
+            "kind": "method",
+            "lineRange": [
+              57,
+              62,
+            ],
+            "name": "on",
+            "params": [
+              {
+                "name": "event",
+                "optional": false,
+                "type": "K",
+              },
+              {
+                "name": "handler",
+                "optional": false,
+                "type": "(payload: TEvents[K]) => void",
+              },
+            ],
+            "returns": "void",
+            "setter": false,
+            "static": false,
+            "visibility": "public",
+          },
+          {
+            "async": false,
+            "docstr": "",
+            "getter": false,
+            "kind": "method",
+            "lineRange": [
+              63,
+              66,
+            ],
+            "name": "emit",
+            "params": [
+              {
+                "name": "event",
+                "optional": false,
+                "type": "K",
+              },
+              {
+                "name": "payload",
+                "optional": false,
+                "type": "TEvents[K]",
+              },
+            ],
+            "returns": "void",
+            "setter": false,
+            "static": false,
+            "visibility": "public",
+          },
+        ],
+        "name": "EventBus",
+        "properties": [
+          {
+            "name": "listeners",
+            "optional": false,
+            "type": "unknown",
+          },
+        ],
+      },
+      {
+        "async": true,
+        "docstr": "",
+        "exported": false,
+        "kind": "function",
+        "lineRange": [
+          69,
+          77,
+        ],
+        "name": "fetchWithRetry",
+        "params": [
+          {
+            "name": "url",
+            "optional": false,
+            "type": "string",
+          },
+          {
+            "name": "retries",
+            "optional": false,
+            "type": "unknown",
+          },
+        ],
+        "returns": "Promise<ApiResponse<T>>",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          79,
+          81,
+        ],
+        "name": "isUser",
+        "type": "unknown",
+        "value": 
+"(value: unknown): value is User =>
+  typeof value === "object" && value !== null && "email" in value"
+,
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "type",
+        "lineRange": [
+          83,
+          84,
+        ],
+        "name": "Readonly",
+        "properties": [],
+        "signature": "type Readonly<T> = { readonly [K in keyof T]: T[K] }",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "type",
+        "lineRange": [
+          84,
+          85,
+        ],
+        "name": "PickByType",
+        "properties": [],
+        "signature": "type PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "type",
+        "lineRange": [
+          86,
+          87,
+        ],
+        "name": "UserStringFields",
+        "properties": [],
+        "signature": "type UserStringFields = PickByType<User, string> // { id, name, email }",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          89,
+          90,
+        ],
+        "name": "bus",
+        "type": "unknown",
+        "value": "new EventBus<{ userJoined: User, log: string }>()",
+      },
+      {
+        "docstr": "",
+        "exported": false,
+        "kind": "const",
+        "lineRange": [
+          91,
+          94,
+        ],
+        "name": "unsub",
+        "type": "unknown",
+        "value": 
+"bus.on("userJoined", (user) => {
+  console.log(\`[\${LogLevel.Info}] \${user.name} (\${user.role}) joined\`)
+})"
+,
+      },
+    ],
+  },
+}
+`;

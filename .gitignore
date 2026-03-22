@@ -9,3 +9,4 @@ dist/
 .turbo
 coverage/
 packages/ui/
+*.db

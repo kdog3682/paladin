@@ -191,54 +191,5 @@ async function walk(dir: string, patterns: RegExp[], base = dir): Promise<{ rel:
 // creates templates for the root (config files only) and for each
 // workspace package that matches a bootstrapRef key.
 
-const PROCEED = false
-if (import.meta.main && PROCEED) {
-    const root = join(homedir(), "projects", "paladin")
-    const org = "@paladin"
-    const dryrun: "paths" | "content" | false = "paths"
-
-    // root template — just the config files that define the monorepo
-    // await createTemplate({
-    //   dir: root,
-    //   key: "typescript-monorepo-root",
-    //   org,
-    //   dryrun,
-    //   files: [
-    //   'tsconfig.json', 'package.json'
-    //   ],
-    // })
-
-    const exclude = ['/components/', '/lib/', 'hooks', '/stores/', '/store/']
-    await createTemplate({
-        dir: join(root, 'packages/web'),
-        key: "typescript-monorepo-root",
-        org,
-        // dryrun,
-        exclude: ['/components/']
-    })
-
-    // package templates — full directory walk per ref
-    const refs: Record<string, string> = {
-        // web: "packages/web",
-        // api: "packages/api",
-        // ui: "packages/ui",
-    }
-
-    for (const [key, rel] of Object.entries(refs)) {
-        continue
-        await createTemplate({
-            dir: join(root, rel),
-            key,
-            org,
-            dryrun,
-            exclude: ['/src/']
-        })
-    }
-
-    console.log("\ndone")
-}
-
-
 // ~/.local/share/paladin/templates/web.txt
 // ~/.local/share/paladin/templates/python-root.txt
-// ~/.local/share/paladin/templates/typescript-monorepo-root.txt

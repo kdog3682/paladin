@@ -55,7 +55,7 @@ export async function generate(dir: string): Promise<string> {
 }
 
 export { document } from "./documenter"
-export { format } from "./formatter"
+export { format, formatHuman } from "./formatter"
 export { FileCache } from "./cache"
 export type * from "./documenter.types"
 

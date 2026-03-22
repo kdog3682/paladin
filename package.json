@@ -15,7 +15,11 @@
     "lint": "tsgo --noEmit",
     "scaffold": "bun run --filter '@paladin/scaffold' start",
     "dev:scaffold": "bun run --filter '@paladin/scaffold' dev",
-    "bootstrap": "bun run --filter '@paladin/bootstrap' start"
+    "bootstrap": "bun run --filter '@paladin/bootstrap' start",
+    "bootstrap:local": "bun run --filter '@paladin/bootstrap' run",
+    "dev:scribe": "bun run --filter '@paladin/{scribe-ui,scribe-api}' dev",
+    "dev:scribe-ui": "bun run --filter '@paladin/scribe-ui' dev",
+    "dev:scribe-api": "bun run --filter '@paladin/scribe-api' dev"
   },
   "workspaces": [
     "packages/*"

@@ -180,6 +180,13 @@ async function findConversation(): Promise<FoundConversationEvent> {
     const titleEl = document.querySelector("div.truncate.font-base-bold")
     const name = titleEl?.textContent?.trim() || document.title
 
+    console.log('[scaffold] total messages found:', allMessages.length)
+    const sampleContent = allMessages
+        .filter(m => m.sender === 'assistant')
+        .slice(0, 2)
+        .map(m => ({ uuid: m.uuid, contentTypes: m.content.map((b: any) => `${b.type}:${b.name ?? ''}`) }))
+    console.log('[scaffold] assistant message sample:', JSON.stringify(sampleContent, null, 2))
+
     const reducer = new ArtifactReducer()
     const { artifacts, errors } = reducer.process(allMessages)
 
