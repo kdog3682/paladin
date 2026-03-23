@@ -11,3 +11,5 @@ coverage/
 **/__snapshots__/*.png
 packages/ui/
 *.db
+*.db-shm
+*.db-wal
