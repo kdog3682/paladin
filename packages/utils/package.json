@@ -1,0 +1,14 @@
+{
+  "name": "@paladin/utils",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test"
+  },
+  "exports": {
+    "./fs": "./src/fs.ts",
+    "./bash": "./src/bash.ts",
+    "./deep-merge": "./src/deep-merge.ts",
+    "./get-paths": "./src/get-paths.ts"
+  }
+}
