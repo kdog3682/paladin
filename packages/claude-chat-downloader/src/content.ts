@@ -16,12 +16,13 @@ function injectMessageFinder(): boolean {
   }
 }
 
-async function collectChatData(): Promise<ChatMessage[]> {
+async function collectChatData(): Promise<{ conversation: any; messages: ChatMessage[] }> {
   return new Promise((resolve) => {
     const handler = (event: MessageEvent<FoundMessagesEvent>) => {
       if (event.data.type === 'FOUND_CONVERSATION') {
         window.removeEventListener('message', handler);
-        resolve(event.data.conversation);
+        const { conversation, messages } = event.data as any
+        resolve({ conversation, messages });
       }
     };
     

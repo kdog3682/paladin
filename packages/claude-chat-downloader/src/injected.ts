@@ -28,6 +28,7 @@ interface Artifact {
 interface FoundConversationEvent {
     type: "FOUND_CONVERSATION"
     conversation: Conversation
+    messages: ChatMessage[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -208,6 +209,7 @@ async function findConversation(): Promise<FoundConversationEvent> {
     const event: FoundConversationEvent = {
         type: "FOUND_CONVERSATION",
         conversation,
+        messages: allMessages,
     }
 
     window.postMessage(event, "*")
