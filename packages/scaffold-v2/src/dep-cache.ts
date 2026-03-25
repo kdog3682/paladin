@@ -4,60 +4,63 @@ import { existsSync } from "fs"
 import { readFile, writeFile, mkdir } from "fs/promises"
 import { join, dirname } from "path"
 import { homedir } from "os"
-import { bash } from "@paladin/utils/bash"
 
 const CACHE_DIR = process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache")
-const CACHE_PATH = join(CACHE_DIR, "paladin", "bun-dependency-cache.json")
+export const DEFAULT_CACHE_PATH = join(CACHE_DIR, "paladin", "bun-dependency-cache.json")
 
 export type DepCache = Record<string, string>
 
-export async function loadDepCache(): Promise<DepCache> {
-  if (!existsSync(CACHE_PATH)) return {}
-  const raw = await readFile(CACHE_PATH, "utf-8")
-  return JSON.parse(raw)
+export async function loadDepCache(
+  projectDir: string,
+  cachePath = DEFAULT_CACHE_PATH,
+): Promise<DepCache> {
+  if (existsSync(cachePath)) {
+    const raw = await readFile(cachePath, "utf-8")
+    return JSON.parse(raw)
+  }
+
+  return buildCacheFromLockfile(projectDir, cachePath)
 }
 
-export async function saveDepCache(cache: DepCache): Promise<void> {
-  await mkdir(dirname(CACHE_PATH), { recursive: true })
-  await writeFile(CACHE_PATH, JSON.stringify(cache, null, 2))
+async function saveDepCache(cachePath: string, cache: DepCache): Promise<void> {
+  await mkdir(dirname(cachePath), { recursive: true })
+  await writeFile(cachePath, JSON.stringify(cache, null, 2))
 }
 
 /**
- * parse bun.lockb at the given root and build a name → version map.
- * bun has a built-in lockb parser via `bun bun.lockb`.
- * the output is a yarn.lock-like text format we can parse.
+ * parse the text-based bun.lock (JSON with trailing commas).
+ *
+ * bun.lock structure:
+ *   { "packages": { "express@4.21.2": ["express@4.21.2", ...], ... } }
+ *
+ * the key is "name@version" — we split on the last @ to get name and version.
+ * workspace deps (containing "workspace:") are skipped.
  */
-export async function buildCacheFromLockfile(root: string): Promise<DepCache> {
-  const lockPath = join(root, "bun.lockb")
+async function buildCacheFromLockfile(projectDir: string, cachePath: string): Promise<DepCache> {
+  const lockPath = join(projectDir, "bun.lock")
   if (!existsSync(lockPath)) return {}
 
-  const result = await bash(["bun", lockPath], { cwd: root })
-  if (result.exitCode !== 0) return {}
-
+  const raw = await readFile(lockPath, "utf-8")
+  const lock = Bun.JSONC.parse(raw)
+  const packages: Record<string, unknown[]> = lock.packages ?? {}
   const cache: DepCache = {}
-  const lines = result.stdout.split("\n")
 
-  // bun lockb output format: "pkg@version" lines followed by resolution info
-  // we parse lines like: `"package-name@version":` or `package-name@version:`
-  for (const line of lines) {
-    const m = line.match(/^"?(@?[^@\s"]+)@[^"]*"?.*version "([^"]+)"/)
-      || line.match(/^"?(@?[^@\s"]+)@([^\s",:]+)/)
-    if (m) {
-      const [, name, version] = m
-      if (name && version && !version.includes("workspace:")) {
-        cache[name] = version
-      }
-    }
+  for (const key of Object.keys(packages)) {
+    if (key.includes("workspace:")) continue
+
+    // key format: "name@version" or "@scope/name@version"
+    const lastAt = key.lastIndexOf("@")
+    if (lastAt <= 0) continue
+
+    const name = key.slice(0, lastAt)
+    const version = key.slice(lastAt + 1)
+    if (name && version) cache[name] = version
   }
 
-  await saveDepCache(cache)
+  if (Object.keys(cache).length) await saveDepCache(cachePath, cache)
   return cache
 }
 
-/**
- * resolve a package name to name@version using the cache.
- * falls back to just the name if not in cache (bun add will get latest).
- */
 export function resolveVersion(name: string, cache: DepCache): string {
   const version = cache[name]
   return version ? `${name}@${version}` : name

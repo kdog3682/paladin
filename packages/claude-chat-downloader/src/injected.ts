@@ -1,28 +1,24 @@
+// @paladin/claude-chat-downloader/src/injected.ts
+
 import type { ChatMessage, SnapshotNode } from "./types"
 
 // ─────────────────────────────────────────────────────────────
 // Conversation + output envelope
 // ─────────────────────────────────────────────────────────────
 
-interface ConversationError {
-    command: string
-    artifactId: string
-    title: string | null
-}
-
 interface Conversation {
     id: string
-    name: string
+    title: string
     url: string
-    created_at: string
-    updated_at: string
+    createdAt: string
+    updatedAt: string
     artifacts: Artifact[]
-    errors: ConversationError[]
 }
 
 interface Artifact {
     id: string
     content: string
+    updatedAt: string | null
 }
 
 interface FoundConversationEvent {
@@ -32,23 +28,15 @@ interface FoundConversationEvent {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Artifact reducer (path-agnostic)
+// Artifact reducer
 // ─────────────────────────────────────────────────────────────
 
 class ArtifactReducer {
-    private seenMessages = new Set<string>()
     private artifacts = new Map<string, Artifact>()
 
-    process(messages: ChatMessage[]): {
-        artifacts: Artifact[]
-        errors: ConversationError[]
-    } {
-        const errors: ConversationError[] = []
-
+    process(messages: ChatMessage[]): Artifact[] {
         for (const msg of messages) {
             if (msg.sender !== "assistant") continue
-            if (this.seenMessages.has(msg.uuid)) continue
-            this.seenMessages.add(msg.uuid)
 
             for (const block of msg.content) {
                 if (
@@ -57,21 +45,16 @@ class ArtifactReducer {
                     !block?.input
                 ) continue
 
-                const { command, id, title, content, old_str, new_str } = block.input
+                const { command, id, content, old_str, new_str } = block.input
+                const timestamp = block.stop_timestamp ?? null
 
                 if (command === "create" || command === "rewrite") {
-                    const prev = this.artifacts.get(id)
-                    if (!prev || prev.content !== content) {
-                        this.artifacts.set(id, { id, content })
-                    }
+                    this.artifacts.set(id, { id, content, updatedAt: timestamp })
                 }
 
                 if (command === "update") {
                     const current = this.artifacts.get(id)
-                    if (!current) {
-                        errors.push({ command, artifactId: id, title: title ?? null })
-                        continue
-                    }
+                    if (!current) continue
 
                     let updated = current.content.replace(old_str, new_str)
 
@@ -83,13 +66,13 @@ class ArtifactReducer {
                     }
 
                     if (updated !== current.content) {
-                        this.artifacts.set(id, { id, content: updated })
+                        this.artifacts.set(id, { id, content: updated, updatedAt: timestamp })
                     }
                 }
             }
         }
 
-        return { artifacts: [...this.artifacts.values()], errors }
+        return [...this.artifacts.values()]
     }
 }
 
@@ -136,11 +119,8 @@ function isMessage(obj: unknown): obj is ChatMessage {
 function collectMessages(
     obj: unknown,
     out: Map<string, ChatMessage>,
-    seen = new WeakSet<object>(),
 ): void {
     if (!obj || typeof obj !== "object") return
-    if (seen.has(obj as object)) return
-    seen.add(obj as object)
 
     if (isMessage(obj)) {
         out.set(obj.uuid, obj)
@@ -152,13 +132,13 @@ function collectMessages(
     if (node.props) {
         Object.values(node.props).forEach(v => {
             if (v && typeof v === "object") {
-                collectMessages(v, out, seen)
+                collectMessages(v, out)
             }
         })
     }
 
     if (Array.isArray(node.children)) {
-        node.children.forEach(c => collectMessages(c, out, seen))
+        node.children.forEach(c => collectMessages(c, out))
     }
 }
 
@@ -168,53 +148,44 @@ function collectMessages(
 
 async function findConversation(): Promise<FoundConversationEvent> {
     const dom = await snapshot(document.documentElement)
-    const messages = new Map<string, ChatMessage>()
+    const messageMap = new Map<string, ChatMessage>()
 
-    collectMessages(dom, messages)
-    const allMessages = [...messages.values()]
+    collectMessages(dom, messageMap)
+    const messages = [...messageMap.values()]
 
-    if (allMessages.length === 0) {
+    if (messages.length === 0) {
         throw new Error("No chat messages found in DOM snapshot")
     }
 
-    const first = allMessages[0]
-    const last = allMessages[allMessages.length - 1]
+    const first = messages[0]
+    const last = messages[messages.length - 1]
 
     const urlMatch = window.location.pathname.match(/\/chat\/([a-f0-9-]+)/)
-    const uuid = urlMatch?.[1] || first.uuid
+    const id = urlMatch?.[1] || first.uuid
 
     const titleEl = document.querySelector("div.truncate.font-base-bold")
-    const name = titleEl?.textContent?.trim() || document.title
-
-    console.log('[scaffold] total messages found:', allMessages.length)
-    const sampleContent = allMessages
-        .filter(m => m.sender === 'assistant')
-        .slice(0, 2)
-        .map(m => ({ uuid: m.uuid, contentTypes: m.content.map((b: any) => `${b.type}:${b.name ?? ''}`) }))
-    console.log('[scaffold] assistant message sample:', JSON.stringify(sampleContent, null, 2))
+    const title = titleEl?.textContent?.trim() || document.title
 
     const reducer = new ArtifactReducer()
-    const { artifacts, errors } = reducer.process(allMessages)
+    const artifacts = reducer.process(messages)
 
     const conversation: Conversation = {
-        id: uuid,
-        name,
+        id,
+        title,
         url: window.location.href,
-        created_at: first.created_at,
-        updated_at: last.created_at,
+        createdAt: first.created_at,
+        updatedAt: last.created_at,
         artifacts,
-        errors,
     }
 
     const event: FoundConversationEvent = {
         type: "FOUND_CONVERSATION",
         conversation,
-        messages: allMessages,
+        messages,
     }
 
     window.postMessage(event, "*")
     return event
 }
 
-// Execute immediately
 findConversation()

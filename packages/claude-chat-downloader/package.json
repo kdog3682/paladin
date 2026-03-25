@@ -2,7 +2,7 @@
   "name": "@paladin/claude-chat-downloader",
   "type": "module",
   "private": true,
-  "version": "0.2.8",
+  "version": "0.2.9",
   "scripts": {
     "build": "bun ../../packages/tooling/build-chrome-ext.ts ."
   },

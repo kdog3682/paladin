@@ -21,7 +21,7 @@ export function FzfPicker() {
   useEffect(() => {
     if (fzfOpen) {
       setQuery("")
-      setActiveIndex(filtered.length - 1)
+      setActiveIndex(Math.max(0, filtered.length - 1))
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [fzfOpen])
@@ -63,7 +63,13 @@ export function FzfPicker() {
   }
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${t.fzfOverlay} backdrop-blur-sm`}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center ${t.fzfOverlay} backdrop-blur-sm`}
+      onMouseDown={(e) => {
+        // close on backdrop click
+        if (e.target === e.currentTarget) closeFzf()
+      }}
+    >
       <div
         className={`flex w-full max-w-xl flex-col rounded-lg border ${t.fzfBorder} ${t.fzfBg} shadow-2xl overflow-hidden`}
         onKeyDown={handleKeyDown}

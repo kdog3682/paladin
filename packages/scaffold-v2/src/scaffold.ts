@@ -2,160 +2,83 @@
 
 import { existsSync } from "fs"
 import { readFile } from "fs/promises"
-import { join, basename, extname } from "path"
-import { expandHome, writeFileSafe, readFileSafe } from "@paladin/utils/fs"
-import { bash } from "@paladin/utils/bash"
+import { join, extname } from "path"
+import { expandHome, writeFileSafe } from "@paladin/utils/fs"
+import { bash, type BashResult } from "@paladin/utils/bash"
+import { resolvePath } from "./resolve-path"
+import { getImports } from "./get-imports"
+import { loadDepCache, resolveVersion, DEFAULT_CACHE_PATH } from "./dep-cache"
 import { bootstrap } from "./bootstrap"
-import { loadDepCache, buildCacheFromLockfile, resolveVersion, type DepCache } from "./dep-cache"
-import {
-  TS_EXTS, SOURCE_EXCLUDED, TS_IMPORT_RE, TS_TEST_RE, NODE_BUILTINS,
-} from "./constants"
-
-// --- types ---
-
-interface FileContent {
-  content: string
-  id?: string
-}
-
-interface ResolvedFile {
-  path: string
-  content: string
-  pkg: string | null
-  pkgDir: string | null
-  status: "created" | "modified"
-}
-
-interface PackageResult {
-  isNew: boolean
-  packageDir: string
-  packageName: string
-  newDependenciesInstalled: string[]
-  files: { status: "created" | "modified", relativePath: string }[]
-}
-
-export interface ProjectData {
-  isNew: boolean
-  projectDir: string
-  projectName: string
-  files: string[]
-  packages: PackageResult[]
-}
+import { defaultMatchers } from "./matchers"
+import { defaultTransforms, applyTransforms } from "./transforms"
+import { TS_TEST_RE } from "./constants"
+import type {
+  FileContent, ResolvedFile, ContentTransform,
+  PackageContext, PackageResult, ProjectData, Matcher,
+} from "./types"
 
 export interface ScaffoldOptions {
   baseProjectDir?: string
   workspaceFolders?: string[]
   defaultWorkspaceFolder?: string
-  bootstrapRefs?: Record<string, string>
+  depCachePath?: string
+  transforms?: ContentTransform[]
+  matchers?: Matcher[]
 }
 
-const DEFAULTS = {
+export const DEFAULTS = {
   baseProjectDir: "~/projects",
   workspaceFolders: ["packages", "apps"],
   defaultWorkspaceFolder: "packages",
-  bootstrapRefs: {} as Record<string, string>,
+  depCachePath: DEFAULT_CACHE_PATH,
+  transforms: defaultTransforms,
+  matchers: defaultMatchers,
 }
 
-// --- header / org extraction ---
+// --- header helpers ---
 
+/**
+ * extract the path comment from the first or second line.
+ * supports both `// path` and files starting with a shebang
+ * where the path comment is on line 2.
+ */
 function extractHeader(content: string): string | null {
-  const m = content.match(/^\/\/\s*(.+)\n/)
-  if (!m) return null
-  const raw = m[1].trim()
-  if (!raw.includes("/") && !raw.includes(".")) return null
-  return raw
+  const lines = content.split("\n", 3)
+
+  for (const line of lines) {
+    if (line.startsWith("#!")) continue
+    const m = line.match(/^\/\/\s*(.+)/)
+    if (!m) return null
+    const raw = m[1].trim()
+    if (!raw.includes("/") && !raw.includes(".")) return null
+    return raw
+  }
+
+  return null
 }
 
 function stripHeader(content: string): string {
   return content.replace(/^\/\/\s*.+\n/, "")
 }
 
-function deriveOrg(files: FileContent[]): string {
+function deriveProjectName(files: FileContent[]): string | null {
   for (const f of files) {
     const header = extractHeader(f.content)
     if (!header) continue
     const m = header.match(/^@([^/]+)\//)
-    if (m) return m[1]
+    if (m && m[1] !== "org") return m[1]
   }
-  throw new Error("could not derive org — at least one file must use @org/... path comment")
+  return null
 }
 
 function isDeprecated(content: string): boolean {
   const lines = content.trim().split("\n")
-  if (lines[0]?.includes("deprecated")) return true
-  if (lines[1]?.includes("deprecated")) return true
-  return false
+  return (lines[0]?.includes("deprecated") || lines[1]?.includes("deprecated")) ?? false
 }
 
-// --- lang detection ---
+// --- main ---
 
-function isSourceFile(filename: string): boolean {
-  if (SOURCE_EXCLUDED.some(p => p.test(filename))) return false
-  return TS_EXTS.has(extname(filename))
-}
-
-// --- import collection ---
-
-function isIgnoredImport(spec: string): boolean {
-  if (spec.startsWith("@/") || spec.startsWith(".") || spec.startsWith("node:") || spec.startsWith("bun:")) return true
-  const bare = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0]
-  return NODE_BUILTINS.has(bare)
-}
-
-function collectImports(content: string, org: string): { workspace: string[], external: string[] } {
-  const ws = new Set<string>()
-  const ext = new Set<string>()
-  const prefix = `@${org}/`
-  for (const [, spec] of content.matchAll(TS_IMPORT_RE)) {
-    if (isIgnoredImport(spec)) continue
-    const parts = spec.split("/")
-    const pkg = spec.startsWith("@") && parts.length >= 2
-      ? `${parts[0]}/${parts[1]}`
-      : parts[0]
-    if (pkg.startsWith(prefix)) ws.add(pkg)
-    else ext.add(pkg)
-  }
-  return { workspace: [...ws], external: [...ext] }
-}
-
-// --- path resolution ---
-
-function inferBootstrapKey(files: ResolvedFile[]): string | undefined {
-  for (const f of files) {
-    if (f.path.endsWith(".astro")) return "astro"
-  }
-  for (const f of files) {
-    if (f.path.endsWith(".tsx")) return "web"
-  }
-  return undefined
-}
-
-function resolveTsPath(
-  rel: string,
-  root: string,
-  wsFolders: string[],
-  defaultWs: string,
-): { path: string, pkg: string, pkgDir: string } {
-  const parts = rel.split("/")
-  const isExplicitWs = wsFolders.includes(parts[0])
-
-  const pkgName = isExplicitWs ? parts[1] : parts[0]
-  const pkgDir = isExplicitWs
-    ? join(root, parts[0], parts[1])
-    : join(root, defaultWs, pkgName)
-  const filePath = isExplicitWs
-    ? parts.slice(2).join("/")
-    : parts.slice(1).join("/")
-
-  const resolved = filePath.startsWith("src/") || filePath.includes("/src/")
-    ? filePath
-    : `src/${filePath}`
-
-  return { path: join(pkgDir, resolved), pkg: pkgName, pkgDir }
-}
-
-// --- main scaffold ---
-
+/** resolve, write, and install artifact file contents into a typescript monorepo. */
 export async function scaffold(
   fileContents: FileContent[],
   options: ScaffoldOptions = {}
@@ -163,17 +86,29 @@ export async function scaffold(
   const base = expandHome(options.baseProjectDir ?? DEFAULTS.baseProjectDir)
   const wsFolders = options.workspaceFolders ?? DEFAULTS.workspaceFolders
   const defaultWs = options.defaultWorkspaceFolder ?? DEFAULTS.defaultWorkspaceFolder
-  const bootstrapRefs = { ...DEFAULTS.bootstrapRefs, ...options.bootstrapRefs }
+  const depCachePath = options.depCachePath ?? DEFAULTS.depCachePath
+  const transforms = options.transforms ?? DEFAULTS.transforms
+  const matchers = options.matchers ?? DEFAULTS.matchers
 
-  const org = deriveOrg(fileContents)
-  const prefix = `@${org}/`
-  const root = join(base, org)
-  const projectIsNew = !existsSync(join(root, "package.json"))
+  const projectName = deriveProjectName(fileContents)
+  if (!projectName) {
+    throw new Error("could not derive project name — need at least one @name/... path (not @org/)")
+  }
 
-  // --- resolve all file paths ---
+  const projectDir = join(base, projectName)
+  const projectIsNew = !existsSync(join(projectDir, "package.json"))
 
-  const sourceFiles: ResolvedFile[] = []
-  const plainFiles: ResolvedFile[] = []
+  // --- phase 1: resolve paths, dedupe, diff against disk, compute imports ---
+
+  interface Candidate {
+    content: string
+    updatedAt: string
+    relativePath: string
+    packageName: string | null
+    packageDir: string | null
+  }
+
+  const latest = new Map<string, Candidate>()
 
   for (const fc of fileContents) {
     if (isDeprecated(fc.content)) continue
@@ -181,117 +116,126 @@ export async function scaffold(
     const header = extractHeader(fc.content)
     if (!header) continue
 
-    const name = basename(header)
-    const isJson = extname(name) === ".json"
-    const content = isJson ? stripHeader(fc.content) : fc.content
-
-    // absolute or home-relative
-    if (header.startsWith("/") || header.startsWith("~/")) {
-      plainFiles.push({ path: expandHome(header), content, pkg: null, pkgDir: null, status: "created" })
-      continue
-    }
-
-    // ./ relative to root
-    if (header.startsWith("./")) {
-      plainFiles.push({ path: join(root, header.slice(2)), content, pkg: null, pkgDir: null, status: "created" })
-      continue
-    }
-
-    // bare filename
-    if (!header.includes("/")) {
-      plainFiles.push({ path: join(root, header), content, pkg: null, pkgDir: null, status: "created" })
-      continue
-    }
-
-    // validate org
     if (header.startsWith("@")) {
       const m = header.match(/^@([^/]+)\//)
-      if (m && m[1] !== org) {
-        throw new Error(`multiple orgs: expected @${org} but found @${m[1]} in "${header}"`)
+      if (m && m[1] !== projectName) {
+        throw new Error(`expected @${projectName} but found @${m[1]} in "${header}"`)
       }
     }
 
-    const rel = header.startsWith(prefix) ? header.slice(prefix.length) : header
+    const isJson = extname(header).endsWith(".json")
+    const content = isJson ? stripHeader(fc.content) : fc.content
+    const resolved = resolvePath(header, projectDir, projectName, wsFolders, defaultWs)
+    const updatedAt = fc.updatedAt ?? ""
 
-    if (isSourceFile(name)) {
-      const resolved = resolveTsPath(rel, root, wsFolders, defaultWs)
-      sourceFiles.push({
-        path: resolved.path,
+    const existing = latest.get(resolved.absolutePath)
+    if (!existing || updatedAt > existing.updatedAt) {
+      latest.set(resolved.absolutePath, {
         content,
-        pkg: resolved.pkg,
-        pkgDir: resolved.pkgDir,
-        status: "created",
+        updatedAt,
+        relativePath: resolved.relativePath,
+        packageName: resolved.packageName,
+        packageDir: resolved.packageDir,
       })
-    } else {
-      plainFiles.push({ path: join(root, rel), content, pkg: null, pkgDir: null, status: "created" })
     }
   }
 
-  // --- determine status (created vs modified) and filter unchanged ---
+  const changed: ResolvedFile[] = []
 
-  const allFiles = [...sourceFiles, ...plainFiles]
-  const toWrite: typeof allFiles = []
-
-  for (const f of allFiles) {
-    if (existsSync(f.path)) {
-      const existing = await readFile(f.path, "utf-8")
-      if (existing === f.content) continue
-      f.status = "modified"
+  for (const [absolutePath, candidate] of latest) {
+    if (existsSync(absolutePath)) {
+      const disk = await readFile(absolutePath, "utf-8")
+      if (disk === candidate.content) continue
     }
-    toWrite.push(f)
+
+    changed.push({
+      absolutePath,
+      relativePath: candidate.relativePath,
+      content: candidate.content,
+      packageName: candidate.packageName,
+      packageDir: candidate.packageDir,
+      isNew: !existsSync(absolutePath),
+      importTable: getImports(candidate.content, projectName),
+    })
   }
 
-  // --- bootstrap root ---
+  if (!changed.length) {
+    return { isNew: projectIsNew, projectDir, projectName, files: [], packages: [], errors: [] }
+  }
+
+  // --- phase 2: apply content transforms ---
+
+  applyTransforms(changed, transforms)
+
+  // --- phase 3: bootstrap project root ---
+
+  const allCreatedFiles: string[] = []
 
   if (projectIsNew) {
-    await bootstrap({ dir: root, org })
+    const created = await bootstrap({ dir: projectDir, projectName })
+    allCreatedFiles.push(...created)
   }
 
-  // --- group source files by package ---
+  // --- phase 4: group by package, run matchers ---
 
-  const grouped: Record<string, { dir: string, files: ResolvedFile[], isNew: boolean }> = {}
-  for (const f of toWrite) {
-    if (!f.pkg || !f.pkgDir) continue
-    grouped[f.pkg] ??= { dir: f.pkgDir, files: [], isNew: !existsSync(join(f.pkgDir, "package.json")) }
-    grouped[f.pkg].files.push(f)
+  const grouped: Record<string, { packageDir: string, files: ResolvedFile[], isNew: boolean }> = {}
+  const plainFiles: ResolvedFile[] = []
+
+  for (const f of changed) {
+    if (!f.packageName || !f.packageDir) {
+      plainFiles.push(f)
+      continue
+    }
+    grouped[f.packageName] ??= {
+      packageDir: f.packageDir,
+      files: [],
+      isNew: !existsSync(join(f.packageDir, "package.json")),
+    }
+    grouped[f.packageName].files.push(f)
   }
 
-  // --- bootstrap packages ---
+  const installCommands: { cmd: string[], cwd: string }[] = []
+  const matcherCommands: { cmd: string[], cwd: string }[] = []
+
+  for (const [packageName, group] of Object.entries(grouped)) {
+    const ctx: PackageContext = {
+      isNew: group.isNew,
+      projectName,
+      projectDir,
+      packageName,
+      packageDir: group.packageDir,
+      files: group.files,
+    }
+
+    for (const matcher of matchers) {
+      const result = await matcher(ctx)
+      if (result.matched) {
+        if (result.filesCreated?.length) allCreatedFiles.push(...result.filesCreated)
+        if (result.commands?.length) matcherCommands.push(...result.commands)
+        if (result.terminal) break
+      }
+    }
+  }
+
+  // --- phase 5: write all files to disk ---
+
+  for (const f of changed) {
+    writeFileSafe(f.absolutePath, f.content, extname(f.absolutePath) === ".json" ? { json: true } : undefined)
+  }
+
+  // --- phase 6: install deps ---
 
   let needsInstall = projectIsNew
-  for (const [name, group] of Object.entries(grouped)) {
-    if (!group.isNew) continue
-    const key = bootstrapRefs[name] ?? inferBootstrapKey(group.files)
-    await bootstrap({ dir: group.dir, org, pkg: name, key })
-    needsInstall = true
-  }
-
-  // --- write all files ---
-
-  for (const f of toWrite) {
-    const isJson = extname(f.path) === ".json"
-    writeFileSafe(f.path, f.content, isJson ? { json: true } : undefined)
-  }
-
-  if (needsInstall) {
-    await bash(["bun", "install"], { cwd: root })
-  }
-
-  // --- load dep cache, build from lockfile if missing ---
-
-  let depCache = await loadDepCache()
-  if (!Object.keys(depCache).length && existsSync(join(root, "bun.lockb"))) {
-    depCache = await buildCacheFromLockfile(root)
-  }
-
-  // --- install deps per package ---
-
+  const depCache = await loadDepCache(projectDir, depCachePath)
   const packageResults: PackageResult[] = []
 
-  for (const [name, group] of Object.entries(grouped)) {
-    const pkgJsonPath = join(group.dir, "package.json")
-    const raw = await readFile(pkgJsonPath, "utf-8")
-    const pkgJson = JSON.parse(raw)
+  for (const [packageName, group] of Object.entries(grouped)) {
+    if (group.isNew) needsInstall = true
+
+    const pkgJsonPath = join(group.packageDir, "package.json")
+    if (!existsSync(pkgJsonPath)) continue
+
+    const pkgJson = JSON.parse(await readFile(pkgJsonPath, "utf-8"))
     const existing = new Set([
       ...Object.keys(pkgJson.dependencies ?? {}),
       ...Object.keys(pkgJson.devDependencies ?? {}),
@@ -301,50 +245,55 @@ export async function scaffold(
     const devDeps = new Set<string>()
 
     for (const f of group.files) {
-      const imports = collectImports(f.content, org)
-      const target = TS_TEST_RE.test(f.path) ? devDeps : deps
-      for (const w of imports.workspace) {
+      const target = TS_TEST_RE.test(f.absolutePath) ? devDeps : deps
+      for (const w of f.importTable.workspace) {
         if (!existing.has(w)) target.add(`${w}@workspace:*`)
       }
-      for (const e of imports.external) {
+      for (const e of f.importTable.external) {
         if (!existing.has(e)) target.add(resolveVersion(e, depCache))
       }
     }
-
     for (const d of deps) devDeps.delete(d)
 
-    const installed: string[] = []
-
     if (deps.size) {
-      await bash(["bun", "add", ...deps], { cwd: group.dir })
-      installed.push(...deps)
+      installCommands.push({ cmd: ["bun", "add", ...deps], cwd: group.packageDir })
     }
     if (devDeps.size) {
-      await bash(["bun", "add", "-d", ...devDeps], { cwd: group.dir })
-      installed.push(...devDeps)
+      installCommands.push({ cmd: ["bun", "add", "-d", ...devDeps], cwd: group.packageDir })
     }
+
+    const installed = [...deps, ...devDeps]
 
     packageResults.push({
       isNew: group.isNew,
-      packageDir: group.dir,
-      packageName: name,
+      packageDir: group.packageDir,
+      packageName,
       newDependenciesInstalled: installed,
-      files: group.files.map(f => ({
-        status: f.status,
-        relativePath: f.path.slice(group.dir.length + 1),
-      })),
+      files: group.files.map(f => ({ isNew: f.isNew, relativePath: f.relativePath })),
     })
   }
 
-  // --- plain files as a virtual "root" package if any ---
+  if (needsInstall) {
+    installCommands.unshift({ cmd: ["bun", "install"], cwd: projectDir })
+  }
 
-  const writtenPlain = toWrite.filter(f => !f.pkg)
+  // --- phase 7: run install commands first, then matcher commands ---
+
+  const bashResults: BashResult[] = []
+
+  for (const { cmd, cwd } of installCommands) {
+    bashResults.push(await bash(cmd, { cwd }))
+  }
+  for (const { cmd, cwd } of matcherCommands) {
+    bashResults.push(await bash(cmd, { cwd }))
+  }
 
   return {
     isNew: projectIsNew,
-    projectDir: root,
-    projectName: org,
-    files: toWrite.map(f => f.path),
+    projectDir,
+    projectName,
+    files: [...new Set([...allCreatedFiles, ...changed.map(f => f.absolutePath)])],
     packages: packageResults,
+    errors: bashResults.filter(r => r.exitCode !== 0),
   }
 }

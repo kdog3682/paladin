@@ -4,7 +4,17 @@ import { useEffect, useRef } from "react"
 import { codeToHtml } from "shiki"
 import { useStore } from "../store"
 
-const BLOCK_THRESHOLD = 50
+const BLOCK_CHAR_THRESHOLD = 50
+const BLOCK_NEWLINE_THRESHOLD = 3
+
+function countNewlines(text: string): number {
+  return (text.match(/\n/g) || []).length
+}
+
+function isBlock(text: string): boolean {
+  const trimmed = text.trim()
+  return trimmed.length > BLOCK_CHAR_THRESHOLD && countNewlines(trimmed) >= BLOCK_NEWLINE_THRESHOLD
+}
 
 interface JsonValueProps {
   value: string | number | boolean | null
@@ -17,8 +27,6 @@ function ShikiBlock({ text }: { text: string }) {
 
   useEffect(() => {
     let cancelled = false
-
-    // try to detect language from content
     const lang = detectLang(text)
 
     codeToHtml(text, { lang, theme: shikiTheme }).then((html) => {
@@ -68,12 +76,12 @@ export function JsonValue({ value }: JsonValueProps) {
     return <span className={t.number}>{value}</span>
   }
 
-  const text = String(value)
-  const isBlock = text.length > BLOCK_THRESHOLD
+  const raw = String(value)
+  const trimmed = raw.trim()
 
-  if (isBlock) {
-    return <ShikiBlock text={text} />
+  if (isBlock(trimmed)) {
+    return <ShikiBlock text={trimmed} />
   }
 
-  return <span className={t.string}>"{text}"</span>
+  return <span className={t.string}>"{trimmed}"</span>
 }

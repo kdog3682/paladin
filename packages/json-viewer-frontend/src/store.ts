@@ -19,12 +19,14 @@ interface JsonViewerStore {
   loading: boolean
   theme: JsonTheme
   themeName: "light" | "dark"
+  defaultFile: string | null
 
   fetchFiles: () => Promise<void>
   selectFile: (file: JsonFileEntry) => Promise<void>
-  toggleFzf: () => void
+  openFzf: () => Promise<void>
   closeFzf: () => void
   toggleTheme: () => void
+  saveAsDefault: () => void
 }
 
 export const useStore = create<JsonViewerStore>((set, get) => ({
@@ -35,14 +37,19 @@ export const useStore = create<JsonViewerStore>((set, get) => ({
   loading: false,
   theme: lightTheme,
   themeName: "light",
+  defaultFile: null,
 
   fetchFiles: async () => {
     const res = await fetch(`${API}/files`)
     const files: JsonFileEntry[] = await res.json()
-    set({ files })
+    const defaultPath = localStorage.getItem("json-viewer:default")
+    set({ files, defaultFile: defaultPath })
 
     if (!get().selectedFile && files.length > 0) {
-      await get().selectFile(files[files.length - 1])
+      const defaultFile = defaultPath
+        ? files.find((f) => f.path === defaultPath)
+        : null
+      await get().selectFile(defaultFile || files[files.length - 1])
     }
   },
 
@@ -53,7 +60,13 @@ export const useStore = create<JsonViewerStore>((set, get) => ({
     set({ jsonData: data, loading: false })
   },
 
-  toggleFzf: () => set((s) => ({ fzfOpen: !s.fzfOpen })),
+  openFzf: async () => {
+    // fetch fresh list every time
+    const res = await fetch(`${API}/files`)
+    const files: JsonFileEntry[] = await res.json()
+    set({ files, fzfOpen: true })
+  },
+
   closeFzf: () => set({ fzfOpen: false }),
 
   toggleTheme: () =>
@@ -61,4 +74,11 @@ export const useStore = create<JsonViewerStore>((set, get) => ({
       themeName: s.themeName === "light" ? "dark" : "light",
       theme: s.themeName === "light" ? darkTheme : lightTheme,
     })),
+
+  saveAsDefault: () => {
+    const file = get().selectedFile
+    if (!file) return
+    localStorage.setItem("json-viewer:default", file.path)
+    set({ defaultFile: file.path })
+  },
 }))

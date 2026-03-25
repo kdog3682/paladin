@@ -14,6 +14,7 @@ export interface ImportTable {
 export interface FileContent {
   content: string
   id?: string
+  updatedAt?: string
 }
 
 // --- resolved files ---
