@@ -19,7 +19,8 @@ export async function findDependents(
 
   for (const pkgPath of pkgFiles) {
     const raw = await readFile(pkgPath, "utf-8")
-    const pkg = JSON.parse(raw)
+    const stripped = raw.replace(/^\s*\/\/.*$/gm, "")
+    const pkg = JSON.parse(stripped)
     if (!pkg.name) continue
 
     const allDeps = {

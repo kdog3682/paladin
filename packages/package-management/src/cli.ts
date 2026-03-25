@@ -17,7 +17,15 @@ const { values, positionals } = parseArgs({
   },
 })
 
-const [command, ...args] = positionals
+const [command, ...rawArgs] = positionals
+
+function normalizePkg(name: string): string {
+  if (name.startsWith("@")) return name
+  const short = name.replace(new RegExp(`^${values.project!}/`), "")
+  return `@${values.project!}/${short}`
+}
+
+const args = rawArgs.map(normalizePkg)
 
 const pm = new PackageManager({
   root: values.root!,
