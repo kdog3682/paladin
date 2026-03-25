@@ -10,7 +10,7 @@ const { values, positionals } = parseArgs({
     root: { type: "string", default: process.cwd() },
     project: { type: "string", default: "paladin" },
     force: { type: "boolean", default: false },
-    recreate: { type: "boolean", default: false },
+    recreate: { type: "boolean", default: true },
     linked: { type: "boolean" },
     solo: { type: "boolean", default: false },
     version: { type: "string", default: "latest" },
