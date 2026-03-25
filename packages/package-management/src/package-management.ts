@@ -140,12 +140,14 @@ export class PackageManager {
       const profileKey = inferProfile(snapshot.files)
       const short = name.replace(/^@[^/]+\//, "")
 
+      const fullDir = this.fullPkgPath(name)
       await scaffold({
-        dir: this.fullPkgPath(name),
+        dir: fullDir,
         projectName: this.projectName,
         packageName: short,
         profileKey,
       })
+      await this.bumpPackageVersion(fullDir)
     }
 
     await this.git.addAll()
