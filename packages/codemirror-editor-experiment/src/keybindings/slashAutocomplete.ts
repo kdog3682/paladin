@@ -35,6 +35,16 @@ export function slashAutocomplete(): Extension {
     keymap.of([{
       key: '/',
       run(view: EditorView) {
+        const { state } = view
+        const { head } = state.selection.main
+        const line = state.doc.lineAt(head)
+        if (head === line.from) {
+          view.dispatch({
+            changes: { from: head, insert: '// ' },
+            selection: { anchor: head + 3 },
+          })
+          return true
+        }
         startCompletion(view)
         return true
       },

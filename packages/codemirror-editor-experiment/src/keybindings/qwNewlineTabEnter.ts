@@ -24,25 +24,11 @@ function executeQw(view: EditorView) {
   const { head } = state.selection.main
   const currentIndent = getLineIndent(state, head)
   const newIndent = currentIndent + INDENT
-  const afterIsNewline = hasNewlineAfter(state, head)
 
-  if (afterIsNewline) {
-    // newline already exists after cursor — replace it with newline + indent
-    const line = state.doc.lineAt(head)
-    const nextLine = state.doc.lineAt(line.to + 1)
-    const deleteTo = nextLine.from // delete the \n boundary
-    // actually, we want to go to the next line and place cursor there indented
-    // replace from head to next line start with \n + indent
-    view.dispatch({
-      changes: { from: head, to: nextLine.from, insert: '\n' + newIndent },
-      selection: { anchor: head + 1 + newIndent.length },
-    })
-  } else {
-    view.dispatch({
-      changes: { from: head, insert: '\n' + newIndent },
-      selection: { anchor: head + 1 + newIndent.length },
-    })
-  }
+  view.dispatch({
+    changes: { from: head, insert: '\n' + newIndent },
+    selection: { anchor: head + 1 + newIndent.length },
+  })
 }
 
 export function qwNewlineTabEnter(): Extension {

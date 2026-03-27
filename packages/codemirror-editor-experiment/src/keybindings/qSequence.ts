@@ -1,6 +1,4 @@
 // @paladin/codemirror-editor-experiment/keybindings/qSequence.ts
-// Combined handler for qw (newline-tab-enter) and qe (newline-tab-exit)
-// since both intercept 'q' via inputHandler, they must share state.
 import { EditorView } from '@codemirror/view'
 import { Extension, EditorState } from '@codemirror/state'
 
@@ -18,46 +16,43 @@ function dedent(indent: string): string {
   return ''
 }
 
-// If cursor is at end of line and a newline follows, return info about the next line.
-// We want to "reuse" the existing newline rather than creating a double.
-function peekNextLine(state: EditorState, pos: number): { from: number, to: number, empty: boolean } | null {
+function isAtLineEnd(state: EditorState, pos: number): boolean {
   const line = state.doc.lineAt(pos)
-  if (pos !== line.to) return null
-  if (line.to >= state.doc.length) return null
-  const next = state.doc.lineAt(line.to + 1)
-  return { from: next.from, to: next.to, empty: next.text.trim() === '' }
-}
-
-function execute(view: EditorView, newIndent: string) {
-  const { state } = view
-  const { head } = state.selection.main
-
-  const next = peekNextLine(state, head)
-
-  if (next && next.empty) {
-    // reuse the existing newline, replace the empty line content with our indent
-    // from: head, to: next.to covers the \n and the empty line
-    view.dispatch({
-      changes: { from: head, to: next.to, insert: '\n' + newIndent },
-      selection: { anchor: head + 1 + newIndent.length },
-    })
-  } else {
-    // no newline after cursor, or next line has content — just insert
-    view.dispatch({
-      changes: { from: head, insert: '\n' + newIndent },
-      selection: { anchor: head + 1 + newIndent.length },
-    })
-  }
+  return pos === line.to
 }
 
 function executeQw(view: EditorView) {
-  const indent = getLineIndent(view.state, view.state.selection.main.head)
-  execute(view, indent + INDENT)
+  const { state } = view
+  const { head } = state.selection.main
+
+  // only trigger at end of line
+  if (!isAtLineEnd(state, head)) return false
+
+  const currentIndent = getLineIndent(state, head)
+  const newIndent = currentIndent + INDENT
+
+  view.dispatch({
+    changes: { from: head, insert: '\n' + newIndent },
+    selection: { anchor: head + 1 + newIndent.length },
+  })
+  return true
 }
 
 function executeQe(view: EditorView) {
-  const indent = getLineIndent(view.state, view.state.selection.main.head)
-  execute(view, dedent(indent))
+  const { state } = view
+  const { head } = state.selection.main
+
+  // only trigger at end of line
+  if (!isAtLineEnd(state, head)) return false
+
+  const currentIndent = getLineIndent(state, head)
+  const newIndent = dedent(currentIndent)
+
+  view.dispatch({
+    changes: { from: head, insert: '\n' + newIndent },
+    selection: { anchor: head + 1 + newIndent.length },
+  })
+  return true
 }
 
 export function qSequence(): Extension {
@@ -65,51 +60,44 @@ export function qSequence(): Extension {
   let pendingTimeout: ReturnType<typeof setTimeout> | null = null
 
   function flushQ(view: EditorView) {
-    view.dispatch(view.state.replaceSelection('q'))
-  }
-
-  function clearPending() {
     pendingQ = false
     if (pendingTimeout) {
       clearTimeout(pendingTimeout)
       pendingTimeout = null
     }
+    view.dispatch(view.state.replaceSelection('q'))
   }
 
   return EditorView.inputHandler.of((view, from, to, text) => {
     if (pendingQ) {
-      clearPending()
+      pendingQ = false
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout)
+        pendingTimeout = null
+      }
 
       if (text === 'w') {
-        executeQw(view)
-        return true
-      }
-      if (text === 'e') {
-        executeQe(view)
-        return true
+        if (executeQw(view)) return true
+        // not at line end — flush q and let w through normally
+        flushQ(view)
+        return false
       }
 
-      flushQ(view)
-      if (text === 'q') {
-        pendingQ = true
-        pendingTimeout = setTimeout(() => {
-          if (pendingQ) {
-            clearPending()
-            flushQ(view)
-          }
-        }, 200)
-        return true
+      if (text === 'e') {
+        if (executeQe(view)) return true
+        flushQ(view)
+        return false
       }
+
+      // not w or e — flush the buffered q, let current char through
+      flushQ(view)
       return false
     }
 
     if (text === 'q') {
       pendingQ = true
       pendingTimeout = setTimeout(() => {
-        if (pendingQ) {
-          clearPending()
-          flushQ(view)
-        }
+        if (pendingQ) flushQ(view)
       }, 200)
       return true
     }

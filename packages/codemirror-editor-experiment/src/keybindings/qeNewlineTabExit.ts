@@ -33,21 +33,11 @@ function executeQe(view: EditorView) {
   const { head } = state.selection.main
   const currentIndent = getLineIndent(state, head)
   const newIndent = dedent(currentIndent)
-  const afterIsNewline = hasNewlineAfter(state, head)
 
-  if (afterIsNewline) {
-    const line = state.doc.lineAt(head)
-    const nextLine = state.doc.lineAt(line.to + 1)
-    view.dispatch({
-      changes: { from: head, to: nextLine.from, insert: '\n' + newIndent },
-      selection: { anchor: head + 1 + newIndent.length },
-    })
-  } else {
-    view.dispatch({
-      changes: { from: head, insert: '\n' + newIndent },
-      selection: { anchor: head + 1 + newIndent.length },
-    })
-  }
+  view.dispatch({
+    changes: { from: head, insert: '\n' + newIndent },
+    selection: { anchor: head + 1 + newIndent.length },
+  })
 }
 
 export function qeNewlineTabExit(): Extension {
