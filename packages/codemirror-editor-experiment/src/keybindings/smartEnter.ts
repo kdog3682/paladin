@@ -110,7 +110,9 @@ const handleEnter: KeyBinding = {
   key: 'Enter',
   run(view: EditorView) {
     const { state } = view
-    const { head } = state.selection.main
+    const sel = state.selection.main
+    if (!sel.empty) return false
+    const { head } = sel
     const line = state.doc.lineAt(head)
 
     // only handle if cursor is at end of line

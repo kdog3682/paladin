@@ -59,7 +59,16 @@ export const theme = EditorView.theme({
     color: '#3b82f6',
   },
   '.cm-heading-line': {
-    fontWeight: 'bold',
     color: '#000000',
+  },
+  '.cm-heading-hash': {
+    backgroundColor: '#000000',
+    borderRadius: '2px',
+  },
+  '.cm-angle-bracket': {
+    color: '#16a34a',
+  },
+  '.cm-dim': {
+    color: '#94a3b8',
   },
 })
