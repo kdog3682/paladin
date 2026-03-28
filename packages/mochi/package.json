@@ -1,0 +1,11 @@
+{
+  "name": "@paladin/mochi",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "acorn": "^8.16.0"
+  }
+}

@@ -1,0 +1,158 @@
+// @paladin/squire/src/cli.ts
+
+import { GitOps } from "./shell/git"
+import { Reporter } from "./shell/reporter"
+import { Runner } from "./shell/runner"
+import { TempWriter } from "./shell/tempwriter"
+import { resolveCurrentPkg, discoverPackages } from "./core/resolve"
+import { createHandler, type AppState } from "./handler"
+import { commitCommand } from "./commands/commit"
+import { revertCommand } from "./commands/revert"
+import { statusCommand } from "./commands/status"
+import { demoCommand } from "./commands/demo"
+import { testCommand } from "./commands/test"
+import { tempwriteCommand } from "./commands/tempwrite"
+import { setCommand } from "./commands/set"
+import { helpCommand } from "./commands/help"
+import { exitCommand } from "./commands/exit"
+import { createInterface } from "readline"
+
+const rl = createInterface({ input: process.stdin, output: process.stdout })
+
+function promptLine(reporter: Reporter): Promise<string> {
+  return new Promise(resolve => {
+    reporter.prompt()
+    rl.once("line", line => resolve(line.trim()))
+  })
+}
+
+async function selectFromList(
+  reporter: Reporter,
+  packages: { name: string, dir: string }[]
+): Promise<{ name: string, dir: string } | null> {
+  const letters = "abcdefghijklmnopqrstuvwxyz"
+
+  if (packages.length === 0) {
+    reporter.warn("no packages found in packages/, libs/, or apps/")
+    return null
+  }
+
+  reporter.header("available packages")
+  reporter.selectable(
+    packages.map(p => ({ label: p.name, detail: p.dir }))
+  )
+  reporter.blank()
+
+  const input = await promptLine(reporter)
+  const idx = letters.indexOf(input.toLowerCase())
+
+  if (idx < 0 || idx >= packages.length) {
+    reporter.error("invalid selection")
+    return null
+  }
+
+  return packages[idx]
+}
+
+async function initPackage(reporter: Reporter, root: string): Promise<{ pkg: string, pkgDir: string } | null> {
+  const cwd = process.cwd()
+  const result = await resolveCurrentPkg(cwd, root)
+
+  if (result.kind === "found") {
+    reporter.success(`detected package: ${result.pkg}`)
+    return { pkg: result.pkg, pkgDir: result.pkgDir }
+  }
+
+  if (result.kind === "root") {
+    reporter.info("you're at the monorepo root")
+  } else {
+    reporter.info("could not detect a package from current directory")
+  }
+
+  const packages = await discoverPackages(root)
+  const selected = await selectFromList(reporter, packages)
+  if (!selected) return null
+  return { pkg: selected.name, pkgDir: selected.dir }
+}
+
+async function findRoot(): Promise<string> {
+  const proc = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  const output = await new Response(proc.stdout).text()
+  await proc.exited
+  return output.trim() || process.cwd()
+}
+
+async function main() {
+  const reporter = new Reporter()
+  const root = await findRoot()
+  const git = new GitOps(root)
+
+  reporter.header("squire")
+
+  const initial = await initPackage(reporter, root)
+
+  const state: AppState = {
+    pkg: initial?.pkg ?? null,
+    pkgDir: initial?.pkgDir ?? null,
+    demo: false,
+    test: false,
+  }
+
+  if (!state.pkg) {
+    reporter.warn("no package selected — use 'set' to pick one")
+  }
+
+  const tempWriter = new TempWriter(reporter)
+  const runner = new Runner(root, reporter, tempWriter)
+
+  const commands = [
+    commitCommand,
+    revertCommand,
+    statusCommand,
+    demoCommand,
+    testCommand,
+    tempwriteCommand,
+    setCommand,
+    exitCommand,
+  ]
+  commands.push(helpCommand(commands))
+
+  const handle = createHandler(commands)
+
+  const ctx = {
+    git,
+    reporter,
+    runner,
+    tempWriter,
+    state,
+    watcher: null,
+    onSetPkg: async () => {
+      const packages = await discoverPackages(root)
+      return selectFromList(reporter, packages)
+    },
+  }
+
+  reporter.info("type 'help' for commands and hints")
+  reporter.blank()
+
+  rl.on("close", () => process.exit(0))
+
+  const loop = async () => {
+    while (true) {
+      const input = await promptLine(reporter)
+      if (!input) continue
+      const result = await handle(input, ctx)
+      if (result === "exit") {
+        rl.close()
+        process.exit(0)
+      }
+    }
+  }
+
+  loop()
+}
+
+main()
