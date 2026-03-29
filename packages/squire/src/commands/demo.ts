@@ -1,6 +1,5 @@
 // @paladin/squire/src/commands/demo.ts
-
-import { createWatcher } from "./watch"
+import { createWatcher, runNow } from "./watch"
 import type { Command } from "../handler"
 
 export const demoCommand: Command = {
@@ -9,8 +8,8 @@ export const demoCommand: Command = {
   description: "toggle demo watcher (runs .demo.ts on change)",
   hints: ["demo watches for file changes and runs .demo.ts automatically"],
   requiresPkg: true,
-  handler: async (args, ctx) => {
-    if (args[0] === "off") {
+  handler: async ({ tokens }, ctx) => {
+    if (tokens[0] === "off") {
       ctx.state.demo = false
       if (!ctx.state.demo && !ctx.state.test) {
         ctx.watcher?.stop()
@@ -30,5 +29,9 @@ export const demoCommand: Command = {
       ctx.watcher.start()
     }
     ctx.reporter.success("demo watcher on — watching for changes")
+    await runNow(ctx.state.pkgDir!, ctx.runner, ctx.reporter, {
+      demo: true,
+      test: false,
+    })
   },
 }

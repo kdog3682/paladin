@@ -1,5 +1,4 @@
 // @paladin/squire/src/commands/revert.ts
-
 import { findByQuery, findLatestForPkg } from "../core/search"
 import type { Command } from "../handler"
 
@@ -12,8 +11,8 @@ export const revertCommand: Command = {
     "revert <query> searches commit messages for a substring match",
   ],
   requiresPkg: true,
-  handler: async (args, ctx) => {
-    const query = args.join(" ") || undefined
+  handler: async ({ raw }, ctx) => {
+    const query = raw.trim() || undefined
     const history = await ctx.git.wipHistory(ctx.state.pkg!)
 
     if (history.length === 0) {

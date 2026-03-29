@@ -1,5 +1,6 @@
 // @paladin/squire/src/shell/reporter.ts
 
+import { formatGrid } from "./grid"
 import type { SquireStatus } from "../core/status"
 
 type Color = "reset" | "bold" | "dim" | "green" | "yellow" | "red" | "cyan" | "magenta" | "blue"
@@ -33,6 +34,7 @@ export interface IReporter {
   blank(): void
   line(msg: string): void
   table(data: Record<string, string>): void
+  grid(items: string[]): void
   selectable(items: { label: string, detail?: string }[]): void
   status(state: SquireStatus): void
   prompt(): void
@@ -71,6 +73,13 @@ export class Reporter implements IReporter {
     const maxKey = Math.max(...Object.keys(data).map(k => k.length))
     for (const [k, v] of Object.entries(data)) {
       write(`  ${c("dim", k.padEnd(maxKey))}  ${v}`)
+    }
+  }
+
+  grid(items: string[]) {
+    if (items.length === 0) return
+    for (const line of formatGrid(items).split("\n")) {
+      write(`  ${line}`)
     }
   }
 

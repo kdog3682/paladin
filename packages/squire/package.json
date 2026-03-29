@@ -6,6 +6,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@paladin/utils": "workspace:*",
     "es-module-lexer": "^2.0.0"
   }
 }

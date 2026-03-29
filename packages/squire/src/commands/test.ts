@@ -1,16 +1,14 @@
 // @paladin/squire/src/commands/test.ts
-
-import { createWatcher } from "./watch"
+import { createWatcher, runNow } from "./watch"
 import type { Command } from "../handler"
 
 export const testCommand: Command = {
   name: "test",
   args: "[pattern|off]",
-  description: "toggle test watcher (optional file filter)",
-  hints: ["test abc matches test files containing 'abc' in the filename"],
+  description: "toggle test watcher. optional pattern to filter test files",
   requiresPkg: true,
-  handler: async (args, ctx) => {
-    if (args[0] === "off") {
+  handler: async ({ tokens }, ctx) => {
+    if (tokens[0] === "off") {
       ctx.state.test = false
       ctx.state.testPattern = undefined
       if (!ctx.state.demo && !ctx.state.test) {
@@ -22,7 +20,8 @@ export const testCommand: Command = {
     }
 
     ctx.state.test = true
-    ctx.state.testPattern = args[0] || undefined
+    ctx.state.testPattern = tokens[0] || undefined
+
     if (!ctx.watcher?.active && ctx.state.pkgDir) {
       ctx.watcher = createWatcher(ctx.state.pkgDir, ctx.runner, ctx.reporter, () => ({
         demo: ctx.state.demo,
@@ -31,6 +30,12 @@ export const testCommand: Command = {
       }))
       ctx.watcher.start()
     }
-    ctx.reporter.success(`test watcher on${ctx.state.testPattern ? ` (filter: ${ctx.state.testPattern})` : ""}`)
+
+    ctx.reporter.success(`test watcher on${ctx.state.testPattern ? ` (pattern: ${ctx.state.testPattern})` : ""}`)
+    await runNow(ctx.state.pkgDir!, ctx.runner, ctx.reporter, {
+      demo: false,
+      test: true,
+      testPattern: ctx.state.testPattern,
+    })
   },
 }

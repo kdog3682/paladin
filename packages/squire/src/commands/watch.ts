@@ -18,6 +18,26 @@ async function collectFiles(dir: string): Promise<string[]> {
   return out
 }
 
+export async function runNow(
+  pkgDir: string,
+  runner: Runner,
+  reporter: IReporter,
+  state: { demo: boolean, test: boolean, testPattern?: string }
+) {
+  const deps = await cacheDeps(pkgDir)
+  reporter.info(`cached ${deps.length} external deps`)
+  const files = await collectFiles(pkgDir)
+  if (state.demo) {
+    const demoFile = findDemoFile(files)
+    if (demoFile) await runner.runDemo(demoFile)
+    else reporter.warn("no .demo.ts file found")
+  }
+  if (state.test) {
+    const matched = matchTestFiles(files, state.testPattern)
+    await runner.runTests(matched)
+  }
+}
+
 export function createWatcher(
   pkgDir: string,
   runner: Runner,

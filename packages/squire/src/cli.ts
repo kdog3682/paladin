@@ -1,66 +1,51 @@
 // @paladin/squire/src/cli.ts
 
+import { StatusBar } from "./shell/statusbar"
 import { GitOps } from "./shell/git"
 import { Reporter } from "./shell/reporter"
 import { Runner } from "./shell/runner"
 import { TempWriter } from "./shell/tempwriter"
-import { resolveCurrentPkg, discoverPackages } from "./core/resolve"
+import { resolveCurrentPkg } from "./core/resolve"
 import { createHandler, type AppState } from "./handler"
-import { commitCommand } from "./commands/commit"
-import { revertCommand } from "./commands/revert"
-import { statusCommand } from "./commands/status"
-import { demoCommand } from "./commands/demo"
-import { testCommand } from "./commands/test"
-import { tempwriteCommand } from "./commands/tempwrite"
-import { setCommand } from "./commands/set"
-import { helpCommand } from "./commands/help"
-import { exitCommand } from "./commands/exit"
+import { getDefaultPkg, setDefaultPkg } from "./config"
+import { commands } from "./commands"
 import { createInterface } from "readline"
+import {
+  promptLine,
+  parseDotCommand,
+  findRoot,
+  resolvePkg,
+} from "./helpers"
+
+const sym = Symbol.for("squire:rl")
+const g = globalThis as Record<symbol, any>
+
+if (g[sym]) {
+  g[sym].close()
+  process.stdin.removeAllListeners()
+}
 
 const rl = createInterface({ input: process.stdin, output: process.stdout })
+g[sym] = rl
 
-function promptLine(reporter: Reporter): Promise<string> {
-  return new Promise(resolve => {
-    reporter.prompt()
-    rl.once("line", line => resolve(line.trim()))
-  })
-}
-
-async function selectFromList(
+async function initPackage(
   reporter: Reporter,
-  packages: { name: string, dir: string }[]
-): Promise<{ name: string, dir: string } | null> {
-  const letters = "abcdefghijklmnopqrstuvwxyz"
-
-  if (packages.length === 0) {
-    reporter.warn("no packages found in packages/, libs/, or apps/")
-    return null
-  }
-
-  reporter.header("available packages")
-  reporter.selectable(
-    packages.map(p => ({ label: p.name, detail: p.dir }))
-  )
-  reporter.blank()
-
-  const input = await promptLine(reporter)
-  const idx = letters.indexOf(input.toLowerCase())
-
-  if (idx < 0 || idx >= packages.length) {
-    reporter.error("invalid selection")
-    return null
-  }
-
-  return packages[idx]
-}
-
-async function initPackage(reporter: Reporter, root: string): Promise<{ pkg: string, pkgDir: string } | null> {
+  root: string
+): Promise<{ pkg: string, pkgDir: string, pendingCommand?: string } | null> {
   const cwd = process.cwd()
   const result = await resolveCurrentPkg(cwd, root)
 
   if (result.kind === "found") {
     reporter.success(`detected package: ${result.pkg}`)
+    reporter.info(`  → ${result.pkgDir}`)
     return { pkg: result.pkg, pkgDir: result.pkgDir }
+  }
+
+  const defaultPkg = await getDefaultPkg(root)
+  if (defaultPkg) {
+    reporter.success(`loaded default: ${defaultPkg.pkg}`)
+    reporter.info(`  → ${defaultPkg.pkgDir}`)
+    return defaultPkg
   }
 
   if (result.kind === "root") {
@@ -69,58 +54,35 @@ async function initPackage(reporter: Reporter, root: string): Promise<{ pkg: str
     reporter.info("could not detect a package from current directory")
   }
 
-  const packages = await discoverPackages(root)
-  const selected = await selectFromList(reporter, packages)
+  const selected = await resolvePkg(reporter, rl, root)
   if (!selected) return null
-  return { pkg: selected.name, pkgDir: selected.dir }
-}
-
-async function findRoot(): Promise<string> {
-  const proc = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  const output = await new Response(proc.stdout).text()
-  await proc.exited
-  return output.trim() || process.cwd()
+  return { pkg: selected.name, pkgDir: selected.dir, pendingCommand: selected.pendingCommand }
 }
 
 async function main() {
   const reporter = new Reporter()
   const root = await findRoot()
   const git = new GitOps(root)
+  const tempWriter = new TempWriter(reporter)
+  const runner = new Runner(root, reporter, tempWriter)
+  const statusBar = new StatusBar()
+  const handle = createHandler(commands)
 
-  reporter.header("squire")
-
-  const initial = await initPackage(reporter, root)
+  const safeHandle = async (input: string, ctx: any) => {
+    try {
+      return await handle(input, ctx)
+    } catch (e: any) {
+      reporter.error(e.message ?? String(e))
+      return null
+    }
+  }
 
   const state: AppState = {
-    pkg: initial?.pkg ?? null,
-    pkgDir: initial?.pkgDir ?? null,
+    pkg: null,
+    pkgDir: null,
     demo: false,
     test: false,
   }
-
-  if (!state.pkg) {
-    reporter.warn("no package selected — use 'set' to pick one")
-  }
-
-  const tempWriter = new TempWriter(reporter)
-  const runner = new Runner(root, reporter, tempWriter)
-
-  const commands = [
-    commitCommand,
-    revertCommand,
-    statusCommand,
-    demoCommand,
-    testCommand,
-    tempwriteCommand,
-    setCommand,
-    exitCommand,
-  ]
-  commands.push(helpCommand(commands))
-
-  const handle = createHandler(commands)
 
   const ctx = {
     git,
@@ -128,31 +90,87 @@ async function main() {
     runner,
     tempWriter,
     state,
+    root,
     watcher: null,
-    onSetPkg: async () => {
-      const packages = await discoverPackages(root)
-      return selectFromList(reporter, packages)
-    },
+    onSetPkg: (name?: string) => resolvePkg(reporter, rl, root, name),
   }
 
-  reporter.info("type 'help' for commands and hints")
-  reporter.blank()
+  const init = async () => {
+    statusBar.init()
+    reporter.header("squire")
+    const initial = await initPackage(reporter, root)
+    state.pkg = initial?.pkg ?? null
+    state.pkgDir = initial?.pkgDir ?? null
+    state.demo = false
+    state.test = false
+
+    if (state.pkg) {
+      reporter.success(`ready — ${state.pkg}`)
+    } else {
+      reporter.warn("no package selected — use 'set' to pick one")
+    }
+    console.log()
+    statusBar.render(state)
+
+    return initial?.pendingCommand ?? null
+  }
+
+  let pendingCommand = await init()
 
   rl.on("close", () => process.exit(0))
 
-  const loop = async () => {
-    while (true) {
-      const input = await promptLine(reporter)
-      if (!input) continue
-      const result = await handle(input, ctx)
-      if (result === "exit") {
-        rl.close()
-        process.exit(0)
-      }
-    }
-  }
+  while (true) {
+    let input: string
 
-  loop()
+    if (pendingCommand) {
+      input = pendingCommand
+      pendingCommand = null
+      reporter.info(`running: ${input}`)
+    } else {
+      input = await promptLine(rl, reporter)
+      if (!input) continue
+    }
+
+    const dotCmd = parseDotCommand(input)
+    if (dotCmd) {
+      if (dotCmd.command === "default") {
+        const selected = await resolvePkg(reporter, rl, root, dotCmd.pkg)
+        if (selected) {
+          await setDefaultPkg(root, selected.name, selected.dir)
+          state.pkg = selected.name
+          state.pkgDir = selected.dir
+          reporter.success(`default set to: ${selected.name}`)
+        }
+        continue
+      }
+
+      const selected = await resolvePkg(reporter, rl, root, dotCmd.pkg)
+      if (!selected) continue
+      state.pkg = selected.name
+      state.pkgDir = selected.dir
+      reporter.success(`switched to: ${selected.name}`)
+
+      const fullInput = dotCmd.args ? `${dotCmd.command} ${dotCmd.args}` : dotCmd.command
+      const result = await safeHandle(fullInput, ctx)
+      if (result === "exit") { rl.close(); process.exit(0) }
+      if (result === "restart") { pendingCommand = await init() }
+      continue
+    }
+
+    if (input === "set default") {
+      if (state.pkg && state.pkgDir) {
+        await setDefaultPkg(root, state.pkg, state.pkgDir)
+        reporter.success(`default set to: ${state.pkg}`)
+      } else {
+        reporter.warn("no package selected to set as default")
+      }
+      continue
+    }
+
+    const result = await safeHandle(input, ctx)
+    if (result === "exit") { rl.close(); process.exit(0) }
+    if (result === "restart") { pendingCommand = await init() }
+  }
 }
 
 main()

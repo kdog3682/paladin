@@ -23,7 +23,13 @@ export type HandlerContext = {
   tempWriter?: TempWriter
   state: AppState
   watcher: PkgWatcher | null
-  onSetPkg?: () => Promise<{ name: string, dir: string } | null>
+  root: string
+  onSetPkg?: (name?: string) => Promise<{ name: string, dir: string } | null>
+}
+
+export type ParsedArgs = {
+  raw: string       // everything after the command name, untouched
+  tokens: string[]  // split on whitespace
 }
 
 export type Command = {
@@ -33,7 +39,7 @@ export type Command = {
   description: string
   hints?: string[]
   requiresPkg: boolean
-  handler: (args: string[], ctx: HandlerContext) => Promise<HandleResult>
+  handler: (args: ParsedArgs, ctx: HandlerContext) => Promise<HandleResult>
 }
 
 export function createHandler(commands: Command[]) {
@@ -44,7 +50,12 @@ export function createHandler(commands: Command[]) {
   }
 
   return async (input: string, ctx: HandlerContext): Promise<HandleResult> => {
-    const [name, ...args] = input.split(/\s+/)
+    const trimmed = input.trim()
+    const spaceIdx = trimmed.indexOf(" ")
+    const name = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)
+    const raw = spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1)
+    const tokens = raw ? raw.trim().split(/\s+/) : []
+
     const cmd = lookup.get(name)
 
     if (!cmd) {
@@ -57,7 +68,7 @@ export function createHandler(commands: Command[]) {
       return
     }
 
-    return cmd.handler(args, ctx)
+    return cmd.handler({ raw, tokens }, ctx)
   }
 }
 

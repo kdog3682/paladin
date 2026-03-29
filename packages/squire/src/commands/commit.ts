@@ -1,5 +1,4 @@
 // @paladin/squire/src/commands/commit.ts
-
 import { nextCommitMessage } from "../core/version"
 import type { Command } from "../handler"
 
@@ -9,8 +8,8 @@ export const commitCommand: Command = {
   description: "commit current package (auto-increments version)",
   hints: ["messages are auto-formatted as wip(<pkg>): v<n> -- <message>"],
   requiresPkg: true,
-  handler: async (args, ctx) => {
-    const message = args.join(" ") || undefined
+  handler: async ({ raw }, ctx) => {
+    const message = raw.trim() || undefined
     const history = await ctx.git.wipHistory(ctx.state.pkg!)
     const commitMsg = nextCommitMessage(history, ctx.state.pkg!, message)
 

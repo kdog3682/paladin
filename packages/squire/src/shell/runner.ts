@@ -10,14 +10,14 @@ export class Runner {
     private tempWriter: TempWriter
   ) {}
 
-  async runDemo(demoFile: string) {
-    this.reporter.info(`running demo: ${demoFile}`)
+  private async spawn(args: string[], cwd?: string) {
+    const dir = cwd ?? this.cwd
 
     if (this.tempWriter.active) {
       await this.tempWriter.clear()
-      await this.tempWriter.append(`--- demo: ${demoFile} ---\n\n`)
-      const proc = Bun.spawn(["bun", "run", demoFile], {
-        cwd: this.cwd,
+      await this.tempWriter.append(`--- ${args.join(" ")} ---\n\n`)
+      const proc = Bun.spawn(args, {
+        cwd: dir,
         stdout: "pipe",
         stderr: "pipe",
       })
@@ -26,8 +26,8 @@ export class Runner {
       if (stderr) await this.tempWriter.append(`\n--- stderr ---\n${stderr}`)
       await proc.exited
     } else {
-      const proc = Bun.spawn(["bun", "run", demoFile], {
-        cwd: this.cwd,
+      const proc = Bun.spawn(args, {
+        cwd: dir,
         stdout: "inherit",
         stderr: "inherit",
       })
@@ -35,32 +35,20 @@ export class Runner {
     }
   }
 
-  async runTests(testFiles: string[]) {
+  async runDemo(demoFile: string) {
+    this.reporter.info(`running demo: ${demoFile}`)
+    await this.spawn(["bun", "run", demoFile])
+  }
+
+  async runTests(testFiles: string[], pkgDir?: string) {
     if (testFiles.length === 0) {
       this.reporter.warn("no test files matched")
       return
     }
     this.reporter.info(`running ${testFiles.length} test(s)`)
-
-    if (this.tempWriter.active) {
-      await this.tempWriter.clear()
-      await this.tempWriter.append(`--- test: ${testFiles.join(", ")} ---\n\n`)
-      const proc = Bun.spawn(["bun", "test", ...testFiles], {
-        cwd: this.cwd,
-        stdout: "pipe",
-        stderr: "pipe",
-      })
-      await this.tempWriter.captureOutput(proc)
-      const stderr = await new Response(proc.stderr).text()
-      if (stderr) await this.tempWriter.append(`\n--- stderr ---\n${stderr}`)
-      await proc.exited
-    } else {
-      const proc = Bun.spawn(["bun", "test", ...testFiles], {
-        cwd: this.cwd,
-        stdout: "inherit",
-        stderr: "inherit",
-      })
-      await proc.exited
+    for (const file of testFiles) {
+      this.reporter.info(file)
+      await this.spawn(["bun", file], pkgDir)
     }
   }
 }
