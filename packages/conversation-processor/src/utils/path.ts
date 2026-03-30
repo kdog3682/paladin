@@ -1,6 +1,6 @@
 // @paladin/conversation-processor/utils/path.ts
 
-import { join, resolve } from "path"
+import { basename, extname, join, resolve } from "path"
 import { homedir } from "os"
 
 const DEFAULT_PROJECTS_DIR = join(homedir(), "projects")
@@ -11,6 +11,72 @@ const DEFAULT_PROJECTS_DIR = join(homedir(), "projects")
 function normalizeDirPath(dir: string): string {
   if (dir.startsWith("~/")) return join(homedir(), dir.slice(2))
   return resolve(dir)
+}
+
+function hasExtension(segment: string): boolean {
+  return extname(segment) !== ""
+}
+
+function isPackageRootConfig(pathInPkg: string): boolean {
+  const name = basename(pathInPkg)
+  return /\.config\.[^.]+$/.test(name) || /^tsconfig(?:\..+)?\.json$/.test(name)
+}
+
+function resolveWorkspacePath(workspaceRoot: string, relPath: string): string | null {
+  const rel = relPath.trim()
+  if (!rel) return null
+
+  const parts = rel.split("/").filter(Boolean)
+  if (!parts.length) return null
+
+  if (parts[0] === "docs") {
+    return join(workspaceRoot, rel)
+  }
+
+  if (parts[0] === "packages") {
+    const pkg = parts[1]
+    const rest = parts.slice(2).join("/")
+    if (!pkg) return null
+    if (!rest) return null
+    if (rest.startsWith("src/") || isPackageRootConfig(rest)) {
+      return join(workspaceRoot, "packages", pkg, rest)
+    }
+    return join(workspaceRoot, "packages", pkg, "src", rest)
+  }
+
+  if (hasExtension(parts[0])) {
+    return join(workspaceRoot, rel)
+  }
+
+  const pkg = parts[0]
+  const rest = parts.slice(1).join("/")
+  if (!rest) return null
+  if (rest.startsWith("src/") || isPackageRootConfig(rest)) {
+    return join(workspaceRoot, "packages", pkg, rest)
+  }
+  return join(workspaceRoot, "packages", pkg, "src", rest)
+}
+
+function splitProjectPath(rawPath: string): { project: string; relPath: string } | null {
+  const normalized = rawPath.trim()
+  if (!normalized) return null
+
+  if (normalized.startsWith("@")) {
+    const slash = normalized.indexOf("/", 1)
+    if (slash === -1) return null
+    const project = normalized.slice(1, slash).trim()
+    const relPath = normalized.slice(slash + 1).trim()
+    if (!project || !relPath) return null
+    return { project, relPath }
+  }
+
+  const parts = normalized.split("/").filter(Boolean)
+  if (parts.length < 2) return null
+
+  const project = parts[0]
+  const relPath = parts.slice(1).join("/")
+  if (!project || !relPath) return null
+  return { project, relPath }
 }
 
 /**
@@ -24,40 +90,28 @@ export function resolvePath(
   rawPath: string,
   projectsDir = DEFAULT_PROJECTS_DIR,
 ): string | null {
+  const normalized = rawPath.trim()
+  if (!normalized) return null
+
   // already absolute
-  if (rawPath.startsWith("/")) return rawPath
+  if (normalized.startsWith("/")) return normalized
 
   // relative paths not allowed
-  if (rawPath.startsWith("./") || rawPath.startsWith("../")) {
-    throw new Error(`relative paths not allowed: ${rawPath}`)
+  if (normalized.startsWith("./") || normalized.startsWith("../")) {
+    throw new Error(`relative paths not allowed: ${normalized}`)
   }
 
   // expand ~/
-  if (rawPath.startsWith("~/")) {
-    return normalizeDirPath(rawPath)
+  if (normalized.startsWith("~/")) {
+    return normalizeDirPath(normalized)
   }
 
   const dir = normalizeDirPath(projectsDir)
-  const withoutAt = rawPath.replace(/^@/, "")
-  const parts = withoutAt.split("/")
+  const parsed = splitProjectPath(normalized)
+  if (!parsed) return null
 
-  // @acme, @acme/ — no file specified
-  if (parts.length < 2 || !parts[1]) return null
-
-  // check last segment has a file extension
-  if (!parts[parts.length - 1].includes(".")) return null
-
-  const project = parts[0]
-
-  if (parts.length === 2) {
-    // @acme/readme.md → root file
-    return join(dir, project, parts[1])
-  }
-
-  // @acme/fcache/src/utils.ts → projectsDir/acme/packages/fcache/src/utils.ts
-  const packageName = parts[1]
-  const rest = parts.slice(2).join("/")
-  return join(dir, project, "packages", packageName, rest)
+  const workspaceRoot = join(dir, parsed.project)
+  return resolveWorkspacePath(workspaceRoot, parsed.relPath)
 }
 
 /**

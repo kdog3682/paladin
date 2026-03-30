@@ -1,13 +1,15 @@
 // @paladin/conversation-processor/cli.ts
 
 import { watch } from "fs"
-import { readFile } from "fs/promises"
-import { join } from "path"
+import { mkdir, readFile, stat, writeFile } from "fs/promises"
+import { dirname, join } from "path"
 import { parseArgs } from "util"
 import { mochi } from "@paladin/mochi"
 import { tempwrite } from "@paladin/utils/tempwrite"
 import { runPipeline } from "./pipeline"
 import type { ConversationData, FileOp } from "./types"
+import { extractHeader } from "./utils/extract-header"
+import { resolvePath } from "./utils/path"
 
 const { values } = parseArgs({
   args: Bun.argv.slice(2),
@@ -17,10 +19,16 @@ const { values } = parseArgs({
 })
 
 const WATCH_DIR = process.env.SCRATCH_DIR
+const PROJECTS_DIR = process.env.PROJECTS_DIR
 const useTempwrite = values.tempwrite
 
 if (!WATCH_DIR) {
   console.error("SCRATCH_DIR is required")
+  process.exit(1)
+}
+
+if (!PROJECTS_DIR) {
+  console.error("PROJECTS_DIR is required")
   process.exit(1)
 }
 
@@ -35,22 +43,74 @@ const mochiHandler = {
 
 console.log(`watching ${WATCH_DIR}`)
 
-watch(WATCH_DIR, async (_event, filename) => {
-  if (!filename?.endsWith(".json")) return
+async function waitForStable(path: string, { interval = 50, timeout = 2000 } = {}) {
+  let lastSize = -1
+  const start = Date.now()
 
-  const raw = await readFile(join(WATCH_DIR, filename), "utf-8")
-  const conversation: ConversationData = JSON.parse(raw)
+  while (Date.now() - start < timeout) {
+    try {
+      const s = await stat(path)
+      if (s.size > 0 && s.size === lastSize) return
+      lastSize = s.size
+    } catch { }
 
-  const result = await runPipeline(conversation, {
-    handlers: [mochiHandler],
-  })
+    await Bun.sleep(interval)
+  }
+}
 
-  if (!result) {
-    console.log("no valid artifacts found")
-    return
+async function handleIncomingFile(filepath: string): Promise<boolean> {
+  if (!filepath.endsWith(".ts") && !filepath.endsWith(".md")) return false
+
+  const content = await readFile(filepath, "utf-8")
+  const header = extractHeader(content)
+  if (!header) {
+    console.log(`could not extract path header from ${filepath}`)
+    return true
   }
 
-  printResult(result)
+  const resolved = resolvePath(header.rawPath, PROJECTS_DIR)
+  if (!resolved) {
+    console.log(`could not resolve path from header "${header.rawPath}"`)
+    return true
+  }
+
+  await mkdir(dirname(resolved), { recursive: true })
+  await writeFile(resolved, content, "utf-8")
+  console.log(`wrote ${resolved}`)
+  return true
+}
+
+watch(WATCH_DIR, async (event, filename) => {
+  if (event !== "rename" || !filename) return
+  if (filename.endsWith(".crdownload")) return
+  const filepath = join(WATCH_DIR, filename)
+  await waitForStable(filepath)
+
+  console.log("Processing:", filename)
+
+  try {
+    const handled = await handleIncomingFile(filepath)
+    if (handled) return
+
+    if (!filename.endsWith(".json")) return
+
+    const raw = await readFile(filepath, "utf-8")
+    const conversation: ConversationData = JSON.parse(raw)
+
+    const result = await runPipeline(conversation, {
+      baseDir: PROJECTS_DIR,
+      handlers: [mochiHandler],
+    })
+
+    if (!result) {
+      console.log("no valid artifacts found")
+      return
+    }
+
+    printResult(result)
+  } catch (e) {
+    console.log("ERROR", e)
+  }
 })
 
 function printResult(result: Awaited<ReturnType<typeof runPipeline>>) {
