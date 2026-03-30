@@ -9,6 +9,12 @@
     "./fs": "./src/fs.ts",
     "./bash": "./src/bash.ts",
     "./deep-merge": "./src/deep-merge.ts",
-    "./get-paths": "./src/get-paths.ts"
+    "./get-paths": "./src/get-paths.ts",
+    "./tempwrite": "./src/tempwrite.ts",
+    "./collect-files": "./src/collect-files.ts"
+  },
+  "dependencies": {
+    "@paladin/utils": "workspace:*",
+    "bun": "^1.3.11"
   }
 }
