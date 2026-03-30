@@ -1,0 +1,8 @@
+{
+  "name": "@paladin/docgen",
+  "version": "0.1.0",
+  "scripts": {},
+  "dependencies": {
+    "@paladin/utils": "workspace:*"
+  }
+}
