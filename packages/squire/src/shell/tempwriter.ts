@@ -8,7 +8,7 @@ import type { IReporter } from "./reporter"
 const TEMPWRITE_PATH = join(homedir(), ".cache", "paladin", "squire", "tempwrite.txt")
 
 export class TempWriter {
-  private _active = false
+  private _active = true
   readonly filePath = TEMPWRITE_PATH
 
   constructor(private reporter: IReporter) {}
@@ -38,20 +38,12 @@ export class TempWriter {
     await Bun.write(this.filePath, existing + text)
   }
 
-  /**
-   * Returns the stdout config for Bun.spawn.
-   * When active, returns a writable file descriptor.
-   * When inactive, returns "inherit" for normal terminal output.
-   */
   async spawnSink(): Promise<"inherit" | "pipe"> {
     if (!this._active) return "inherit"
     await this.clear()
     return "pipe"
   }
 
-  /**
-   * After a process finishes, pipe its collected output to the file.
-   */
   async captureOutput(proc: { stdout: ReadableStream<Uint8Array> | null }) {
     if (!this._active || !proc.stdout) return
     const text = await new Response(proc.stdout).text()
@@ -62,7 +54,7 @@ export class TempWriter {
     this.ensureDir()
     const exists = await Bun.file(this.filePath).exists()
     if (!exists) {
-      await Bun.write(this.filePath, "squire tempwrite — waiting for output...\n")
+      await Bun.write(this.filePath, "")
     }
 
     const proc = Bun.spawn(["python3", "-m", "webbrowser", this.filePath], {
@@ -70,5 +62,6 @@ export class TempWriter {
       stderr: "ignore",
     })
     await proc.exited
+    await this.clear()
   }
 }

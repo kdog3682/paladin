@@ -1,50 +1,28 @@
 // @paladin/squire/src/shell/runner.ts
 
 import { mochi } from "@paladin/mochi"
+import { tempwrite } from "@paladin/utils/tempwrite"
 import type { IReporter } from "./reporter"
-import type { TempWriter } from "./tempwriter"
 
 export class Runner {
   constructor(
     private cwd: string,
     private reporter: IReporter,
-    private tempWriter: TempWriter
   ) {}
 
-  private async spawn(args: string[], cwd?: string) {
+  private async capture(args: string[], cwd?: string): Promise<string> {
     const dir = cwd ?? this.cwd
-
-    if (this.tempWriter.active) {
-      await this.tempWriter.append(`--- ${args.join(" ")} ---\n\n`)
-      const proc = Bun.spawn(args, {
-        cwd: dir,
-        stdout: "pipe",
-        stderr: "pipe",
-      })
-      await this.tempWriter.captureOutput(proc)
-      const stderr = await new Response(proc.stderr).text()
-      if (stderr) await this.tempWriter.append(`\n--- stderr ---\n${stderr}`)
-      await proc.exited
-    } else {
-      const proc = Bun.spawn(args, {
-        cwd: dir,
-        stdout: "inherit",
-        stderr: "inherit",
-      })
-      await proc.exited
-    }
-  }
-
-  async clearOutput() {
-    if (this.tempWriter.active) await this.tempWriter.clear()
-  }
-
-  private async writeOutput(text: string) {
-    if (this.tempWriter.active) {
-      await this.tempWriter.append(text)
-    } else {
-      process.stdout.write(text)
-    }
+    const proc = Bun.spawn(args, {
+      cwd: dir,
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ])
+    await proc.exited
+    return stderr ? `${stdout}\n--- stderr ---\n${stderr}` : stdout
   }
 
   async runDemos(demoFiles: string[]) {
@@ -53,10 +31,13 @@ export class Runner {
       return
     }
     this.reporter.info(`running ${demoFiles.length} demo(s)`)
+    const parts: string[] = []
     for (const file of demoFiles) {
       this.reporter.info(file)
-      await this.spawn(["bun", "run", file])
+      const out = await this.capture(["bun", "run", file])
+      parts.push(`--- ${file} ---\n\n${out}`)
     }
+    await tempwrite(parts.join("\n\n"))
   }
 
   async runTests(testFiles: string[], pkgDir?: string) {
@@ -65,10 +46,13 @@ export class Runner {
       return
     }
     this.reporter.info(`running ${testFiles.length} test(s)`)
+    const parts: string[] = []
     for (const file of testFiles) {
       this.reporter.info(file)
-      await this.spawn(["bun", "test", file], pkgDir)
+      const out = await this.capture(["bun", "test", file], pkgDir)
+      parts.push(`--- ${file} ---\n\n${out}`)
     }
+    await tempwrite(parts.join("\n\n"))
   }
 
   async runMochi(mochiFiles: string[]) {
@@ -77,8 +61,7 @@ export class Runner {
       return
     }
     this.reporter.info(`running ${mochiFiles.length} mochi file(s)`)
-    if (this.tempWriter.active) await this.tempWriter.append("--- mochi ---\n\n")
     const result = await mochi(mochiFiles)
-    await this.writeOutput(result)
+    await tempwrite(result)
   }
 }
