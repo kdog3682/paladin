@@ -1,0 +1,10 @@
+{
+  "name": "@paladin/fcache",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "drizzle-orm": "^0.45.1"
+  }
+}
