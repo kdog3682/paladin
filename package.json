@@ -23,5 +23,8 @@
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@swc/core": "^1.15.21"
+  }
 }
