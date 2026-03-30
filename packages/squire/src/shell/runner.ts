@@ -1,5 +1,6 @@
 // @paladin/squire/src/shell/runner.ts
 
+import { mochi } from "@paladin/mochi"
 import type { IReporter } from "./reporter"
 import type { TempWriter } from "./tempwriter"
 
@@ -14,7 +15,6 @@ export class Runner {
     const dir = cwd ?? this.cwd
 
     if (this.tempWriter.active) {
-      await this.tempWriter.clear()
       await this.tempWriter.append(`--- ${args.join(" ")} ---\n\n`)
       const proc = Bun.spawn(args, {
         cwd: dir,
@@ -35,9 +35,28 @@ export class Runner {
     }
   }
 
-  async runDemo(demoFile: string) {
-    this.reporter.info(`running demo: ${demoFile}`)
-    await this.spawn(["bun", "run", demoFile])
+  async clearOutput() {
+    if (this.tempWriter.active) await this.tempWriter.clear()
+  }
+
+  private async writeOutput(text: string) {
+    if (this.tempWriter.active) {
+      await this.tempWriter.append(text)
+    } else {
+      process.stdout.write(text)
+    }
+  }
+
+  async runDemos(demoFiles: string[]) {
+    if (demoFiles.length === 0) {
+      this.reporter.warn("no demo files matched")
+      return
+    }
+    this.reporter.info(`running ${demoFiles.length} demo(s)`)
+    for (const file of demoFiles) {
+      this.reporter.info(file)
+      await this.spawn(["bun", "run", file])
+    }
   }
 
   async runTests(testFiles: string[], pkgDir?: string) {
@@ -48,7 +67,18 @@ export class Runner {
     this.reporter.info(`running ${testFiles.length} test(s)`)
     for (const file of testFiles) {
       this.reporter.info(file)
-      await this.spawn(["bun", file], pkgDir)
+      await this.spawn(["bun", "test", file], pkgDir)
     }
+  }
+
+  async runMochi(mochiFiles: string[]) {
+    if (mochiFiles.length === 0) {
+      this.reporter.warn("no mochi files matched")
+      return
+    }
+    this.reporter.info(`running ${mochiFiles.length} mochi file(s)`)
+    if (this.tempWriter.active) await this.tempWriter.append("--- mochi ---\n\n")
+    const result = await mochi(mochiFiles)
+    await this.writeOutput(result)
   }
 }

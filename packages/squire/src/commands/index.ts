@@ -3,8 +3,7 @@
 import { commitCommand } from "./commit"
 import { revertCommand } from "./revert"
 import { statusCommand } from "./status"
-import { demoCommand } from "./demo"
-import { testCommand } from "./test"
+import { demoCommand, testCommand, mochiCommand } from "./watch-commands"
 import { tempwriteCommand } from "./tempwrite"
 import { setCommand } from "./set"
 import { clearCommand } from "./clear"
@@ -25,6 +24,7 @@ const base: Command[] = [
   statusCommand,
   demoCommand,
   testCommand,
+  mochiCommand,
   tempwriteCommand,
   setCommand,
   clearCommand,

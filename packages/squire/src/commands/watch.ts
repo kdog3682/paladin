@@ -13,7 +13,7 @@ async function collectFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true, recursive: true })
   for (const e of entries) {
     if (!e.isFile()) continue
-    out.push(join(dir, e.name))
+    out.push(join(e.parentPath, e.name))
   }
   return out
 }

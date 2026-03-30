@@ -33,7 +33,6 @@ export class StatusBar {
   }
 
   init() {
-    console.clear()
     process.stdout.write(SCROLL_REGION(2))
     process.stdout.write("\x1b[2;1H")
   }
