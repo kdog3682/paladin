@@ -1,0 +1,75 @@
+// @paladin/squire/src/commands — ParsedArgs migration
+// Only files that needed changes are shown below.
+// claude.ts, view.ts, exit.ts, help.ts, restart.ts, status.ts, tempwrite.ts, watch.ts, index.ts — unchanged.
+
+// ===
+// @paladin/squire/src/commands/bash.ts
+// ===
+
+import type { Command } from "../handler"
+
+export const bashCommand: Command = {
+  name: "bash",
+  description: "run a shell command from the package directory",
+  requiresPkg: false,
+  rawArgs: true,
+  handler: async ({ raw }, ctx) => {
+    const cmd = raw.trim()
+
+    if (!cmd) {
+      ctx.reporter.warn("usage: bash <command>")
+      return
+    }
+
+    const cwd = ctx.state.pkgDir ?? ctx.root
+
+    const proc = Bun.spawn({
+      cmd: ["bash", "-c", cmd],
+      cwd,
+      stdout: "inherit",
+      stderr: "inherit",
+      stdin: "inherit",
+      env: { ...process.env },
+    })
+
+    const code = await proc.exited
+
+    if (code !== 0) {
+      ctx.reporter.warn(`exited with code ${code}`)
+    }
+  },
+}
+
+// ===
+// @paladin/squire/src/commands/clear.ts
+// ===
+
+import { clearDefaultPkg } from "../config"
+import type { Command } from "../handler"
+
+export const clearCommand: Command = {
+  name: "clear",
+  args: "<default>",
+  description: "clear saved default package",
+  requiresPkg: false,
+  handler: async ({ tokens }, ctx) => {
+    if (tokens[0] !== "default") {
+      ctx.reporter.warn("unknown: clear — did you mean 'clear default'?")
+      return
+    }
+    await clearDefaultPkg(ctx.root)
+    ctx.reporter.success("default cleared")
+  },
+}
+
+// ===
+// @paladin/squire/src/commands/commit.ts
+// ===
+
+import { nextCommitMessage } from "../core/version"
+import type { Command } from "../handler"
+
+export const commitCommand: Command = {
+  name: "commit",
+  args: "[message]",
+  description: "commit current package

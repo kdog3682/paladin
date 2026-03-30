@@ -1,0 +1,11 @@
+{
+  "name": "@paladin/squire",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "squire": "./src/cli.ts"
+  },
+  "dependencies": {
+    "es-module-lexer": "^1.4.0"
+  }
+}
