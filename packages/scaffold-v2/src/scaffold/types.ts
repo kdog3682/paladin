@@ -1,13 +1,6 @@
-// @paladin/scaffold-v2/types.ts
+// @paladin/scaffold-v2/scaffold/types.ts
 
 import type { BashResult } from "@paladin/utils/bash"
-
-// --- imports ---
-
-export interface ImportTable {
-  workspace: string[]
-  external: string[]
-}
 
 // --- input ---
 
@@ -15,6 +8,15 @@ export interface FileContent {
   content: string
   id?: string
   updatedAt?: string
+}
+
+// --- imports ---
+
+export interface ImportEntry {
+  specifier: string
+  package: string
+  subpath: string | null
+  kind: "workspace" | "external"
 }
 
 // --- resolved files ---
@@ -26,35 +28,17 @@ export interface ResolvedFile {
   packageName: string | null
   packageDir: string | null
   isNew: boolean
-  importTable: ImportTable
+  imports: ImportEntry[]
 }
 
-// --- content transforms (pre-processing) ---
+// --- subpath export edits ---
 
-export interface ContentTransform {
-  matches: RegExp
-  replacements: { search: string | RegExp, replace: string }[]
-}
-
-// --- package matchers ---
-
-export interface PackageContext {
-  isNew: boolean
-  projectName: string
-  projectDir: string
+export interface ExportEdit {
   packageName: string
   packageDir: string
-  files: ResolvedFile[]
+  subpath: string
+  target: string
 }
-
-export interface MatcherResult {
-  matched: boolean
-  terminal?: boolean
-  filesCreated?: string[]
-  commands?: { cmd: string[], cwd: string }[]
-}
-
-export type Matcher = (pkg: PackageContext) => Promise<MatcherResult>
 
 // --- output ---
 
@@ -77,5 +61,6 @@ export interface ProjectData {
   projectName: string
   files: string[]
   packages: PackageResult[]
+  exportEdits: ExportEdit[]
   errors: BashResult[]
 }

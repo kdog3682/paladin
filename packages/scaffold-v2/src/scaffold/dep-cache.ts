@@ -1,4 +1,4 @@
-// @paladin/scaffold-v2/dep-cache.ts
+// @paladin/scaffold-v2/scaffold/dep-cache.ts
 
 import { existsSync } from "fs"
 import { readFile, writeFile, mkdir } from "fs/promises"
@@ -27,15 +27,6 @@ async function saveDepCache(cachePath: string, cache: DepCache): Promise<void> {
   await writeFile(cachePath, JSON.stringify(cache, null, 2))
 }
 
-/**
- * parse the text-based bun.lock (JSON with trailing commas).
- *
- * bun.lock structure:
- *   { "packages": { "express@4.21.2": ["express@4.21.2", ...], ... } }
- *
- * the key is "name@version" — we split on the last @ to get name and version.
- * workspace deps (containing "workspace:") are skipped.
- */
 async function buildCacheFromLockfile(projectDir: string, cachePath: string): Promise<DepCache> {
   const lockPath = join(projectDir, "bun.lock")
   if (!existsSync(lockPath)) return {}
@@ -48,7 +39,6 @@ async function buildCacheFromLockfile(projectDir: string, cachePath: string): Pr
   for (const key of Object.keys(packages)) {
     if (key.includes("workspace:")) continue
 
-    // key format: "name@version" or "@scope/name@version"
     const lastAt = key.lastIndexOf("@")
     if (lastAt <= 0) continue
 

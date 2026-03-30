@@ -1,6 +1,13 @@
 // @paladin/scaffold-v2/index.ts
 
-export { scaffold, DEFAULTS } from "./scaffold"
+export { scaffold, DEFAULTS } from "./scaffold/index"
 
-export type { ScaffoldOptions } from "./scaffold"
-export type { FileContent, ProjectData, PackageResult, ContentTransform, Matcher } from "./types"
+export type { ScaffoldOptions } from "./scaffold/index"
+export type {
+  FileContent,
+  ProjectData,
+  PackageResult,
+  ResolvedFile,
+  ImportEntry,
+  ExportEdit,
+} from "./scaffold/types"
