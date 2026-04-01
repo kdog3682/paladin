@@ -84,11 +84,11 @@ export type ProjectFile = {
 export type ProjectData = {
   name: string
   rootDir: string
-  conversationRefs: ConversationRef[]
+  conversationId: string
+  conversationTitle: string
   isNew: boolean
   files: ProjectFile[]
   bashResults: BashResult[]
-  handlerResults: Record<string, unknown[]>
 }
 
 // ── Watch Registry ──────────────────────────────────────────

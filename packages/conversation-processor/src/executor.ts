@@ -7,24 +7,15 @@ import { bash } from "@paladin/utils/bash"
 import type { BashResult } from "@paladin/utils/bash"
 import type { FileOp } from "./types"
 
-export type OpHandler = {
-  name: string
-  match(op: FileOp): boolean
-  run(op: FileOp): Promise<unknown>
-}
-
 export type ExecutorResult = {
   bashResults: BashResult[]
-  handlerResults: Record<string, unknown[]>
 }
 
 export async function execute(
   ops: FileOp[],
   workspaceRoot: string,
-  handlers: OpHandler[] = [],
 ): Promise<ExecutorResult> {
   const bashResults: BashResult[] = []
-  const handlerResults: Record<string, unknown[]> = {}
 
   // collect paths that have a write — these win over delete
   const writtenPaths = new Set(
@@ -82,17 +73,7 @@ export async function execute(
     bashResults.push(result)
   }
 
-  // 7. custom handlers
-  for (const op of ops) {
-    for (const handler of handlers) {
-      if (!handler.match(op)) continue
-      const result = await handler.run(op)
-      if (!handlerResults[handler.name]) handlerResults[handler.name] = []
-      handlerResults[handler.name].push(result)
-    }
-  }
-
-  return { bashResults, handlerResults }
+  return { bashResults }
 }
 
 function resolveJsonOps(ops: FileOp[]): Map<string, Record<string, unknown>> {

@@ -4,10 +4,10 @@ import { watch } from "fs"
 import { mkdir, readFile, stat, writeFile } from "fs/promises"
 import { dirname, join } from "path"
 import { parseArgs } from "util"
-import { mochi } from "@paladin/mochi"
 import { tempwrite } from "@paladin/utils/tempwrite"
 import { runPipeline } from "./pipeline"
-import type { ConversationData, FileOp } from "./types"
+import type { ConversationData } from "./types"
+import { createRunnableWatcher, mapProjectFilesToPaths, type RunnableExecutionResult } from "./runnable-watch"
 import { extractHeader } from "./utils/extract-header"
 import { resolvePath } from "./utils/path"
 
@@ -32,14 +32,7 @@ if (!PROJECTS_DIR) {
   process.exit(1)
 }
 
-const mochiHandler = {
-  name: "mochi",
-  match: (op: FileOp) => op.kind === "write" && op.path.endsWith(".mochi.ts"),
-  run: async (op: FileOp) => {
-    if (op.kind !== "write") return null
-    return mochi([op.path])
-  },
-}
+const runnableWatcher = createRunnableWatcher()
 
 console.log(`watching ${WATCH_DIR}`)
 
@@ -99,7 +92,6 @@ watch(WATCH_DIR, async (event, filename) => {
 
     const result = await runPipeline(conversation, {
       baseDir: PROJECTS_DIR,
-      handlers: [mochiHandler],
     })
 
     if (!result) {
@@ -107,13 +99,21 @@ watch(WATCH_DIR, async (event, filename) => {
       return
     }
 
-    printResult(result)
+    const changedPaths = mapProjectFilesToPaths(result.rootDir, result.files)
+    const runnableResults = await runnableWatcher.processChangedFiles(
+      changedPaths,
+      result.rootDir,
+    )
+
+    printResult({ ...result, ...runnableResults })
   } catch (e) {
     console.log("ERROR", e)
   }
 })
 
-function printResult(result: Awaited<ReturnType<typeof runPipeline>>) {
+type CliResult = NonNullable<Awaited<ReturnType<typeof runPipeline>>> & RunnableExecutionResult
+
+function printResult(result: CliResult) {
   if (!result) return
 
   const lines: string[] = []
@@ -151,10 +151,27 @@ function printResult(result: Awaited<ReturnType<typeof runPipeline>>) {
     }
   }
 
-  for (const [name, results] of Object.entries(result.handlerResults)) {
-    log(`\n  ${name}:`)
-    for (const r of results) {
-      log(`    ${JSON.stringify(r)}`)
+  if (result.mochiFiles.length) {
+    log(`\n  mochi (${result.mochiFiles.length})`)
+  }
+
+  if (result.testResults.length) {
+    log(`\n  test (${result.testFiles.length})`)
+    for (const r of result.testResults) {
+      const icon = r.exitCode === 0 ? "✓" : "✗"
+      log(`    ${icon} ${r.cmd.join(" ")}`)
+      if (r.stdout) log(`      ${r.stdout.trim()}`)
+      if (r.exitCode !== 0 && r.stderr) log(`      ${r.stderr.trim()}`)
+    }
+  }
+
+  if (result.demoResults.length) {
+    log(`\n  demo (${result.demoFiles.length})`)
+    for (const r of result.demoResults) {
+      const icon = r.exitCode === 0 ? "✓" : "✗"
+      log(`    ${icon} ${r.cmd.join(" ")}`)
+      if (r.stdout) log(`      ${r.stdout.trim()}`)
+      if (r.exitCode !== 0 && r.stderr) log(`      ${r.stderr.trim()}`)
     }
   }
 

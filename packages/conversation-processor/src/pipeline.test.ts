@@ -51,6 +51,8 @@ describe("pipeline", () => {
 
     expect(result!.isNew).toBe(true)
     expect(result!.name).toBe("testproj")
+    expect(result!.conversationId).toBe("conv-1")
+    expect(result!.conversationTitle).toBe("test conversation")
     expect(result!.files).toEqual([
       expect.objectContaining({ path: "packages/utils/src/add.ts", status: "created" }),
     ])
@@ -137,25 +139,6 @@ describe("pipeline", () => {
 
     const content = readFileSync(join(BASE_DIR, "testproj", "readme.md"), "utf-8")
     expect(content).toContain("# My Project")
-  })
-
-  test("a second conversation accumulates refs alongside the first", async () => {
-    const conv1 = makeConversation(
-      [{ content: "// @testproj/utils/src/a.ts\nexport const a = 1" }],
-      "conv-1",
-    )
-    const conv2 = makeConversation(
-      [{ content: "// @testproj/utils/src/b.ts\nexport const b = 2" }],
-      "conv-2",
-    )
-
-    await runPipeline(conv1, { baseDir: BASE_DIR })
-    const result = await runPipeline(conv2, { baseDir: BASE_DIR })
-
-    expect(result!.conversationRefs).toHaveLength(2)
-    const ids = result!.conversationRefs.map((r: any) => r.id)
-    expect(ids).toContain("conv-1")
-    expect(ids).toContain("conv-2")
   })
 
   test("reprocessing the same conversation is skipped", async () => {

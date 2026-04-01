@@ -7,7 +7,6 @@ import { existsSync } from "fs"
 import { join } from "path"
 import type {
   ConversationData,
-  ConversationRef,
   PipelineContext,
   Processor,
   FileOp,
@@ -17,10 +16,9 @@ import { parseConversation } from "./parse-conversation"
 import { hydrateImports } from "./hydrate-imports"
 import { createFileTracker } from "./file-tracker"
 import { bootstrap, inferTemplateKey } from "./bootstrap"
-import { execute, type OpHandler } from "./executor"
+import { execute } from "./executor"
 import { discoverWorkspacePackages } from "./utils/discover-workspace"
 import { extractHeader } from "./utils/extract-header"
-import { createProjectRegistry } from "./project-registry"
 import { packageJson } from "./processors/package-json"
 import { subpathExports } from "./processors/subpath-exports"
 
@@ -32,7 +30,6 @@ const DEFAULT_PROCESSORS: Processor[] = [
 export type PipelineOptions = {
   baseDir?: string
   processors?: Processor[]
-  handlers?: OpHandler[]
 }
 
 export async function runPipeline(
@@ -42,7 +39,6 @@ export async function runPipeline(
   const {
     baseDir = process.env.PROJECTS_DIR!,
     processors = DEFAULT_PROCESSORS,
-    handlers = [],
   } = options
 
   // derive project name and workspace root from the first valid artifact header
@@ -120,25 +116,13 @@ export async function runPipeline(
     }
   }
 
-  // 7. execute all accumulated file ops and custom handlers
-  const executorResult = await execute(ops, workspaceRoot, handlers)
+  // 7. execute all accumulated file ops
+  const executorResult = await execute(ops, workspaceRoot)
 
   // 8. persist tracked file state
   await tracker.flush()
 
-  // 9. record this conversation as a ref for the project
-  const registry = createProjectRegistry(storageRoot)
-  const ref: ConversationRef = {
-    id: conversation.id,
-    url: conversation.url,
-    title: conversation.title,
-    updatedAt: conversation.updatedAt,
-  }
-  registry.addRef(projectName, ref)
-  const conversationRefs = registry.getRefs(projectName)
-  registry.close()
-
-  // 10. build the final output summary
+  // 9. build the final output summary
   const files = [...packages.values()].flatMap(pkg =>
     pkg.incomingFiles.map(f => ({
       path: join("packages", pkg.name, f.relativePath),
@@ -149,11 +133,11 @@ export async function runPipeline(
   return {
     name: projectName,
     rootDir: workspaceRoot,
-    conversationRefs,
+    conversationId: conversation.id,
+    conversationTitle: conversation.title,
     isNew: isNewRoot,
     files,
     bashResults: executorResult.bashResults,
-    handlerResults: executorResult.handlerResults,
   }
 }
 
