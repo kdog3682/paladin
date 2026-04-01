@@ -20,7 +20,7 @@ export async function discoverWorkspacePackages(
 
   if (!existsSync(pkgPath)) return names
 
-  const root = JSON.parse(readFileSync(pkgPath, "utf-8"))
+  const root = readJsonFile(pkgPath)
   const patterns = extractPatterns(root.workspaces)
 
   if (!patterns.length) {
@@ -34,8 +34,15 @@ export async function discoverWorkspacePackages(
     const childPkgPath = join(workspaceRoot, dir, "package.json")
     if (!existsSync(childPkgPath)) continue
 
-    const childPkg = JSON.parse(readFileSync(childPkgPath, "utf-8"))
-    if (childPkg.name) names.add(childPkg.name)
+    let childPkg: Record<string, unknown>
+    try {
+      childPkg = readJsonFile(childPkgPath)
+    } catch {
+      // tolerate malformed child manifests so one package doesn't break processing
+      continue
+    }
+
+    if (typeof childPkg.name === "string") names.add(childPkg.name)
   }
 
   return names
@@ -61,9 +68,88 @@ function scanPackagesDir(workspaceRoot: string): Set<string> {
     const pkgPath = join(packagesDir, entry.name, "package.json")
     if (!existsSync(pkgPath)) continue
 
-    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"))
-    if (pkg.name) names.add(pkg.name)
+    let pkg: Record<string, unknown>
+    try {
+      pkg = readJsonFile(pkgPath)
+    } catch {
+      continue
+    }
+
+    if (typeof pkg.name === "string") names.add(pkg.name)
   }
 
   return names
+}
+
+function readJsonFile(path: string): Record<string, unknown> {
+  const raw = readFileSync(path, "utf-8").replace(/^\uFEFF/, "")
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return JSON.parse(stripJsonComments(raw))
+  }
+}
+
+function stripJsonComments(input: string): string {
+  let output = ""
+  let inString = false
+  let escaped = false
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i]
+    const next = input[i + 1]
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false
+        output += char
+      }
+      continue
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && next === "/") {
+        inBlockComment = false
+        i++
+      }
+      continue
+    }
+
+    if (inString) {
+      output += char
+      if (escaped) {
+        escaped = false
+      } else if (char === "\\") {
+        escaped = true
+      } else if (char === "\"") {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === "\"") {
+      inString = true
+      output += char
+      continue
+    }
+
+    if (char === "/" && next === "/") {
+      inLineComment = true
+      i++
+      continue
+    }
+
+    if (char === "/" && next === "*") {
+      inBlockComment = true
+      i++
+      continue
+    }
+
+    output += char
+  }
+
+  return output
 }

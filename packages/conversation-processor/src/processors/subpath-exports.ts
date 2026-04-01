@@ -24,8 +24,14 @@ export const subpathExports: Processor = {
 
         const parsed = parseSubpath(imp.specifier)
         if (!parsed) continue
-        const [packageName, subpath] = parsed
-        if (!pipeline.workspacePackages.has(packageName)) continue
+        const { packageName, scopedName, subpath } = parsed
+
+        if (
+          !pipeline.workspacePackages.has(packageName)
+          && (!scopedName || !pipeline.workspacePackages.has(scopedName))
+        ) {
+          continue
+        }
 
         const targetPkg = pipeline.packages.get(packageName)
         const targetDir = targetPkg?.dir ?? join(
@@ -91,16 +97,29 @@ function resolveExportTarget(
   return null
 }
 
-function parseSubpath(specifier: string): [string, string] | null {
+type ParsedSubpath = {
+  packageName: string
+  scopedName?: string
+  subpath: string
+}
+
+function parseSubpath(specifier: string): ParsedSubpath | null {
   if (specifier.startsWith("@")) {
     const parts = specifier.split("/")
     if (parts.length < 3) return null
     if (parts.length > 3) throw new Error(`deep subpath not allowed: ${specifier}`)
-    return [`${parts[0]}/${parts[1]}`, parts[2]]
+    return {
+      packageName: parts[1],
+      scopedName: `${parts[0]}/${parts[1]}`,
+      subpath: parts[2],
+    }
   }
 
   const parts = specifier.split("/")
   if (parts.length < 2) return null
   if (parts.length > 2) throw new Error(`deep subpath not allowed: ${specifier}`)
-  return [parts[0], parts[1]]
+  return {
+    packageName: parts[0],
+    subpath: parts[1],
+  }
 }

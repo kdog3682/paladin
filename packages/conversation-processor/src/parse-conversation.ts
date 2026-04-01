@@ -35,6 +35,8 @@ export function parseConversation(
     if (!tracker.isStale(rawPath, artifact.updatedAt)) continue
 
     const absolutePath = resolvePath(rawPath, baseDir)
+    if (!absolutePath) continue
+
     const content = prepareContent(artifact.content, absolutePath)
 
     tracker.set(rawPath, artifact.updatedAt)
@@ -57,6 +59,7 @@ export function parseConversation(
 
     const file: IncomingFile = {
       path: absolutePath,
+      relativePath: info.filePath,
       content,
       imports: projectName ? getImports(content, projectName) : [],
       status,

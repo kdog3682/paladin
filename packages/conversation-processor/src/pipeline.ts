@@ -1,4 +1,7 @@
 // @paladin/conversation-processor/pipeline.ts
+//
+// Main pipeline for converting a Claude conversation into a workspace project.
+// Steps: parse artifacts → bootstrap dirs → hydrate imports → write files → run processors → execute ops
 
 import { existsSync } from "fs"
 import { join } from "path"
@@ -23,8 +26,6 @@ import { subpathExports } from "./processors/subpath-exports"
 
 const DEFAULT_PROCESSORS: Processor[] = [
   packageJson,
-
-import { packageJson } from "./processors/package-json"
   subpathExports,
 ]
 
@@ -39,21 +40,23 @@ export async function runPipeline(
   options: PipelineOptions = {},
 ): Promise<ProjectData | null> {
   const {
-    projectsDir = process.env.PROJECTS_DIR!,
+    baseDir = process.env.PROJECTS_DIR!,
     processors = DEFAULT_PROCESSORS,
     handlers = [],
   } = options
 
-  const info = getProjectInfo(conversation, projectsDir)
+  // derive project name and workspace root from the first valid artifact header
+  const info = getProjectInfo(conversation, baseDir)
   if (!info) return null
 
   const { projectName, workspaceRoot } = info
-  const tracker = await createFileTracker(projectName)
+  const storageRoot = join(baseDir, ".paladin")
+  const tracker = await createFileTracker(projectName, storageRoot)
   const workspacePackages = await discoverWorkspacePackages(workspaceRoot)
   const isNewRoot = !existsSync(workspaceRoot)
   const ops: FileOp[] = []
 
-  // 1. bootstrap project root if new
+  // 1. bootstrap project root if it doesn't exist yet
   if (isNewRoot) {
     const rootOps = await bootstrap({
       dir: workspaceRoot,
@@ -63,7 +66,7 @@ export async function runPipeline(
     ops.push(...rootOps)
   }
 
-  // 2. parse
+  // 2. parse conversation artifacts into per-package file maps
   const { packages, rootOps } = parseConversation(
     conversation, baseDir, tracker,
   )
@@ -74,7 +77,7 @@ export async function runPipeline(
     return null
   }
 
-  // 3. bootstrap new packages
+  // 3. bootstrap new packages with inferred templates (e.g. "react", "lib")
   for (const pkg of packages.values()) {
     if (!pkg.isNew) continue
     const key = inferTemplateKey(pkg.incomingFiles)
@@ -88,10 +91,10 @@ export async function runPipeline(
     workspacePackages.add(pkg.name)
   }
 
-  // 4. hydrate imports with versions
+  // 4. resolve bare imports to versioned dependencies
   await hydrateImports(packages, workspaceRoot, workspacePackages)
 
-  // 5. write incoming files
+  // 5. convert incoming files to write/append/delete ops
   for (const pkg of packages.values()) {
     for (const file of pkg.incomingFiles) {
       if (file.action === "delete") {
@@ -104,7 +107,7 @@ export async function runPipeline(
     }
   }
 
-  // 6. run processors
+  // 6. run processors (package.json generation, subpath exports, etc.)
   const pipeline: PipelineContext = {
     workspaceRoot,
     workspacePackages,
@@ -117,14 +120,14 @@ export async function runPipeline(
     }
   }
 
-  // 7. execute
+  // 7. execute all accumulated file ops and custom handlers
   const executorResult = await execute(ops, workspaceRoot, handlers)
 
-  // 8. flush tracker
+  // 8. persist tracked file state
   await tracker.flush()
 
-  // 9. accumulate conversation refs
-  const registry = createProjectRegistry()
+  // 9. record this conversation as a ref for the project
+  const registry = createProjectRegistry(storageRoot)
   const ref: ConversationRef = {
     id: conversation.id,
     url: conversation.url,
@@ -135,7 +138,7 @@ export async function runPipeline(
   const conversationRefs = registry.getRefs(projectName)
   registry.close()
 
-  // 10. build output
+  // 10. build the final output summary
   const files = [...packages.values()].flatMap(pkg =>
     pkg.incomingFiles.map(f => ({
       path: join("packages", pkg.name, f.relativePath),
@@ -154,11 +157,11 @@ export async function runPipeline(
   }
 }
 
+/** Scans conversation artifacts to find the project scope (e.g. @paladin/...) */
 function getProjectInfo(conversation: ConversationData, baseDir: string) {
   for (const artifact of conversation.artifacts) {
     const header = extractHeader(artifact.content)
     if (!header) continue
-    if (header.action === "delete") continue
 
     const match = header.rawPath.match(/^@(\w+)\//)
     if (!match) continue

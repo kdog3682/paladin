@@ -1,12 +1,10 @@
 // @paladin/conversation-processor/project-registry.ts
 
 import { mkdirSync } from "fs"
-import { dirname } from "path"
+import { dirname, join } from "path"
 import { Database } from "bun:sqlite"
 import { paladinPath } from "./utils/paladin-path"
 import type { ConversationRef } from "./types"
-
-const DB_PATH = paladinPath("db", "projects.sqlite")
 
 export type ProjectRegistry = {
   getRefs(projectName: string): ConversationRef[]
@@ -15,9 +13,13 @@ export type ProjectRegistry = {
   close(): void
 }
 
-export function createProjectRegistry(): ProjectRegistry {
-  mkdirSync(dirname(DB_PATH), { recursive: true })
-  const db = new Database(DB_PATH, { create: true })
+export function createProjectRegistry(storageRoot?: string): ProjectRegistry {
+  const dbPath = storageRoot
+    ? join(storageRoot, "db", "projects.sqlite")
+    : paladinPath("db", "projects.sqlite")
+
+  mkdirSync(dirname(dbPath), { recursive: true })
+  const db = new Database(dbPath, { create: true })
 
   db.run(`
     CREATE TABLE IF NOT EXISTS conversation_refs (

@@ -19,12 +19,13 @@ export type ConversationData = {
 
 export type ParsedImport = {
   specifier: string
-  kind: "external" | "workspace"
+  kind: "external" | "workspace" | "relative"
   version?: string
 }
 
 export type IncomingFile = {
   path: string
+  relativePath: string
   content: string
   imports: ParsedImport[]
   status: "created" | "modified"

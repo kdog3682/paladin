@@ -2,7 +2,7 @@
 
 import { existsSync } from "fs"
 import { readFile, writeFile, mkdir } from "fs/promises"
-import { dirname } from "path"
+import { dirname, join } from "path"
 import { paladinPath } from "./utils/paladin-path"
 
 export type FileTracker = {
@@ -15,8 +15,13 @@ export type FileTracker = {
 
 type Store = Record<string, string>
 
-export async function createFileTracker(projectName: string): Promise<FileTracker> {
-  const filePath = paladinPath("cache", "processed", `${projectName}.json`)
+export async function createFileTracker(
+  projectName: string,
+  storageRoot?: string,
+): Promise<FileTracker> {
+  const filePath = storageRoot
+    ? join(storageRoot, "cache", "processed", `${projectName}.json`)
+    : paladinPath("cache", "processed", `${projectName}.json`)
   let store: Store = {}
 
   if (existsSync(filePath)) {

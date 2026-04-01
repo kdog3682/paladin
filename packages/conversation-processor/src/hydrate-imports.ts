@@ -2,7 +2,7 @@
 
 import { existsSync } from "fs"
 import { readFile, writeFile, mkdir } from "fs/promises"
-import { dirname } from "path"
+import { dirname, join } from "path"
 import type { IncomingFile, PkgContext } from "./types"
 import { paladinPath } from "./utils/paladin-path"
 
