@@ -1,34 +1,120 @@
+@import "tailwindcss";
+@import "@bklearn/shadcn/globals.css";
+@source "../node_modules/@bklearn/shadcn/dist";
+
+:root {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 body {
-  font-family: monospace;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+  margin: 0;
+  min-height: 100vh;
+  color: #1e293b;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(900px 600px at -10% -10%, #bfdbfe 0%, transparent 60%),
+    radial-gradient(900px 600px at 110% 110%, #bae6fd 0%, transparent 58%),
+    linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%);
 }
 
 #root {
   height: 100vh;
+}
+
+.editor-shell {
+  height: 100%;
+  padding: 24px;
+}
+
+.editor-frame {
+  height: 100%;
+  border-radius: 18px;
+  border: 1px solid #dbe7f5;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 16px 50px rgba(15, 23, 42, 0.08),
+    0 2px 8px rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(6px);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 .editor-container {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .editor-container .cm-editor {
   height: 100%;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .editor-container .cm-scroller {
   overflow: auto;
+}
+
+.status-bar {
+  border-top: 1px solid #e2ebf7;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.editor-frame:hover .status-bar {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.status-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-title {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.status-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-shortcuts {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.picker-hint {
+  border-top: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #475569;
+}
+
+@media (max-width: 760px) {
+  .editor-shell {
+    padding: 12px;
+  }
+
+  .status-shortcuts {
+    display: none;
+  }
 }

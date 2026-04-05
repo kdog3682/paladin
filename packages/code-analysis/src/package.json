@@ -1,0 +1,15 @@
+{
+  "name": "@paladin/code-analysis",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "es-module-lexer": "^1.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

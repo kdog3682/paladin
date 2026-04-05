@@ -1,11 +1,18 @@
-// @paladin/web/src/App.tsx
-import { KeyBindingProvider } from './providers/KeyBindingProvider'
-import { AppShell } from './components/AppShell'
+// @paladin/packages/web/src/App.tsx
 
-export default function App() {
+import { SessionMonitor } from "./components/SessionMonitor"
+
+const WS_URL = `ws://${window.location.hostname}:${import.meta.env.VITE_API_PORT || 4801}/ws`
+
+export function App() {
   return (
-    <KeyBindingProvider>
-      <AppShell />
-    </KeyBindingProvider>
+    <div className="app">
+      <header className="app-header">
+        <h1>paladin</h1>
+      </header>
+      <main>
+        <SessionMonitor wsUrl={WS_URL} />
+      </main>
+    </div>
   )
 }

@@ -71,7 +71,7 @@ export function addDownloadButton(downloadFunction: () => void): void {
     });
     rawButton.addEventListener('click', () => {
         downloadFunction().then(({ conversation, messages }) => {
-            download(`conversation.messages.${conversation.id}.json`, messages)
+            download(`claude.conversation.messages.${conversation.id}.json`, messages)
         })
     });
     document.body.appendChild(rawButton);

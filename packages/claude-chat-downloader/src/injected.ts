@@ -24,6 +24,13 @@ interface Artifact {
 interface FoundConversationEvent {
     type: "FOUND_CONVERSATION"
     conversation: Conversation
+    messages: MessagesPayload
+}
+
+interface MessagesPayload {
+    url: string
+    title: string
+    updatedAt: string
     messages: ChatMessage[]
 }
 
@@ -178,10 +185,17 @@ async function findConversation(): Promise<FoundConversationEvent> {
         artifacts,
     }
 
+    const messagesPayload: MessagesPayload = {
+        url: window.location.href,
+        title,
+        updatedAt: last.updated_at,
+        messages,
+    }
+
     const event: FoundConversationEvent = {
         type: "FOUND_CONVERSATION",
         conversation,
-        messages,
+        messages: messagesPayload,
     }
 
     window.postMessage(event, "*")

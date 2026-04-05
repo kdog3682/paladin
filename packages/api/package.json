@@ -1,5 +1,11 @@
 {
   "name": "@paladin/api",
   "version": "0.2.0",
-  "scripts": {}
+  "scripts": {
+    "dev": "bun run --watch src/server.ts"
+  },
+  "dependencies": {
+    "es-module-lexer": "^2.0.0",
+    "hono": "^4.12.10"
+  }
 }

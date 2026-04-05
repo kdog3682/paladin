@@ -40,6 +40,16 @@ export class Runner {
     await tempwrite(parts.join("\n\n"))
   }
 
+  async runMochi(mochiFiles: string[]) {
+    if (mochiFiles.length === 0) {
+      this.reporter.warn("no mochi files matched")
+      return
+    }
+    this.reporter.info(`running ${mochiFiles.length} mochi file(s)`)
+    const result = await mochi(mochiFiles)
+    await tempwrite(result)
+  }
+
   async runTests(testFiles: string[], pkgDir?: string) {
     if (testFiles.length === 0) {
       this.reporter.warn("no test files matched")
@@ -55,13 +65,4 @@ export class Runner {
     await tempwrite(parts.join("\n\n"))
   }
 
-  async runMochi(mochiFiles: string[]) {
-    if (mochiFiles.length === 0) {
-      this.reporter.warn("no mochi files matched")
-      return
-    }
-    this.reporter.info(`running ${mochiFiles.length} mochi file(s)`)
-    const result = await mochi(mochiFiles)
-    await tempwrite(result)
-  }
 }
