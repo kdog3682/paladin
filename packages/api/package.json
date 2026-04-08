@@ -2,10 +2,13 @@
   "name": "@paladin/api",
   "version": "0.2.0",
   "scripts": {
-    "dev": "bun run --watch src/server.ts"
+    "dev": "bun run --watch src/server.ts",
+    "test": "bun test"
   },
   "dependencies": {
     "es-module-lexer": "^2.0.0",
+    "fast-glob": "^3.3.3",
     "hono": "^4.12.10"
-  }
+  },
+  "devDependencies": {}
 }

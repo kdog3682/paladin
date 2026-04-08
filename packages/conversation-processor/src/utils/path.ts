@@ -101,6 +101,10 @@ export function resolvePath(
     throw new Error(`relative paths not allowed: ${normalized}`)
   }
 
+  // src/ paths -> ~/projects/paladin/api
+  if (normalized.startsWith("src/")) {
+    return normalizeDirPath("~/projects/paladin/api/" + normalized)
+  }
   // expand ~/
   if (normalized.startsWith("~/")) {
     return normalizeDirPath(normalized)

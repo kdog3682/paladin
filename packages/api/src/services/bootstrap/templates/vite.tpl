@@ -1,0 +1,131 @@
+================================================================
+index.html
+================================================================
+<!DOCTYPE html>
+<html lang="en" data-theme="github">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>paladin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+================================================================
+src/App.tsx
+================================================================
+
+import { Button } from '@bklearn/shadcn'
+import { Card, CardHeader, CardTitle, CardContent } from '@bklearn/shadcn'
+
+export default function App() {
+  return (
+    <Card className="max-w-md mx-auto mt-10">
+      <CardHeader>
+        <CardTitle>Hello World</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <p className="text-muted-foreground">Welcome to the app.</p>
+        <Button onClick={() => alert('Clicked!')}>Click me</Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+================================================================
+src/index.css
+================================================================
+@import "tailwindcss";
+@import "@bklearn/shadcn/globals.css";
+@source "../node_modules/@bklearn/shadcn/dist";
+
+================================================================
+src/main.tsx
+================================================================
+import { StrictMode } from "react"
+import { createRoot } from "react-dom/client"
+import App from "./App"
+import "./index.css"
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+)
+
+================================================================
+vite.config.ts
+================================================================
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
+import tsconfigPaths from 'vite-tsconfig-paths'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss(), tsconfigPaths()],
+})
+
+================================================================
+happydom.ts
+================================================================
+import { GlobalRegistrator } from "@happy-dom/global-registrator"
+
+GlobalRegistrator.register()
+
+================================================================
+package.json
+================================================================
+{
+  "name": "@{{PROJECT_NAME}}/{{PACKAGE_NAME}}",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "bun test --preload ./happydom.ts"
+  },
+  "dependencies": {
+    "@bklearn/shadcn": "^0.1.2",
+    "react": "^18",
+    "react-dom": "^18",
+    "zustand": "^5"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.0.10",
+    "@tailwindcss/vite": "^4",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^4",
+    "puppeteer": "^24.37.5",
+    "tailwindcss": "^4",
+    "vite": "^5",
+    "vite-tsconfig-paths": "^6.0.5"
+  }
+}
+
+================================================================
+tsconfig.json
+================================================================
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

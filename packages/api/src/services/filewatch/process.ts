@@ -126,6 +126,10 @@ function resolvePath(
     return path.join(home, rawPath.slice(2))
   }
 
+  if (rawPath.startsWith("src/")) {
+    return path.join(home, "projects/paladin/packages/api", rawPath)
+  }
+
   if (path.isAbsolute(rawPath)) {
     return rawPath
   }

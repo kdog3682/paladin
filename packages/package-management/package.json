@@ -2,7 +2,5 @@
   "name": "@paladin/package-management",
   "version": "0.1.0",
   "scripts": {},
-  "dependencies": {
-    "glob": "^13.0.6"
-  }
+  "dependencies": {}
 }
