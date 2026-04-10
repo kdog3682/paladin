@@ -82,22 +82,6 @@ export function slashAutocomplete(): Extension {
       { key: 'Escape', run: closeCompletion },
     ]),
     EditorView.inputHandler.of((view, from, to, text) => {
-      if (text === '@') {
-        view.dispatch({
-          changes: { from, to, insert: '@' },
-          selection: { anchor: from + 1 },
-        })
-        startCompletion(view)
-        return true
-      }
-      if (text === '/') {
-        view.dispatch({
-          changes: { from, to, insert: '/' },
-          selection: { anchor: from + 1 },
-        })
-        startCompletion(view)
-        return true
-      }
       if (text === '-') {
         const line = view.state.doc.lineAt(from)
         if (from === line.from) {
@@ -128,12 +112,6 @@ export function slashAutocomplete(): Extension {
               changes: { from: line.from, insert: '// ' },
               selection: { anchor: line.from + line.text.length + 3 },
             })
-          }
-          const updated = view.state.doc.lineAt(view.state.selection.main.head)
-          const nextLineNum = updated.number + 1
-          if (nextLineNum <= view.state.doc.lines) {
-            const next = view.state.doc.line(nextLineNum)
-            view.dispatch({ selection: { anchor: next.from }, scrollIntoView: true })
           }
           return true
         },

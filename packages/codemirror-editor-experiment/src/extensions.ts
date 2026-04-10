@@ -46,7 +46,7 @@ export function createExtensions(saveToStorage: SaveFn): Extension[] {
     miscHighlighter,
     insertCodeBlock(),
     // pasteCodeWidget(),
-    pasteCodeWrap(),
+    // pasteCodeWrap(),
     angleBracket(),
     headingKey(),
     dashRule(),
