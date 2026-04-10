@@ -30,13 +30,7 @@ export function pasteCodeWrap(): Extension {
       event.preventDefault()
 
       const { from, to } = view.state.selection.main
-      const wrapped = '```\n' + text.trimEnd() + '\n```\n'
 
-      const anchor = from + wrapped.length
-      view.dispatch({
-        changes: { from, to, insert: wrapped },
-        selection: { anchor },
-        scrollIntoView: true,
       })
 
       return true
