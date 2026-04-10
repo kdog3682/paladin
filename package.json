@@ -21,7 +21,8 @@
     "bootstrap:local": "bun run --filter '@paladin/bootstrap' run",
     "dev:scribe": "bun run --filter '@paladin/{scribe-ui,scribe-api}' dev",
     "dev:scribe-ui": "bun run --filter '@paladin/scribe-ui' dev",
-    "dev:scribe-api": "bun run --filter '@paladin/scribe-api' dev"
+    "dev:scribe-api": "bun run --filter '@paladin/scribe-api' dev",
+    "dev:codemirror": "bun run --filter '@paladin/codemirror-editor-experiment' dev"
   },
   "workspaces": [
     "packages/*"
