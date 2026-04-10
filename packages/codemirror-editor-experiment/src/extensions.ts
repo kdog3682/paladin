@@ -19,6 +19,7 @@ import { bracketNewline } from './keybindings/bracketNewline'
 // import { pasteCodeWidget } from './keybindings/pasteCodeWidget'
 import { pasteCodeWrap } from './keybindings/pasteCodeWrap'
 import { angleBracket } from './keybindings/angleBracket'
+import { search, searchKeymap } from '@codemirror/search'
 
 type SaveFn = (view: EditorView) => boolean
 
@@ -52,5 +53,7 @@ export function createExtensions(saveToStorage: SaveFn): Extension[] {
     dashRule(),
     swapKeys(),
     keymap.of([{ key: 'Mod-s', run: saveToStorage }]),
+    search(),
+    keymap.of(searchKeymap),
   ]
 }
