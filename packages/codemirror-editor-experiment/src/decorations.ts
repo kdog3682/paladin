@@ -4,6 +4,9 @@ import { EditorState, Range } from '@codemirror/state'
 
 const backtickMark = Decoration.mark({ class: 'cm-backtick-block' })
 const headingMark = Decoration.mark({ class: 'cm-heading-line' })
+const headingHashMark = Decoration.mark({ class: 'cm-heading-hash' })
+const angleBracketMark = Decoration.mark({ class: 'cm-angle-bracket' })
+const dimMark = Decoration.mark({ class: 'cm-dim' })
 
 function buildBacktickDecorations(state: EditorState): DecorationSet {
   const text = state.doc.toString()
@@ -20,11 +23,44 @@ function buildHeadingDecorations(state: EditorState): DecorationSet {
   const marks: Range<Decoration>[] = []
   for (let i = 1; i <= state.doc.lines; i++) {
     const line = state.doc.line(i)
-    if (/^#{1,6} /.test(line.text)) {
-      marks.push(headingMark.range(line.from, line.to))
+    const hm = line.text.match(/^(#{1,6}) /)
+    if (hm) {
+      // highlight just the hashes with black background
+      marks.push(headingHashMark.range(line.from, line.from + hm[1].length))
+      // highlight only the text part (after the hashes)
+      const textStart = line.from + hm[0].length
+      if (textStart < line.to) marks.push(headingMark.range(textStart, line.to))
     }
   }
-  return Decoration.set(marks)
+  return Decoration.set(marks, true)
+}
+
+function buildMiscDecorations(state: EditorState): DecorationSet {
+  const marks: Range<Decoration>[] = []
+  for (let i = 1; i <= state.doc.lines; i++) {
+    const line = state.doc.line(i)
+    const text = line.text
+
+    // <> angle brackets — green
+    const angleRe = /<>/g
+    let m: RegExpExecArray | null
+    while ((m = angleRe.exec(text)) !== null) {
+      marks.push(angleBracketMark.range(line.from + m.index, line.from + m.index + 2))
+    }
+
+    // --- or longer horizontal rules — dim gray
+    if (/^-{3,}\s*$/.test(text)) {
+      marks.push(dimMark.range(line.from, line.to))
+      continue
+    }
+
+    // // comments and # comments — dim gray
+    const commentMatch = text.match(/^(\s*)(\/\/|#) /)
+    if (commentMatch) {
+      marks.push(dimMark.range(line.from, line.to))
+    }
+  }
+  return Decoration.set(marks, true)
 }
 
 export const backtickHighlighter = ViewPlugin.fromClass(
@@ -51,6 +87,21 @@ export const headingHighlighter = ViewPlugin.fromClass(
     update(update: ViewUpdate) {
       if (update.docChanged) {
         this.decorations = buildHeadingDecorations(update.state)
+      }
+    }
+  },
+  { decorations: (v) => v.decorations },
+)
+
+export const miscHighlighter = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: { state: EditorState }) {
+      this.decorations = buildMiscDecorations(view.state)
+    }
+    update(update: ViewUpdate) {
+      if (update.docChanged) {
+        this.decorations = buildMiscDecorations(update.state)
       }
     }
   },

@@ -3,35 +3,35 @@ import { EditorView } from '@codemirror/view'
 
 export const theme = EditorView.theme({
   '&': {
-    fontSize: '15px',
+    fontSize: '14px',
     fontFamily: "'Inconsolata', monospace",
-    backgroundColor: 'transparent',
-    color: '#1f2937',
-    height: '100%',
-    width: '100%',
+    backgroundColor: '#ffffff',
+    color: '#000000',
+    height: '100vh',
+    width: '100vw',
   },
   '&.cm-focused': {
     outline: 'none',
   },
   '.cm-content': {
-    padding: '36px 40px',
-    caretColor: '#0f172a',
-    lineHeight: '1.45 !important',
-    color: '#1f2937',
+    padding: '40px 48px',
+    caretColor: '#000000',
+    lineHeight: '1.35 !important',
+    color: '#000000',
   },
   '.cm-line': {
-    lineHeight: '1.45 !important',
+    lineHeight: '1.35 !important',
     padding: '0',
   },
   '.cm-cursor': {
-    borderLeftColor: '#0f172a',
+    borderLeftColor: '#000000',
     borderLeftWidth: '2px',
   },
   '.cm-selectionBackground': {
-    backgroundColor: '#c7e3ff !important',
+    backgroundColor: '#dbeafe !important',
   },
   '&.cm-focused .cm-selectionBackground': {
-    backgroundColor: '#afd7ff !important',
+    backgroundColor: '#bfdbfe !important',
   },
   '.cm-placeholder': {
     color: '#94a3b8',
@@ -43,32 +43,32 @@ export const theme = EditorView.theme({
   },
   '.cm-tooltip-autocomplete': {
     fontFamily: "'Inconsolata', monospace",
-    fontSize: '14px',
-    borderRadius: '10px',
-    border: '1px solid #dbe7f5',
-    boxShadow: '0 12px 30px rgba(30, 41, 59, 0.12)',
+    fontSize: '13px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
   },
   '.cm-tooltip-autocomplete ul li': {
-    padding: '6px 14px',
+    padding: '4px 12px',
   },
   '.cm-tooltip-autocomplete ul li[aria-selected]': {
-    backgroundColor: '#e6f3ff',
-    color: '#1e3a8a',
+    backgroundColor: '#eff6ff',
+    color: '#1e40af',
   },
   '.cm-backtick-block': {
-    color: '#0284c7',
+    color: '#3b82f6',
   },
   '.cm-heading-line': {
-    color: '#0f172a',
+    color: '#000000',
   },
   '.cm-heading-hash': {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#000000',
     borderRadius: '2px',
   },
   '.cm-angle-bracket': {
-    color: '#0f766e',
+    color: '#16a34a',
   },
   '.cm-dim': {
-    color: '#64748b',
+    color: '#94a3b8',
   },
 })

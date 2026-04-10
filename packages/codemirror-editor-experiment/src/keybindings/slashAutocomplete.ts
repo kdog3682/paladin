@@ -75,7 +75,18 @@ export function slashAutocomplete(): Extension {
       activateOnTyping: false,
       defaultKeymap: false,
     }),
-
+    keymap.of([
+      { key: 'Tab', run: acceptCompletion },
+      { key: 'ArrowDown', run: moveCompletionSelection(true) },
+      { key: 'ArrowUp', run: moveCompletionSelection(false) },
+      { key: 'Escape', run: closeCompletion },
+    ]),
+    EditorView.inputHandler.of((view, from, to, text) => {
+      if (text === '@') {
+        view.dispatch({
+          changes: { from, to, insert: '@' },
+          selection: { anchor: from + 1 },
+        })
         startCompletion(view)
         return true
       }
