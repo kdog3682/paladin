@@ -12,7 +12,6 @@ const handleThree: KeyBinding = {
 
     const match = line.text.match(/^(#{1,5}) /)
 
-    // Allow firing at line start OR anywhere inside the heading hash prefix
     const afterPrefix = match ? line.from + match[0].length : line.from
     const insidePrefix = match ? head >= line.from && head <= afterPrefix : false
     if (head !== line.from && !insidePrefix) return false
@@ -25,14 +24,12 @@ const handleThree: KeyBinding = {
         changes: { from: line.from, to: line.from + match[0].length, insert },
         selection: { anchor: line.from + insert.length },
       })
-    } else if (line.text === '') {
-      // Empty line — start with ##
+    } else {
+      // At line start — always expand to ##
       view.dispatch({
         changes: { from: line.from, insert: '## ' },
         selection: { anchor: line.from + 3 },
       })
-    } else {
-      return false
     }
 
     return true

@@ -20,12 +20,11 @@ export function toggleComment(): Extension {
       }
 
       const lines = Array.from(lineNumbers).map(n => state.doc.line(n))
-      const nonEmpty = lines.filter(l => l.text.trim() !== '')
-      if (nonEmpty.length === 0) return false
+      if (lines.length === 0) return false
 
-      const allCommented = nonEmpty.every(l => /^(\s*)\/\/ /.test(l.text))
+      const allCommented = lines.every(l => /^(\s*)\/\/ /.test(l.text))
 
-      const changes = nonEmpty.map(line => {
+      const changes = lines.map(line => {
         const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
         const pos = line.from + indent.length
         if (allCommented) {

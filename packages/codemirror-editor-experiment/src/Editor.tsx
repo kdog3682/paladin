@@ -46,6 +46,7 @@ export function Editor() {
     })
     viewRef.current = view
     view.focus()
+    view.dispatch({ effects: EditorView.scrollIntoView(cursor, { y: 'center' }) })
 
     return () => {
       view.destroy()
