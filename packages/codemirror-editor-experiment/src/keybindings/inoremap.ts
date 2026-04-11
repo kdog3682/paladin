@@ -31,33 +31,51 @@ export function inoremap(
     }
   }
 
-  return EditorView.inputHandler.of((view, _from, _to, text) => {
+  const flushLeader = (view: EditorView) => {
     if (pendingLeader !== null) {
       const leader = pendingLeader
       clearPending()
-      const action = chords[leader + text]
-      if (action) {
-        action(view)
+      view.dispatch(view.state.replaceSelection(leader))
+    }
+  }
+
+  return [
+    // Flush buffered leader on Enter so it doesn't leak into the next line
+    EditorView.domEventHandlers({
+      keydown(event, view) {
+        if (event.key === 'Enter' && pendingLeader !== null) {
+          flushLeader(view)
+        }
+      },
+    }),
+    EditorView.inputHandler.of((view, _from, _to, text) => {
+      if (pendingLeader !== null) {
+        const leader = pendingLeader
+        clearPending()
+        const action = chords[leader + text]
+        if (action) {
+          action(view)
+          return true
+        }
+        // Insert both chars together in one dispatch to preserve order
+        view.dispatch(view.state.replaceSelection(leader + text))
         return true
       }
-      // Insert both chars together in one dispatch to preserve order
-      view.dispatch(view.state.replaceSelection(leader + text))
-      return true
-    }
 
-    if (leaders.has(text)) {
-      pendingLeader = text
-      pendingTimeout = setTimeout(() => {
-        if (pendingLeader !== null) {
-          const leader = pendingLeader
-          pendingLeader = null
-          pendingTimeout = null
-          view.dispatch(view.state.replaceSelection(leader))
-        }
-      }, CHORD_TIMEOUT)
-      return true
-    }
+      if (leaders.has(text)) {
+        pendingLeader = text
+        pendingTimeout = setTimeout(() => {
+          if (pendingLeader !== null) {
+            const leader = pendingLeader
+            pendingLeader = null
+            pendingTimeout = null
+            view.dispatch(view.state.replaceSelection(leader))
+          }
+        }, CHORD_TIMEOUT)
+        return true
+      }
 
-    return false
-  })
+      return false
+    }),
+  ]
 }
