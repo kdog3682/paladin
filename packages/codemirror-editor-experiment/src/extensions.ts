@@ -1,5 +1,5 @@
 // @paladin/codemirror-editor-experiment/extensions.ts
-import { EditorView, placeholder, keymap, drawSelection } from '@codemirror/view'
+import { EditorView, placeholder, keymap } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import { indentOnInput, indentUnit, bracketMatching } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
@@ -27,7 +27,6 @@ type SaveFn = (view: EditorView) => boolean
 export function createExtensions(saveToStorage: SaveFn): Extension[] {
   return [
     theme,
-    drawSelection({ cursorBlinkRate: 0 }),
     indentUnit.of('  '),
     indentOnInput(),
     bracketMatching(),
