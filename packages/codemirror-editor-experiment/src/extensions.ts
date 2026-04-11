@@ -6,7 +6,6 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { theme } from './theme'
 import { backtickHighlighter, headingHighlighter, miscHighlighter } from './decorations'
-import { semicolonToColon } from './keybindings/semicolonToColon'
 import { smartEnter } from './keybindings/smartEnter'
 import { qChord } from './keybindings/qChord'
 import { backslashContinue } from './keybindings/backslashContinue'
@@ -15,6 +14,8 @@ import { insertCodeBlock } from './keybindings/insertCodeBlock'
 import { headingKey } from './keybindings/headingKey'
 import { dashRule } from './keybindings/dashRule'
 import { swapKeys } from './keybindings/swapKeys'
+import { toggleComment } from './keybindings/toggleComment'
+import { sectionFold } from './keybindings/sectionFold'
 import { bracketNewline } from './keybindings/bracketNewline'
 // import { pasteCodeWidget } from './keybindings/pasteCodeWidget'
 import { pasteCodeWrap } from './keybindings/pasteCodeWrap'
@@ -34,7 +35,6 @@ export function createExtensions(saveToStorage: SaveFn): Extension[] {
     bracketNewline(),
     smartEnter(),
     keymap.of([indentWithTab]),
-    semicolonToColon(),
     qChord(),
     backslashContinue(),
     slashAutocomplete(),
@@ -52,6 +52,8 @@ export function createExtensions(saveToStorage: SaveFn): Extension[] {
     headingKey(),
     dashRule(),
     swapKeys(),
+    toggleComment(),
+    sectionFold(),
     keymap.of([{ key: 'Mod-s', run: saveToStorage }]),
     search(),
     keymap.of(searchKeymap),

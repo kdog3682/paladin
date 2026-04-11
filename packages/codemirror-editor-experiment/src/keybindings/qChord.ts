@@ -1,6 +1,7 @@
 // @paladin/codemirror-editor-experiment/keybindings/qChord.ts
 import { EditorView } from '@codemirror/view'
 import { Extension, EditorState } from '@codemirror/state'
+import { inoremap } from './inoremap'
 
 const INDENT = '  '
 
@@ -42,52 +43,9 @@ function executeNewlineDedent(view: EditorView) {
   })
 }
 
-const CHORD_TIMEOUT = 200
-
-const CHORDS: Record<string, (view: EditorView) => void> = {
-  w: executeNewlineIndent,
-  e: executeNewlineDedent,
-}
-
 export function qChord(): Extension {
-  let pendingQ = false
-  let pendingTimeout: ReturnType<typeof setTimeout> | null = null
-
-  const clearPending = () => {
-    pendingQ = false
-    if (pendingTimeout) {
-      clearTimeout(pendingTimeout)
-      pendingTimeout = null
-    }
-  }
-
-  return EditorView.inputHandler.of((view, _from, _to, text) => {
-    if (pendingQ) {
-      clearPending()
-
-      const action = CHORDS[text]
-      if (action) {
-        action(view)
-        return true
-      }
-
-      // not a chord — flush the buffered 'q' then let current char through
-      view.dispatch(view.state.replaceSelection('q'))
-      return false
-    }
-
-    if (text === 'q') {
-      pendingQ = true
-      pendingTimeout = setTimeout(() => {
-        if (pendingQ) {
-          pendingQ = false
-          pendingTimeout = null
-          view.dispatch(view.state.replaceSelection('q'))
-        }
-      }, CHORD_TIMEOUT)
-      return true
-    }
-
-    return false
+  return inoremap('q', {
+    w: executeNewlineIndent,
+    e: executeNewlineDedent,
   })
 }

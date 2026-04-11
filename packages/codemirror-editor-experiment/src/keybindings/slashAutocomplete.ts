@@ -94,28 +94,5 @@ export function slashAutocomplete(): Extension {
       }
       return false
     }),
-    keymap.of([
-      {
-        key: 'Ctrl-/',
-        run(view: EditorView) {
-          const { state } = view
-          const { head } = state.selection.main
-          const line = state.doc.lineAt(head)
-          const hasComment = line.text.startsWith('// ')
-          if (hasComment) {
-            view.dispatch({
-              changes: { from: line.from, to: line.from + 3, insert: '' },
-              selection: { anchor: line.from },
-            })
-          } else {
-            view.dispatch({
-              changes: { from: line.from, insert: '// ' },
-              selection: { anchor: line.from + line.text.length + 3 },
-            })
-          }
-          return true
-        },
-      },
-    ]),
   ]
 }

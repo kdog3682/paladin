@@ -115,8 +115,17 @@ const handleEnter: KeyBinding = {
     const { head } = sel
     const line = state.doc.lineAt(head)
 
-    // only handle if cursor is at end of line
-    if (head !== line.to) return false
+    if (head !== line.to) {
+      // Start or middle of line: preserve indent
+      const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
+      if (!indent) return false
+      const insert = '\n' + indent
+      view.dispatch({
+        changes: { from: head, insert },
+        selection: { anchor: head + insert.length },
+      })
+      return true
+    }
 
     const result = matchLine(line.text)
     if (!result) {
