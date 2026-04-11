@@ -15,7 +15,7 @@ export const theme = EditorView.theme({
   },
   '.cm-content': {
     padding: '40px 48px',
-    caretColor: '#000000',
+    caretColor: 'transparent',
     lineHeight: '1.35 !important',
     color: '#000000',
   },
@@ -24,8 +24,7 @@ export const theme = EditorView.theme({
     padding: '0',
   },
   '.cm-cursor': {
-    borderLeftColor: '#000000',
-    borderLeftWidth: '2px',
+    borderLeft: 'none',
   },
   '.cm-selectionBackground': {
     backgroundColor: '#dbeafe !important',
