@@ -27,9 +27,11 @@ export function dashRule(): Extension {
         const { head } = state.selection.main
         const line = state.doc.lineAt(head)
         if (line.text.trim() !== '') return false
+        const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
+        const insert = indent + '- '
         view.dispatch({
-          changes: { from: line.from, to: line.to, insert: '- ' },
-          selection: { anchor: line.from + 2 },
+          changes: { from: line.from, to: line.to, insert },
+          selection: { anchor: line.from + insert.length },
         })
         return true
       },

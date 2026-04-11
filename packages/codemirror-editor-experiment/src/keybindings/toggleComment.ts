@@ -34,7 +34,11 @@ export function toggleComment(): Extension {
         }
       })
 
-      view.dispatch({ changes })
+      const changeSet = state.changes(changes)
+      view.dispatch({
+        changes: changeSet,
+        selection: state.selection.map(changeSet, 1),
+      })
       return true
     },
   }])

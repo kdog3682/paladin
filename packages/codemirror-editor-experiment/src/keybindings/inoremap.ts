@@ -5,24 +5,26 @@ import { Extension } from '@codemirror/state'
 const CHORD_TIMEOUT = 200
 
 /**
- * Vim-style insert-mode mapping: intercepts a leader key and waits for a
- * follow-up character. If the follow-up matches a chord, the mapped action
- * fires. Otherwise both characters are inserted in order.
+ * Vim-style insert-mode chord mapping.
  *
- * Fixes the key-order bug that arises when the leader is flushed via a
- * separate dispatch and the follow-up character is handled by a subsequent
- * inputHandler — both dispatches would race. Instead we insert leader + text
- * together in a single dispatch.
+ * Pass a flat map of full sequences to actions, e.g. { 'qw': fn, 'zf': fn }.
+ * Leaders are derived from the first character of each key.
+ *
+ * When a leader is typed it is held; if the next character completes a chord
+ * the action fires. If not, leader + char are inserted together in a single
+ * dispatch — fixing the ordering bug that occurred when two separate dispatches
+ * raced each other.
  */
 export function inoremap(
-  leader: string,
   chords: Record<string, (view: EditorView) => void>,
 ): Extension {
-  let pending = false
+  const leaders = new Set(Object.keys(chords).map(k => k[0]))
+
+  let pendingLeader: string | null = null
   let pendingTimeout: ReturnType<typeof setTimeout> | null = null
 
   const clearPending = () => {
-    pending = false
+    pendingLeader = null
     if (pendingTimeout) {
       clearTimeout(pendingTimeout)
       pendingTimeout = null
@@ -30,23 +32,25 @@ export function inoremap(
   }
 
   return EditorView.inputHandler.of((view, _from, _to, text) => {
-    if (pending) {
+    if (pendingLeader !== null) {
+      const leader = pendingLeader
       clearPending()
-      const action = chords[text]
+      const action = chords[leader + text]
       if (action) {
         action(view)
         return true
       }
-      // Insert leader + current char together in one dispatch to preserve order
+      // Insert both chars together in one dispatch to preserve order
       view.dispatch(view.state.replaceSelection(leader + text))
       return true
     }
 
-    if (text === leader) {
-      pending = true
+    if (leaders.has(text)) {
+      pendingLeader = text
       pendingTimeout = setTimeout(() => {
-        if (pending) {
-          pending = false
+        if (pendingLeader !== null) {
+          const leader = pendingLeader
+          pendingLeader = null
           pendingTimeout = null
           view.dispatch(view.state.replaceSelection(leader))
         }

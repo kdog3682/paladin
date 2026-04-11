@@ -44,8 +44,8 @@ function executeNewlineDedent(view: EditorView) {
 }
 
 export function qChord(): Extension {
-  return inoremap('q', {
-    w: executeNewlineIndent,
-    e: executeNewlineDedent,
+  return inoremap({
+    'qw': executeNewlineIndent,
+    'qe': executeNewlineDedent,
   })
 }
