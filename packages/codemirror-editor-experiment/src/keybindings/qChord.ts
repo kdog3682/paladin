@@ -43,9 +43,18 @@ function executeNewlineDedent(view: EditorView) {
   })
 }
 
+function executeCursorRight(view: EditorView) {
+  const { state } = view
+  const pos = state.selection.main.head
+  if (pos < state.doc.length) {
+    view.dispatch({ selection: { anchor: pos + 1 } })
+  }
+}
+
 export function qChord(): Extension {
   return inoremap({
     'qw': executeNewlineIndent,
     'qe': executeNewlineDedent,
+    'ql': executeCursorRight,
   })
 }
