@@ -210,11 +210,22 @@ function resolvePath(
   return resolveRelative(rawPath, expandDir(baseDir))
 }
 
+const SCOPED_ALIASES: Record<string, string> = {
+  web: "paladin/web",
+  api: "paladin/api",
+}
+
 function resolveScoped(
   rawPath: string,
   baseProjectsDirectory: string,
 ): string {
   const base = expandDir(baseProjectsDirectory)
+  // expand short aliases: @web → @paladin/web, @api → @paladin/api
+  const withoutAtRaw = rawPath.slice(1)
+  const firstSeg = withoutAtRaw.split("/")[0]
+  if (SCOPED_ALIASES[firstSeg]) {
+    rawPath = "@" + SCOPED_ALIASES[firstSeg] + withoutAtRaw.slice(firstSeg.length)
+  }
   const withoutAt = rawPath.slice(1)
   const parts = withoutAt.split("/")
 
