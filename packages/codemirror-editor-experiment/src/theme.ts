@@ -71,4 +71,7 @@ export const theme = EditorView.theme({
   '.cm-dim': {
     color: '#94a3b8',
   },
+  '.cm-bold': {
+    fontWeight: 'bold',
+  },
 })
