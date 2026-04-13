@@ -116,7 +116,20 @@ const handleEnter: KeyBinding = {
     const line = state.doc.lineAt(head)
 
     if (head !== line.to) {
-      // Start or middle of line: preserve indent
+      const afterCursor = line.text.slice(head - line.from)
+      if (/^\s+$/.test(afterCursor)) {
+        // only trailing spaces after cursor — delete them and treat as end-of-line
+        const lineTextTrimmed = line.text.slice(0, head - line.from)
+        const result2 = matchLine(lineTextTrimmed)
+        const nextPrefix = result2 && !result2.markerOnly ? result2.next : (lineTextTrimmed.match(/^(\s*)/)?.[1] ?? '')
+        const insert = '\n' + nextPrefix
+        view.dispatch({
+          changes: { from: head, to: line.to, insert },
+          selection: { anchor: head + insert.length },
+        })
+        return true
+      }
+      // cursor in middle of real content: preserve indent only
       const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
       if (!indent) return false
       const insert = '\n' + indent
