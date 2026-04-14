@@ -8,7 +8,7 @@ export function getDisplayName(
   path: string,
   options: DisplayNameOptions = {},
 ): string {
-  const { length = 40 } = options
+  const { length = 25 } = options
 
   // normalize: /home/<user> → ~/, ~/projects/ → @
   let normalized = path.replace(/^\/home\/\w+/, '~')
@@ -17,33 +17,20 @@ export function getDisplayName(
   if (normalized.length <= length) return normalized
 
   const parts = normalized.split('/')
-  const prefix = parts[0]  // "@paladin" or "~" etc
+  const prefix = parts[0]
   const basename = parts[parts.length - 1]
-  const parentDir = parts.length >= 2 ? parts[parts.length - 2] : null
 
-  // try building up from basename, adding parent segments
-  // always keep prefix + ... + tail
-  const tail = parentDir && parentDir !== basename
-    ? `${parentDir}/${basename}`
-    : basename
+  // if even prefix/.../<basename> won't fit, just use basename
+  const minimal = `${prefix}/.../${basename}`
+  if (minimal.length > length) return basename.slice(0, length)
 
-  const candidate = `${prefix}/.../${tail}`
-
-  if (candidate.length <= length) {
-    // try to fit more middle segments
-    const middle = parts.slice(1, -1)
-    for (let take = middle.length; take >= 1; take--) {
-      const kept = middle.slice(middle.length - take)
-      const attempt = `${prefix}/.../${kept.join('/')}/${basename}`
-      if (attempt.length <= length) return attempt
-    }
-    return candidate
+  // try adding parent segments from the end
+  const middle = parts.slice(1, -1)
+  for (let take = middle.length; take >= 1; take--) {
+    const tail = middle.slice(middle.length - take)
+    const attempt = `${prefix}/.../${tail.join('/')}/${basename}`
+    if (attempt.length <= length) return attempt
   }
 
-  // worst case: just prefix + basename
-  const minimal = `${prefix}/.../${basename}`
-  if (minimal.length <= length) return minimal
-
-  // truly desperate: truncate basename
-  return basename.slice(0, length)
+  return minimal
 }

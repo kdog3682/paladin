@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react'
 import { useKeybindingStore, useKeybindingListener, useRegisterLayer, LAYER_PRIORITY } from '@/lib/keybindings'
 import { useAppletStore } from '@/stores/appletStore'
-import { AppletSwitcher } from './AppletSwitcher'
+import { ActivityBar } from './ActivityBar'
 
 export function AppShell() {
   const applets = useAppletStore(s => s.applets)
@@ -11,12 +11,10 @@ export function AppShell() {
   const setActive = useAppletStore(s => s.setActive)
   const setActiveApplet = useKeybindingStore(s => s.setActiveApplet)
 
-  // sync applet store → keybind store
   useEffect(() => {
     setActiveApplet(activeId)
   }, [activeId, setActiveApplet])
 
-  // register shell-level keybinds (applet switching via 1-5)
   const shellBindings = useMemo(() =>
     applets.map(applet => ({
       keys: applet.shortcut,
@@ -35,11 +33,11 @@ export function AppShell() {
   }, [applets, activeId])
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-50 text-neutral-900">
-      <AppletSwitcher />
-      <main className="flex-1 min-h-0">
+    <div className="flex h-screen bg-neutral-50 text-neutral-900">
+      <main className="flex-1 min-w-0">
         {ActiveComponent && <ActiveComponent />}
       </main>
+      <ActivityBar />
     </div>
   )
 }
