@@ -9,7 +9,8 @@ import { backtickHighlighter, headingHighlighter, miscHighlighter } from './deco
 import { smartEnter } from './keybindings/smartEnter'
 import { qChord } from './keybindings/qChord'
 import { backslashContinue } from './keybindings/backslashContinue'
-import { slashAutocomplete } from './keybindings/slashAutocomplete'
+// import { slashAutocomplete } from './keybindings/slashAutocomplete'
+import { tabCompletion } from './keybindings/tabCompletion'
 import { insertCodeBlock } from './keybindings/insertCodeBlock'
 import { headingKey } from './keybindings/headingKey'
 import { dashRule } from './keybindings/dashRule'
@@ -37,10 +38,11 @@ export function createExtensions(saveToStorage: SaveFn): Extension[] {
     keymap.of(closeBracketsKeymap),
     bracketNewline(),
     smartEnter(),
+    tabCompletion(),
     keymap.of([indentWithTab]),
     qChord(),
     backslashContinue(),
-    slashAutocomplete(),
+    // slashAutocomplete(),
     placeholder('Start typing...'),
     EditorView.lineWrapping,
     history(),
