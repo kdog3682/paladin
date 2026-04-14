@@ -14,6 +14,7 @@ import { insertCodeBlock } from './keybindings/insertCodeBlock'
 import { headingKey } from './keybindings/headingKey'
 import { dashRule } from './keybindings/dashRule'
 import { swapKeys } from './keybindings/swapKeys'
+import { bracketOnNine } from './keybindings/bracketOnNine'
 import { toggleComment } from './keybindings/toggleComment'
 import { sectionFold } from './keybindings/sectionFold'
 import { bracketNewline } from './keybindings/bracketNewline'
@@ -54,6 +55,7 @@ export function createExtensions(saveToStorage: SaveFn): Extension[] {
     headingKey(),
     dashRule(),
     swapKeys(),
+    bracketOnNine(),
     toggleComment(),
     bold(),
     sectionFold(),

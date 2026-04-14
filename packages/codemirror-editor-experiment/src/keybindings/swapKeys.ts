@@ -1,6 +1,6 @@
 // @paladin/codemirror-editor-experiment/keybindings/swapKeys.ts
-import { EditorView, keymap } from '@codemirror/view'
-import { EditorSelection, Extension, Prec } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
+import { Extension, Prec } from '@codemirror/state'
 
 // Instant single-character remappings
 const CHAR_MAP: Record<string, string> = {
@@ -23,35 +23,8 @@ function padWithSpaces(insert: string, before: string, after: string): string {
   return (needsBefore ? ' ' : '') + insert + (needsAfter ? ' ' : '')
 }
 
-const bracketOnNine = keymap.of([
-  {
-    key: '9',
-    run(view) {
-      const { state } = view
-      const changes = state.changeByRange((range) => {
-        if (range.empty) {
-          return {
-            changes: { from: range.from, insert: '()' },
-            range: EditorSelection.cursor(range.from + 1),
-          }
-        }
-        return {
-          changes: [
-            { from: range.from, insert: '(' },
-            { from: range.to, insert: ')' },
-          ],
-          range: EditorSelection.range(range.from + 1, range.to + 1),
-        }
-      })
-      view.dispatch({ ...changes, scrollIntoView: true, userEvent: 'input.type' })
-      return true
-    },
-  },
-])
-
 export function swapKeys(): Extension {
   return [
-    bracketOnNine,
     Prec.highest(EditorView.inputHandler.of((view, from, to, text) => {
       const mapped = CHAR_MAP[text]
       if (mapped) {

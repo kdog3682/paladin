@@ -2,7 +2,7 @@
 import { keymap, EditorView } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 
-const RULE = '-'.repeat(64)
+const RULE = '-'.repeat(60)
 
 export function dashRule(): Extension {
   return [
@@ -10,15 +10,36 @@ export function dashRule(): Extension {
       if (text !== '-') return false
       const { state } = view
       const line = state.doc.lineAt(from)
-      // Only fire when cursor is right after '--' at start of line (no other content)
-      if (from - line.from !== 2) return false
-      if (line.text.slice(0, 2) !== '--') return false
+      const offset = from - line.from
 
-      view.dispatch({
-        changes: { from: line.from, to: from, insert: RULE + '\n' },
-        selection: { anchor: line.from + RULE.length + 1 },
-      })
-      return true
+      // '- ' + '-' → '---' (first '-' expands to bullet '- ', jump straight to triple dash)
+      if (offset === 2 && line.text.slice(0, 2) === '- ') {
+        view.dispatch({
+          changes: { from: line.from, to: from, insert: '---' },
+          selection: { anchor: line.from + 3 },
+        })
+        return true
+      }
+
+      // '--' + '-' → '---' (intermediate step)
+      if (offset === 2 && line.text.slice(0, 2) === '--') {
+        view.dispatch({
+          changes: { from: line.from, to: from, insert: '---' },
+          selection: { anchor: line.from + 3 },
+        })
+        return true
+      }
+
+      // '---' + '-' → 60-dash rule
+      if (offset === 3 && line.text.slice(0, 3) === '---') {
+        view.dispatch({
+          changes: { from: line.from, to: from, insert: RULE + '\n' },
+          selection: { anchor: line.from + RULE.length + 1 },
+        })
+        return true
+      }
+
+      return false
     }),
     keymap.of([{
       key: '-',
