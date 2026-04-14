@@ -10,7 +10,6 @@ export function getDisplayName(
 ): string {
   const { length = 25 } = options
 
-  // normalize: /home/<user> → ~/, ~/projects/ → @
   let normalized = path.replace(/^\/home\/\w+/, '~')
   normalized = normalized.replace(/^~\/projects\//, '@')
 
@@ -20,11 +19,9 @@ export function getDisplayName(
   const prefix = parts[0]
   const basename = parts[parts.length - 1]
 
-  // if even prefix/.../<basename> won't fit, just use basename
   const minimal = `${prefix}/.../${basename}`
   if (minimal.length > length) return basename.slice(0, length)
 
-  // try adding parent segments from the end
   const middle = parts.slice(1, -1)
   for (let take = middle.length; take >= 1; take--) {
     const tail = middle.slice(middle.length - take)
@@ -33,4 +30,14 @@ export function getDisplayName(
   }
 
   return minimal
+}
+
+export function getBasename(path: string): string {
+  const parts = path.split('/')
+  return parts[parts.length - 1] || path
+}
+
+export function getDirectory(path: string): string {
+  const parts = path.split('/')
+  return parts.slice(0, -1).join('/')
 }

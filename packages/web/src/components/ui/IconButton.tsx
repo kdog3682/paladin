@@ -15,6 +15,7 @@ interface IconButtonProps {
   onClick?: () => void
   active?: boolean
   size?: 'sm' | 'md'
+  side?: 'left' | 'right' | 'top' | 'bottom'
   className?: string
 }
 
@@ -24,6 +25,7 @@ export function IconButton({
   onClick,
   active = false,
   size = 'md',
+  side = 'bottom',
   className,
 }: IconButtonProps) {
   return (
@@ -44,7 +46,10 @@ export function IconButton({
             {icon}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="left" className="text-xs">
+        <TooltipContent
+          side={side}
+          className="z-[100] bg-neutral-900 text-white text-xs px-2 py-1 rounded-full"
+        >
           {label}
         </TooltipContent>
       </Tooltip>

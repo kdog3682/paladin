@@ -8,8 +8,9 @@ import {
   Settings,
   User,
 } from 'lucide-react'
-import { useAppletStore, type AppletDefinition } from '@/stores/appletStore'
+import { useAppletStore } from '@/stores/appletStore'
 import { IconButton } from '@/components/ui/IconButton'
+import { Separator } from '@bklearn/shadcn'
 
 const APPLET_ICONS: Record<string, React.ReactNode> = {
   'file-viewer': <Files size={18} />,
@@ -24,32 +25,35 @@ export function ActivityBar() {
   const activeId = useAppletStore(s => s.activeId)
   const setActive = useAppletStore(s => s.setActive)
 
-  // settings is handled separately at the bottom
   const mainApplets = applets.filter(a => a.id !== 'settings')
   const settingsApplet = applets.find(a => a.id === 'settings')
 
   return (
-    <div className="flex flex-col items-center justify-between py-3 w-12 bg-neutral-50 border-l border-neutral-200/60">
+    <div className="flex flex-col items-center justify-between py-3 w-12 border-l border-neutral-200/60">
       {/* top: user */}
       <div>
         <IconButton
           icon={<User size={18} />}
           label="Profile"
-          size="md"
+          side="left"
         />
       </div>
 
-      {/* middle: applets */}
-      <div className="flex flex-col items-center gap-1">
-        {mainApplets.map(applet => (
-          <IconButton
-            key={applet.id}
-            icon={APPLET_ICONS[applet.id] ?? <Files size={18} />}
-            label={`${applet.label} (${applet.shortcut})`}
-            onClick={() => setActive(applet.id)}
-            active={activeId === applet.id}
-            size="md"
-          />
+      {/* middle: applets with dividers */}
+      <div className="flex flex-col items-center gap-0.5">
+        {mainApplets.map((applet, i) => (
+          <div key={applet.id} className="flex flex-col items-center">
+            {i > 0 && (
+              <Separator className="w-5 my-0.5 bg-neutral-200/60" />
+            )}
+            <IconButton
+              icon={APPLET_ICONS[applet.id] ?? <Files size={18} />}
+              label={`${applet.label} (${applet.shortcut})`}
+              onClick={() => setActive(applet.id)}
+              active={activeId === applet.id}
+              side="left"
+            />
+          </div>
         ))}
       </div>
 
@@ -61,7 +65,7 @@ export function ActivityBar() {
             label={`${settingsApplet.label} (${settingsApplet.shortcut})`}
             onClick={() => setActive(settingsApplet.id)}
             active={activeId === settingsApplet.id}
-            size="md"
+            side="left"
           />
         )}
       </div>
