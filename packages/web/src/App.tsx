@@ -1,18 +1,38 @@
-// @paladin/packages/web/src/App.tsx
+// src/App.tsx
 
-import { SessionMonitor } from "./components/SessionMonitor"
+import { useEffect } from 'react'
+import { AppShell } from '@/components/AppShell/AppShell'
+import { useAppletStore } from '@/stores/appletStore'
+import { FileViewer } from '@/components/FileViewer/FileViewer'
 
-const WS_URL = `ws://${window.location.hostname}:${import.meta.env.VITE_API_PORT || 4801}/ws`
-
-export function App() {
+// placeholder applets
+function Placeholder({ name }: { name: string }) {
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>paladin</h1>
-      </header>
-      <main>
-        <SessionMonitor wsUrl={WS_URL} />
-      </main>
+    <div className="flex items-center justify-center h-full text-neutral-400 text-sm">
+      {name}
     </div>
   )
+}
+
+const Tickets = () => <Placeholder name="Tickets" />
+const Terminal = () => <Placeholder name="Terminal" />
+const Settings = () => <Placeholder name="Settings" />
+const Notes = () => <Placeholder name="Notes" />
+
+const APPLETS = [
+  { id: 'file-viewer', label: 'Files', shortcut: '1', component: FileViewer },
+  { id: 'tickets', label: 'Tickets', shortcut: '2', component: Tickets },
+  { id: 'terminal', label: 'Terminal', shortcut: '3', component: Terminal },
+  { id: 'notes', label: 'Notes', shortcut: '4', component: Notes },
+  { id: 'settings', label: 'Settings', shortcut: '5', component: Settings },
+]
+
+export default function App() {
+  const register = useAppletStore(s => s.register)
+
+  useEffect(() => {
+    register(APPLETS)
+  }, [register])
+
+  return <AppShell />
 }

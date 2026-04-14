@@ -1,21 +1,24 @@
 // src/lib/keybindings.ts
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
 type KeyCombo = string
 
-interface KeyBinding {
+export interface KeyBinding {
   keys: KeyCombo
   label: string
   action: () => void
   allowInInput?: boolean
 }
 
+type LayerType = 'shell' | 'global' | 'applet' | 'overlay'
+
 interface KeyLayer {
   id: string
+  type: LayerType
   bindings: Map<KeyCombo, KeyBinding>
   priority: number
 }
@@ -24,7 +27,7 @@ interface KeybindingState {
   layers: Map<string, KeyLayer>
   activeApplet: string | null
 
-  registerLayer: (id: string, bindings: KeyBinding[], priority: number) => void
+  registerLayer: (id: string, type: LayerType, bindings: KeyBinding[], priority: number) => void
   removeLayer: (id: string) => void
   setActiveApplet: (id: string | null) => void
   resolve: (combo: KeyCombo) => KeyBinding | undefined
@@ -37,6 +40,7 @@ export const LAYER_PRIORITY = {
   SHELL: 0,
   GLOBAL: 10,
   APPLET: 20,
+  OVERLAY: 50,
 } as const
 
 const KEY_ALIASES: Record<string, string> = {
@@ -48,22 +52,22 @@ const KEY_ALIASES: Record<string, string> = {
   escape: 'esc',
 }
 
+const MODIFIER_KEYS = new Set(['control', 'meta', 'alt', 'shift'])
+
 // ─── Store ───────────────────────────────────────────────────────────
 
 export const useKeybindingStore = create<KeybindingState>((set, get) => ({
   layers: new Map(),
   activeApplet: null,
 
-  registerLayer(id, bindings, priority) {
+  registerLayer(id, type, bindings, priority) {
     set(state => {
       const next = new Map(state.layers)
       const bindingMap = new Map<KeyCombo, KeyBinding>()
-
       for (const b of bindings) {
         bindingMap.set(b.keys, b)
       }
-
-      next.set(id, { id, bindings: bindingMap, priority })
+      next.set(id, { id, type, bindings: bindingMap, priority })
       return { layers: next }
     })
   },
@@ -85,9 +89,10 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
 
     const relevant = [...layers.values()]
       .filter(layer =>
-        layer.id === 'shell' ||
-        layer.id === 'global' ||
-        layer.id === activeApplet
+        layer.type === 'shell' ||
+        layer.type === 'global' ||
+        layer.type === 'overlay' ||
+        (layer.type === 'applet' && layer.id === activeApplet)
       )
       .sort((a, b) => b.priority - a.priority)
 
@@ -105,9 +110,10 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
 
     const relevant = [...layers.values()]
       .filter(layer =>
-        layer.id === 'shell' ||
-        layer.id === 'global' ||
-        layer.id === activeApplet
+        layer.type === 'shell' ||
+        layer.type === 'global' ||
+        layer.type === 'overlay' ||
+        (layer.type === 'applet' && layer.id === activeApplet)
       )
       .sort((a, b) => a.priority - b.priority)
 
@@ -124,13 +130,15 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
 // ─── Key normalization ───────────────────────────────────────────────
 
 export function normalizeKeyEvent(e: KeyboardEvent): KeyCombo {
+  const key = e.key.toLowerCase()
+  if (MODIFIER_KEYS.has(key)) return ''
+
   const parts: string[] = []
   if (e.ctrlKey || e.metaKey) parts.push('ctrl')
   if (e.altKey) parts.push('alt')
   if (e.shiftKey) parts.push('shift')
-
-  const key = e.key.toLowerCase()
   parts.push(KEY_ALIASES[key] ?? key)
+
   return parts.join('+')
 }
 
@@ -141,12 +149,13 @@ export function useKeybindingListener() {
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
+      const combo = normalizeKeyEvent(e)
+      if (!combo) return
+
       const tag = (e.target as HTMLElement)?.tagName
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 
-      const combo = normalizeKeyEvent(e)
       const binding = resolve(combo)
-
       if (!binding) return
       if (isInput && !binding.allowInInput) return
 
@@ -159,14 +168,29 @@ export function useKeybindingListener() {
   }, [resolve])
 }
 
-// ─── Applet hook ─────────────────────────────────────────────────────
+// ─── Hooks ───────────────────────────────────────────────────────────
 
-export function useAppletKeybindings(appletId: string, bindings: KeyBinding[]) {
+export function useRegisterLayer(
+  id: string,
+  type: LayerType,
+  bindings: KeyBinding[],
+  priority: number,
+) {
   const registerLayer = useKeybindingStore(s => s.registerLayer)
   const removeLayer = useKeybindingStore(s => s.removeLayer)
+  const bindingsRef = useRef(bindings)
+  bindingsRef.current = bindings
 
   useEffect(() => {
-    registerLayer(appletId, bindings, LAYER_PRIORITY.APPLET)
-    return () => removeLayer(appletId)
-  }, [appletId, bindings, registerLayer, removeLayer])
+    registerLayer(id, type, bindingsRef.current, priority)
+    return () => removeLayer(id)
+  }, [id, type, priority, registerLayer, removeLayer])
+}
+
+export function useOverlayKeybindings(id: string, bindings: KeyBinding[]) {
+  useRegisterLayer(id, 'overlay', bindings, LAYER_PRIORITY.OVERLAY)
+}
+
+export function useAppletKeybindings(id: string, bindings: KeyBinding[]) {
+  useRegisterLayer(id, 'applet', bindings, LAYER_PRIORITY.APPLET)
 }
