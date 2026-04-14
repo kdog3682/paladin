@@ -24,9 +24,8 @@ export function bracketOnNine(): Extension {
           const charAfter = state.doc.sliceString(range.from, range.from + 1)
 
           if (CLOSING_DELIMITERS.has(charAfter)) {
-            // Insert '(' before the closing delimiter, cursor lands between ( and it
             return {
-              changes: { from: range.from, insert: '(' },
+              changes: { from: range.from, insert: '()' },
               range: EditorSelection.cursor(range.from + 1),
             }
           }
