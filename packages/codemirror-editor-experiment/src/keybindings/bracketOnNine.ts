@@ -33,6 +33,14 @@ export function bracketOnNine(): Extension {
           // Wrap from cursor to end of line with ()
           const line = state.doc.lineAt(range.from)
           const lineEnd = line.to
+
+          if (range.from === lineEnd) {
+            return {
+              changes: { from: range.from, insert: '()' },
+              range: EditorSelection.cursor(range.from + 1),
+            }
+          }
+
           return {
             changes: [
               { from: range.from, insert: '(' },
