@@ -94,6 +94,8 @@ function extractBaseDir(messages: Message[]): string | null {
     // scoped package reference like @org/name
     const scopeMatch = text.match(SCOPED_PKG_RE)
     if (scopeMatch) return `@${scopeMatch[1]}/${scopeMatch[2]}`
+
+    return null
   }
 
   return null
