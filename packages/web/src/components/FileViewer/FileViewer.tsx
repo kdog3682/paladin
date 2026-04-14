@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useAppletKeybindings } from '@/lib/keybindings'
 import { useFileViewerStore } from './store'
-import { getBasename } from '@/lib/getDisplayName'
+import { getEditorDisplayName } from '@/lib/getDisplayName'
 import { IconButton } from '@/components/ui/IconButton'
 import { FileBrowser } from './FileBrowser'
 import { NoteInputArea } from './NoteInputArea'
@@ -35,32 +35,34 @@ export function FileViewer() {
 
   useAppletKeybindings('file-viewer', bindings)
 
-  const basename = currentFile ? getBasename(currentFile.path) : '—'
+  const displayPath = currentFile
+    ? getEditorDisplayName(currentFile.path)
+    : '—'
 
   return (
     <>
-      <div className="flex h-full">
+      <div className="flex h-full bg-white">
         {/* editor pane */}
-        <div className="flex-[85] min-w-0 flex flex-col">
+        <div className="flex-[80] min-w-0 flex flex-col">
           {/* filename header */}
-          <div className="px-4 py-2 text-xs font-mono text-neutral-400 border-b border-neutral-100">
-            {basename}
+          <div className="px-4 py-2 text-xs font-mono text-neutral-400">
+            {displayPath}
           </div>
           {/* editor */}
-          <div className="flex-1 min-h-0 bg-white font-mono text-sm text-neutral-700 overflow-auto">
+          <div className="flex-1 min-h-0 font-mono text-sm text-neutral-700 overflow-auto">
             <div className="flex items-center justify-center h-full text-neutral-300">
               editor
             </div>
           </div>
         </div>
 
+        {/* dotted divider */}
+        <div className="w-px border-l border-dashed border-neutral-200/80" />
+
         {/* side panel */}
-        <div
-          className="flex-[15] min-w-[200px] max-w-[280px] shrink-0 flex flex-col my-3 mr-3 rounded-lg bg-white"
-          style={{ boxShadow: '-4px 0 24px -8px rgba(0,0,0,0.06)' }}
-        >
+        <div className="flex-[20] min-w-[220px] max-w-[300px] shrink-0 flex flex-col">
           {/* action buttons */}
-          <div className="px-3 pt-3 pb-2 border-b border-neutral-100">
+          <div className="px-3 pt-3 pb-2">
             <div className="flex items-center gap-1 flex-wrap">
               <IconButton
                 icon={<GitCompare size={15} />}
@@ -91,13 +93,13 @@ export function FileViewer() {
             </div>
           </div>
 
-          {/* file browser */}
-          <div className="px-3 py-2 border-b border-neutral-100">
+          {/* file browser — 65% */}
+          <div className="h-[65%] shrink-0 px-3 pb-2">
             <FileBrowser />
           </div>
 
-          {/* note input */}
-          <div className="flex-1 min-h-0 p-3">
+          {/* note input — 35% */}
+          <div className="flex-1 min-h-0 px-3 pb-3">
             <NoteInputArea />
           </div>
         </div>
