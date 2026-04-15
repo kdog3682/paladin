@@ -93,6 +93,9 @@ function buildTree(entries: FileTreeEntry[]): TreeNode[] {
       }
     }
 
+    // collapse single-child directory chains: a/b/c → a/b/c
+    collapseChains(rootNode)
+
     // sort: dirs first, then alpha
     sortTree(rootNode)
     roots.push(rootNode)
@@ -109,6 +112,37 @@ function sortTree(node: TreeNode) {
   })
   for (const child of node.children) {
     if (child.isDir) sortTree(child)
+  }
+}
+
+/**
+ * Collapse single-child directory chains.
+ * If a dir has exactly one child and that child is also a dir,
+ * merge them: abc/ → def/ → ghi.ts becomes abc/def/ → ghi.ts
+ */
+function collapseChains(node: TreeNode) {
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i]
+    if (!child.isDir) continue
+
+    // keep collapsing while there's a single dir child
+    let current = child
+    const nameParts = [current.name]
+
+    while (
+      current.children.length === 1 &&
+      current.children[0].isDir
+    ) {
+      current = current.children[0]
+      nameParts.push(current.name)
+    }
+
+    if (nameParts.length > 1) {
+      current.name = nameParts.join('/')
+      node.children[i] = current
+    }
+
+    collapseChains(node.children[i])
   }
 }
 
