@@ -21,7 +21,8 @@ interface FileViewerState {
   files: FileEntry[]
   currentIndex: number
   diffActive: boolean
-  noteMode: boolean // true = note pane visible, false = file tree
+  noteMode: boolean
+  noteValue: string
 
   // computed
   currentFile: () => FileEntry | undefined
@@ -37,6 +38,10 @@ interface FileViewerState {
   addNote: (note: string) => void
   clearNotes: () => void
   setNoteMode: (on: boolean) => void
+  setNoteValue: (value: string) => void
+  appendToNote: (char: string) => void
+  deleteFromNote: () => void
+  deleteWordFromNote: () => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -76,6 +81,7 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
   currentIndex: 0,
   diffActive: false,
   noteMode: false,
+  noteValue: '',
 
   currentFile() {
     const { files, currentIndex } = get()
@@ -88,6 +94,7 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
       files: toFileEntries(source.files),
       currentIndex: 0,
       noteMode: false,
+      noteValue: '',
     })
   },
 
@@ -139,7 +146,7 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
       file.notes = [...file.notes, note]
       file.marked = true
       files[s.currentIndex] = file
-      return { files }
+      return { files, noteValue: '', noteMode: false }
     })
   },
 
@@ -151,6 +158,33 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
   },
 
   setNoteMode(on) {
-    set({ noteMode: on })
+    set({ noteMode: on, noteValue: on ? get().noteValue : '' })
+  },
+
+  setNoteValue(value) {
+    set({ noteValue: value, noteMode: value.length > 0 })
+  },
+
+  appendToNote(char) {
+    set(s => {
+      const noteValue = s.noteValue + char
+      return { noteValue, noteMode: true }
+    })
+  },
+
+  deleteFromNote() {
+    set(s => {
+      const noteValue = s.noteValue.slice(0, -1)
+      return { noteValue, noteMode: noteValue.length > 0 }
+    })
+  },
+
+  deleteWordFromNote() {
+    set(s => {
+      const trimmed = s.noteValue.trimEnd()
+      const lastSpace = trimmed.lastIndexOf(' ')
+      const noteValue = lastSpace === -1 ? '' : trimmed.slice(0, lastSpace)
+      return { noteValue, noteMode: noteValue.length > 0 }
+    })
   },
 }))

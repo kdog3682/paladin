@@ -14,12 +14,15 @@ export interface KeyBinding {
   allowInInput?: boolean
 }
 
+export type KeyFallback = (combo: KeyCombo, e: KeyboardEvent) => boolean | void
+
 type LayerType = 'shell' | 'global' | 'applet' | 'overlay'
 
 interface KeyLayer {
   id: string
   type: LayerType
   bindings: Map<KeyCombo, KeyBinding>
+  fallback: KeyFallback | null
   priority: number
 }
 
@@ -27,10 +30,11 @@ interface KeybindingState {
   layers: Map<string, KeyLayer>
   activeApplet: string | null
 
-  registerLayer: (id: string, type: LayerType, bindings: KeyBinding[], priority: number) => void
+  registerLayer: (id: string, type: LayerType, bindings: KeyBinding[], priority: number, fallback?: KeyFallback) => void
   removeLayer: (id: string) => void
   setActiveApplet: (id: string | null) => void
   resolve: (combo: KeyCombo) => KeyBinding | undefined
+  resolveFallback: () => KeyFallback | null
   getActiveBindings: () => { type: LayerType, bindings: KeyBinding[] }[]
 }
 
@@ -60,14 +64,14 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
   layers: new Map(),
   activeApplet: null,
 
-  registerLayer(id, type, bindings, priority) {
+  registerLayer(id, type, bindings, priority, fallback) {
     set(state => {
       const next = new Map(state.layers)
       const bindingMap = new Map<KeyCombo, KeyBinding>()
       for (const b of bindings) {
         bindingMap.set(b.keys, b)
       }
-      next.set(id, { id, type, bindings: bindingMap, priority })
+      next.set(id, { id, type, bindings: bindingMap, fallback: fallback ?? null, priority })
       return { layers: next }
     })
   },
@@ -102,6 +106,26 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
     }
 
     return undefined
+  },
+
+  resolveFallback() {
+    const { layers, activeApplet } = get()
+
+    // check layers in priority order for a fallback
+    const relevant = [...layers.values()]
+      .filter(layer =>
+        layer.type === 'shell' ||
+        layer.type === 'global' ||
+        layer.type === 'overlay' ||
+        (layer.type === 'applet' && layer.id === activeApplet)
+      )
+      .sort((a, b) => b.priority - a.priority)
+
+    for (const layer of relevant) {
+      if (layer.fallback) return layer.fallback
+    }
+
+    return null
   },
 
   getActiveBindings() {
@@ -147,6 +171,7 @@ export function normalizeKeyEvent(e: KeyboardEvent): KeyCombo {
 
 export function useKeybindingListener() {
   const resolve = useKeybindingStore(s => s.resolve)
+  const resolveFallback = useKeybindingStore(s => s.resolveFallback)
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -157,39 +182,61 @@ export function useKeybindingListener() {
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 
       const binding = resolve(combo)
-      if (!binding) return
-      if (isInput && !binding.allowInInput) return
+      if (binding) {
+        if (isInput && !binding.allowInInput) return
+        e.preventDefault()
+        binding.action()
+        return
+      }
 
-      e.preventDefault()
-      binding.action()
+      // no binding matched — try the active layer's fallback
+      if (!isInput) {
+        const fallback = resolveFallback()
+        if (fallback) {
+          const handled = fallback(combo, e)
+          if (handled !== false) {
+            e.preventDefault()
+          }
+        }
+      }
     }
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [resolve])
+  }, [resolve, resolveFallback])
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────
+
+interface LayerOptions {
+  fallback?: KeyFallback
+}
 
 export function useRegisterLayer(
   id: string,
   type: LayerType,
   bindings: KeyBinding[],
   priority: number,
+  options?: LayerOptions,
 ) {
   const registerLayer = useKeybindingStore(s => s.registerLayer)
   const removeLayer = useKeybindingStore(s => s.removeLayer)
+  const fallbackRef = useRef(options?.fallback)
+  fallbackRef.current = options?.fallback
 
   useEffect(() => {
-    registerLayer(id, type, bindings, priority)
+    const stableFallback: KeyFallback | undefined = options?.fallback
+      ? (combo, e) => fallbackRef.current?.(combo, e)
+      : undefined
+    registerLayer(id, type, bindings, priority, stableFallback)
     return () => removeLayer(id)
   }, [id, type, bindings, priority, registerLayer, removeLayer])
 }
 
-export function useOverlayKeybindings(id: string, bindings: KeyBinding[]) {
-  useRegisterLayer(id, 'overlay', bindings, LAYER_PRIORITY.OVERLAY)
+export function useOverlayKeybindings(id: string, bindings: KeyBinding[], options?: LayerOptions) {
+  useRegisterLayer(id, 'overlay', bindings, LAYER_PRIORITY.OVERLAY, options)
 }
 
-export function useAppletKeybindings(id: string, bindings: KeyBinding[]) {
-  useRegisterLayer(id, 'applet', bindings, LAYER_PRIORITY.APPLET)
+export function useAppletKeybindings(id: string, bindings: KeyBinding[], options?: LayerOptions) {
+  useRegisterLayer(id, 'applet', bindings, LAYER_PRIORITY.APPLET, options)
 }
