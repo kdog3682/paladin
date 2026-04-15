@@ -1,16 +1,8 @@
-import { Hono } from "hono"
-import { cors } from "hono/cors"
-import { filewatchRoute, websocket } from "./routes/filewatch"
+// src/server.ts
 
-const app = new Hono()
-
-app.use("*", cors())
-app.route("/", filewatchRoute)
-
-app.get("/health", (c) => c.json({ ok: true }))
+import app from './routes'
 
 export default {
-  port: 4801,
+  port: 3001,
   fetch: app.fetch,
-  websocket,
 }
