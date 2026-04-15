@@ -48,7 +48,9 @@ export function IconButton({
         </TooltipTrigger>
         <TooltipContent
           side={side}
-          className="z-[100] bg-neutral-900 text-white text-xs px-2 py-1 rounded-full"
+          sideOffset={6}
+          className="z-[100] bg-neutral-900 text-white text-xs px-2 py-1 rounded-full border-0 shadow-none"
+          arrow={false}
         >
           {label}
         </TooltipContent>

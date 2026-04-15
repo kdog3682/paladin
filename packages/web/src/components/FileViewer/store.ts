@@ -2,75 +2,93 @@
 
 import { create } from 'zustand'
 
+// ─── Types ───────────────────────────────────────────────────────────
+
 export interface FileEntry {
   path: string
   notes: string[]
   marked: boolean
 }
 
-export interface LinkedFile {
-  path: string
-  relation?: string
+export interface FileSource {
+  name: string
+  type: 'git' | 'directory' | 'filegroup'
+  files: string[]
 }
 
 interface FileViewerState {
-  source: string
+  source: FileSource
   files: FileEntry[]
   currentIndex: number
   diffActive: boolean
-  linkedFiles: LinkedFile[]
-  showNotes: boolean
+  noteMode: boolean // true = note pane visible, false = file tree
 
   // computed
   currentFile: () => FileEntry | undefined
 
   // actions
-  setFiles: (files: FileEntry[]) => void
-  setSource: (source: string) => void
+  setSource: (source: FileSource) => void
   setIndex: (index: number) => void
+  setIndexByPath: (path: string) => void
   nextFile: () => void
   prevFile: () => void
   toggleDiff: () => void
   toggleMark: () => void
-  toggleShowNotes: () => void
   addNote: (note: string) => void
-  setLinkedFiles: (files: LinkedFile[]) => void
+  clearNotes: () => void
+  setNoteMode: (on: boolean) => void
 }
 
-export const useFileViewerStore = create<FileViewerState>((set, get) => ({
-  source: 'git',
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+const BASE = '/home/kdog3682/projects/paladin/packages'
+
+function dummyPath(pkg: string, ...rest: string[]): string {
+  return `${BASE}/${pkg}/${rest.join('/')}`
+}
+
+const MOCK_SOURCE: FileSource = {
+  name: 'modified & new',
+  type: 'git',
   files: [
-    { path: 'packages/web/src/components/Table/Table.tsx', notes: [], marked: false },
-    { path: 'packages/web/src/lib/utils.ts', notes: [], marked: false },
-    { path: 'packages/web/src/hooks/useDebounce.ts', notes: [], marked: false },
-    { path: 'packages/web/src/components/FileViewer/FileViewer.tsx', notes: [], marked: false },
-    { path: 'packages/web/src/stores/appletStore.ts', notes: [], marked: false },
-    { path: 'packages/api/src/routes/files.ts', notes: [], marked: false },
-    { path: 'packages/api/src/services/git.ts', notes: [], marked: false },
-    { path: 'packages/web/src/lib/keybindings.ts', notes: [], marked: false },
-    { path: 'packages/web/src/components/Modal/FuzzyPicker.tsx', notes: [], marked: false },
-    { path: 'packages/web/src/App.tsx', notes: [], marked: false },
+    dummyPath('utils', 'src', 'dash.ts'),
+    dummyPath('ai', 'src', 'deepseek.ts'),
+    dummyPath('ai', 'src', 'abc', 'def', 'ghi.ts'),
+    dummyPath('web', 'src', 'components', 'Table', 'Table.tsx'),
+    dummyPath('web', 'src', 'components', 'FileViewer', 'FileViewer.tsx'),
+    dummyPath('web', 'src', 'hooks', 'useDebounce.ts'),
+    dummyPath('web', 'src', 'lib', 'keybindings.ts'),
+    dummyPath('web', 'src', 'stores', 'appletStore.ts'),
+    dummyPath('api', 'src', 'routes', 'files.ts'),
+    dummyPath('api', 'src', 'services', 'git.ts'),
   ],
+}
+
+function toFileEntries(paths: string[]): FileEntry[] {
+  return paths.map(p => ({ path: p, notes: [], marked: false }))
+}
+
+// ─── Store ───────────────────────────────────────────────────────────
+
+export const useFileViewerStore = create<FileViewerState>((set, get) => ({
+  source: MOCK_SOURCE,
+  files: toFileEntries(MOCK_SOURCE.files),
   currentIndex: 0,
   diffActive: false,
-  linkedFiles: [
-    { path: 'packages/web/src/lib/utils.ts', relation: 'import' },
-    { path: 'packages/web/src/hooks/useDebounce.ts', relation: 'import' },
-    { path: 'packages/web/src/components/Table/index.ts', relation: 'barrel' },
-  ],
-  showNotes: false,
+  noteMode: false,
 
   currentFile() {
     const { files, currentIndex } = get()
     return files[currentIndex]
   },
 
-  setFiles(files) {
-    set({ files, currentIndex: 0 })
-  },
-
   setSource(source) {
-    set({ source })
+    set({
+      source,
+      files: toFileEntries(source.files),
+      currentIndex: 0,
+      noteMode: false,
+    })
   },
 
   setIndex(index) {
@@ -78,6 +96,12 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
     if (index >= 0 && index < files.length) {
       set({ currentIndex: index })
     }
+  },
+
+  setIndexByPath(path) {
+    const { files } = get()
+    const idx = files.findIndex(f => f.path === path)
+    if (idx !== -1) set({ currentIndex: idx })
   },
 
   nextFile() {
@@ -108,10 +132,6 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
     })
   },
 
-  toggleShowNotes() {
-    set(s => ({ showNotes: !s.showNotes }))
-  },
-
   addNote(note) {
     set(s => {
       const files = [...s.files]
@@ -123,7 +143,14 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
     })
   },
 
-  setLinkedFiles(files) {
-    set({ linkedFiles: files })
+  clearNotes() {
+    set(s => {
+      const files = s.files.map(f => ({ ...f, notes: [], marked: false }))
+      return { files }
+    })
+  },
+
+  setNoteMode(on) {
+    set({ noteMode: on })
   },
 }))

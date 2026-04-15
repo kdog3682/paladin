@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { cn } from '@bklearn/shadcn'
-import { useOverlayKeybindings } from '@/lib/keybindings'
 
 export interface FuzzyPickerItem {
   id: string
@@ -59,8 +58,15 @@ export function FuzzyPicker({ items, placeholder = 'search...', onSelect, onClos
     } else if (e.key === 'Escape') {
       e.preventDefault()
       onClose()
+    } else if (/^[1-9]$/.test(e.key) && !query) {
+      // number shortcut when query is empty
+      const idx = parseInt(e.key) - 1
+      if (idx < filtered.length) {
+        e.preventDefault()
+        onSelect(filtered[idx])
+      }
     }
-  }, [filtered, selectedIndex, onSelect, onClose])
+  }, [filtered, selectedIndex, onSelect, onClose, query])
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/30">
@@ -85,7 +91,12 @@ export function FuzzyPicker({ items, placeholder = 'search...', onSelect, onClos
                   : 'text-neutral-600 hover:bg-neutral-50',
               )}
             >
-              <span className="font-mono truncate">{item.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-neutral-300 font-mono w-3">
+                  {i < 9 ? i + 1 : ''}
+                </span>
+                <span className="font-mono truncate">{item.label}</span>
+              </div>
               {item.detail && (
                 <span className="text-xs text-neutral-400 ml-2 shrink-0">{item.detail}</span>
               )}
