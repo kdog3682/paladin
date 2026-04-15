@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAppletKeybindings, type KeyBinding, type KeyFallback } from '@/lib/keybindings'
 import { useFileViewerStore } from './store'
+import { useNoteInputStore } from './noteInputStore'
 import { buildExportPayload, copyToClipboard } from './utils'
 
 // ─── Note input fallback ─────────────────────────────────────────────
@@ -32,8 +33,9 @@ function isPrintableCombo(combo: string): boolean {
 }
 
 const noteInputFallback: KeyFallback = (combo, e) => {
-  const store = useFileViewerStore.getState()
-  const isEmpty = store.noteValue.length === 0
+  const draft = useNoteInputStore.getState()
+  const fileStore = useFileViewerStore.getState()
+  const isEmpty = draft.value.length === 0
 
   if (isEmpty && e.key in COMMAND_KEYS) {
     // TODO: dispatch command
@@ -41,33 +43,42 @@ const noteInputFallback: KeyFallback = (combo, e) => {
   }
 
   if (combo === 'backspace') {
-    store.deleteFromNote()
+    draft.deleteLast()
+    fileStore.setNoteMode(useNoteInputStore.getState().value.length > 0)
     return
   }
 
   if (combo === 'ctrl+backspace') {
-    store.deleteWordFromNote()
+    draft.deleteWord()
+    fileStore.setNoteMode(useNoteInputStore.getState().value.length > 0)
     return
   }
 
   if (combo === 'enter') {
-    const trimmed = store.noteValue.trim()
-    if (trimmed) store.addNote(trimmed)
+    const trimmed = draft.value.trim()
+    if (trimmed) {
+      fileStore.addNote(trimmed)
+      draft.clear()
+      fileStore.setNoteMode(false)
+    }
     return
   }
 
   if (combo === 'esc' && !isEmpty) {
-    store.setNoteValue('')
+    draft.clear()
+    fileStore.setNoteMode(false)
     return
   }
 
   if (combo === 'space') {
-    store.appendToNote(' ')
+    draft.append(' ')
+    fileStore.setNoteMode(true)
     return
   }
 
   if (isPrintableCombo(combo)) {
-    store.appendToNote(e.key)
+    draft.append(e.key)
+    fileStore.setNoteMode(true)
     return
   }
 
