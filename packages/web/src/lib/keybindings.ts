@@ -31,7 +31,7 @@ interface KeybindingState {
   removeLayer: (id: string) => void
   setActiveApplet: (id: string | null) => void
   resolve: (combo: KeyCombo) => KeyBinding | undefined
-  getActiveBindings: () => KeyBinding[]
+  getActiveBindings: () => { type: LayerType, bindings: KeyBinding[] }[]
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
 
   getActiveBindings() {
     const { layers, activeApplet } = get()
-    const merged = new Map<KeyCombo, KeyBinding>()
+    const result: { type: LayerType, bindings: KeyBinding[] }[] = []
 
     const relevant = [...layers.values()]
       .filter(layer =>
@@ -118,12 +118,13 @@ export const useKeybindingStore = create<KeybindingState>((set, get) => ({
       .sort((a, b) => a.priority - b.priority)
 
     for (const layer of relevant) {
-      for (const [keys, binding] of layer.bindings) {
-        merged.set(keys, binding)
-      }
+      result.push({
+        type: layer.type,
+        bindings: [...layer.bindings.values()],
+      })
     }
 
-    return [...merged.values()]
+    return result
   },
 }))
 
@@ -178,13 +179,11 @@ export function useRegisterLayer(
 ) {
   const registerLayer = useKeybindingStore(s => s.registerLayer)
   const removeLayer = useKeybindingStore(s => s.removeLayer)
-  const bindingsRef = useRef(bindings)
-  bindingsRef.current = bindings
 
   useEffect(() => {
-    registerLayer(id, type, bindingsRef.current, priority)
+    registerLayer(id, type, bindings, priority)
     return () => removeLayer(id)
-  }, [id, type, priority, registerLayer, removeLayer])
+  }, [id, type, bindings, priority, registerLayer, removeLayer])
 }
 
 export function useOverlayKeybindings(id: string, bindings: KeyBinding[]) {

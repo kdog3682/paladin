@@ -13,7 +13,7 @@ type Tab = 'applet' | 'general'
 
 export function HelpPalette({ onClose }: HelpPaletteProps) {
   const [tab, setTab] = useState<Tab>('applet')
-  const layers = useKeybindingStore(s => s.layers)
+  const getActiveBindings = useKeybindingStore(s => s.getActiveBindings)
   const activeApplet = useKeybindingStore(s => s.activeApplet)
 
   const toggleTab = useCallback(() => {
@@ -28,24 +28,28 @@ export function HelpPalette({ onClose }: HelpPaletteProps) {
 
   useOverlayKeybindings('help-palette', overlayBindings)
 
+  const hidden = new Set(['Close help', 'Switch tab'])
+
   const { appletBindings, generalBindings } = useMemo(() => {
+    const groups = getActiveBindings()
     const applet: { keys: string, label: string }[] = []
     const general: { keys: string, label: string }[] = []
 
-    for (const layer of layers.values()) {
-      const items = [...layer.bindings.values()]
-        .filter(b => !['Close help', 'Switch tab'].includes(b.label))
-        .map(b => ({ keys: b.keys, label: b.label }))
+    for (const group of groups) {
+      for (const binding of group.bindings) {
+        if (hidden.has(binding.label)) continue
+        const item = { keys: binding.keys, label: binding.label }
 
-      if (layer.type === 'applet' && layer.id === activeApplet) {
-        applet.push(...items)
-      } else if (layer.type === 'shell' || layer.type === 'global') {
-        general.push(...items)
+        if (group.type === 'applet') {
+          applet.push(item)
+        } else if (group.type === 'shell' || group.type === 'global') {
+          general.push(item)
+        }
       }
     }
 
     return { appletBindings: applet, generalBindings: general }
-  }, [layers, activeApplet])
+  }, [getActiveBindings, activeApplet])
 
   const currentBindings = tab === 'applet' ? appletBindings : generalBindings
   const appletLabel = activeApplet
@@ -55,7 +59,6 @@ export function HelpPalette({ onClose }: HelpPaletteProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="w-full max-w-sm max-h-[60vh] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col">
-        {/* header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 shrink-0">
           <span className="text-sm font-medium text-neutral-800">Keyboard shortcuts</span>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700 transition-colors">
@@ -63,7 +66,6 @@ export function HelpPalette({ onClose }: HelpPaletteProps) {
           </button>
         </div>
 
-        {/* tabs */}
         <div className="flex border-b border-neutral-100 shrink-0">
           <button
             onClick={() => setTab('applet')}
@@ -89,12 +91,10 @@ export function HelpPalette({ onClose }: HelpPaletteProps) {
           </button>
         </div>
 
-        {/* hint */}
         <div className="px-4 py-1 text-[10px] text-neutral-300 text-right shrink-0">
           press tab to switch
         </div>
 
-        {/* bindings list */}
         <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
           {currentBindings.length > 0 ? (
             currentBindings.map(binding => (
