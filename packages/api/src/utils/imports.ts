@@ -65,7 +65,7 @@ function isTestFile(filePath: string): boolean {
 }
 
 function isLocal(specifier: string): boolean {
-  return specifier.startsWith(".") || specifier.startsWith("/")
+  return specifier.startsWith(".") || specifier.startsWith("/") || specifier.startsWith('@/')
 }
 
 async function parseImports(filePath: string): Promise<ImportEntry[]> {
