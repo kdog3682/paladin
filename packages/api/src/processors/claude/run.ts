@@ -1,54 +1,87 @@
 // src/processors/claude/run.ts
 
-import { mkdir, writeFile } from "node:fs/promises"
-import { dirname } from "node:path"
 import { processConversation } from "./process"
+import { findProjectRoot } from "./utils/find-root"
+import { extractUserText, collectUserUuids } from "./utils/extract-user-text"
+import { getSeenUuids, setSeenUuids } from "./utils/seen-cache"
+import { generateCommitMessage } from "./utils/generate-commit"
 import { bootstrapMonorepo } from "../../services/bootstrap/monorepo"
-import { collectRunFiles, runFiles } from "../../services/codeRunner"
+import { codeRunner } from "../../services/runcode"
+import * as git from "../../services/git"
+import { fcache } from "../../fcache"
 import { bus } from "../../bus"
 import { config } from "../../config"
-import type { Conversation, ClaudeSessionData } from "../../types/claude"
+import type { Conversation } from "../../types/claude"
+import type { SessionData } from "../../types/session"
 
-export async function run(conversation: Conversation): Promise<ClaudeSessionData | null> {
-  const result = await processConversation(conversation, config.baseProjectsDir)
+export async function run(conversation: Conversation): Promise<SessionData | null> {
+  const result = processConversation(conversation, config.baseProjectsDir)
   if (!result) return null
 
-  const { files, project } = result
+  const { files } = result
 
-  // 1. write files to disk
-  for (const file of files) {
-    await mkdir(dirname(file.path), { recursive: true })
-    await writeFile(file.path, file.content)
+  // 1. derive project from one of the file paths
+  const project = findProjectRoot(files[0].path, config.baseProjectsDir)
+  if (!project) return null
+
+  // 2. emit partial session at the start
+  const conversationData = {
+    id: conversation.url,
+    url: conversation.url,
+    title: conversation.title,
+    updatedAt: conversation.updatedAt,
   }
 
-  const paths = files.map((f) => f.path)
-
-  // 2. bootstrap monorepo (handles package.json, deps, bun install)
-  const { packages } = await bootstrapMonorepo(project.dir, paths)
-
-  // 3. emit session info
-  const session: ClaudeSessionData = {
+  const partial: SessionData = {
+    conversation: conversationData,
     project,
-    conversation: {
-      id: conversation.url,
-      url: conversation.url,
-      title: conversation.title,
-      updatedAt: conversation.updatedAt,
-    },
-    files: paths,
-    packages,
+    git: { branch: "", files: [] },
+    runResults: [],
+  }
+
+  bus.emit("filewatch:session", partial)
+
+  // 3. write files via fcache (skips unchanged)
+  for (const file of files) {
+    await fcache.write(file.path, file.content)
+  }
+
+  // 4. bootstrap monorepo
+  await bootstrapMonorepo(project.dir, files.map((f) => f.path))
+
+  // 5. set up git
+  await git.setRepo(project.dir, { autoInit: true })
+
+  // 6. collect + run handlers
+  const runList = codeRunner.collect(files)
+  const runResults = runList.length ? await codeRunner.run(runList) : []
+
+  // 7. generate commit message if all tests pass (or no tests ran)
+  const testsOk = runResults.every((r) => r.name !== "test" || r.success)
+
+  let commitMessage: string | undefined
+  if (testsOk) {
+    const seen = await getSeenUuids(conversation.url)
+    const userText = extractUserText(conversation.messages, seen)
+    if (userText) {
+      commitMessage = await generateCommitMessage(userText)
+      await setSeenUuids(conversation.url, collectUserUuids(conversation.messages))
+    }
+  }
+
+  // 8. stage + read final git state
+  await git.add()
+  const gitState = await git.getData()
+
+  // 9. emit full session
+  const session: SessionData = {
+    conversation: conversationData,
+    project,
+    git: { ...gitState, commitMessage },
+    runResults,
   }
 
   bus.emit("filewatch:session", session)
-
-  // 4. run matched handlers (tests, demos, etc.)
-  const toRun = collectRunFiles(files)
-
-  if (toRun.length) {
-    bus.emit("filewatch:pending", toRun)
-    const results = await runFiles(toRun)
-    bus.emit("filewatch:results", results)
-  }
 
   return session
 }

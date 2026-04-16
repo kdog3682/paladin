@@ -1,59 +1,81 @@
-// @paladin/packages/api/src/routes/filewatch.ts
+// src/routes/filewatch.ts
 
 import { Hono } from "hono"
 import { createBunWebSocket } from "hono/bun"
+import { watch } from "node:fs"
+import { join } from "node:path"
+import type { ServerWebSocket } from "bun"
+import { readFileSafe, waitForStable } from "../utils/fs"
+import { run } from "../processors/claude/run"
 import { bus } from "../bus"
-import { startWatcher } from "../services/filewatch/watcher"
+import type { Conversation } from "../types/claude"
+import type { SessionData } from "../types/session"
 
-const { upgradeWebSocket, websocket } = createBunWebSocket()
+const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>()
 
-const app = new Hono()
+const clients = new Set<{ send: (data: string) => void }>()
 
-const EVENTS = [
-  "filewatch:session",
-  "filewatch:pending",
-  "filewatch:results",
-]
+function broadcast(event: string, data: unknown) {
+  const payload = JSON.stringify({ event, data })
+  for (const client of clients) {
+    try { client.send(payload) } catch {}
+  }
+}
 
-app.get(
-  "/ws",
-  upgradeWebSocket(() => {
-    const listeners = new Map<string, (...args: unknown[]) => void>()
+bus.on("filewatch:session", (session: SessionData) => {
+  broadcast("session", session)
+})
 
-    return {
-      onOpen(_evt, ws) {
-        for (const event of EVENTS) {
-          const listener = (data: unknown) => {
-            ws.send(JSON.stringify({ event, data }))
-          }
-          listeners.set(event, listener)
-          bus.on(event, listener)
-        }
-      },
+// ── Watcher ──────────────────────────────────────────────
 
-      onMessage(evt, ws) {
-        try {
-          const msg = JSON.parse(String(evt.data))
+let watcherStarted = false
 
-          // handle re-run requests from frontend
-          if (msg.event === "filewatch:rerun") {
-            bus.emit("filewatch:rerun", msg.data)
-          }
-        } catch {
-          // ignore malformed messages
-        }
-      },
+function startWatcher() {
+  if (watcherStarted) return
+  const dir = process.env.SCRATCH_DIR
+  if (!dir) {
+    console.error("SCRATCH_DIR not set — filewatch disabled")
+    return
+  }
 
-      onClose() {
-        for (const [event, listener] of listeners) {
-          bus.off(event, listener)
-        }
-        listeners.clear()
-      },
+  watcherStarted = true
+  console.log(`filewatch: watching ${dir}`)
+
+  watch(dir, async (event, filename) => {
+    if (event !== "rename" || !filename) return
+    if (filename.startsWith(".") || filename.endsWith(".crdownload")) return
+    if (!filename.endsWith(".json")) return
+
+    const filepath = join(dir, filename)
+    await waitForStable(filepath)
+
+    try {
+      const conversation = (await readFileSafe(filepath)) as Conversation | null
+      if (!conversation) return
+      await run(conversation)
+    } catch (e) {
+      console.error("filewatch error:", e)
     }
-  }),
-)
+  })
+}
 
 startWatcher()
 
-export { app as filewatchRoute, websocket }
+// ── Route ────────────────────────────────────────────────
+
+const app = new Hono()
+
+app.get(
+  "/ws",
+  upgradeWebSocket(() => ({
+    onOpen(_evt, ws) {
+      clients.add(ws)
+    },
+    onClose(_evt, ws) {
+      clients.delete(ws)
+    },
+  })),
+)
+
+export { websocket }
+export default app

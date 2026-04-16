@@ -19,11 +19,7 @@
       "name": "@paladin/ai",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.39",
-        "bun": "^1.3.11",
         "openai": "^6.33.0",
-      },
-      "devDependencies": {
-        "@paladin/ai": "workspace:*",
       },
     },
     "packages/analyze-v2": {
@@ -38,6 +34,8 @@
       "name": "@paladin/api",
       "version": "0.2.0",
       "dependencies": {
+        "@biomejs/js-api": "^4.0.0",
+        "@biomejs/wasm-nodejs": "^2.4.12",
         "es-module-lexer": "^2.0.0",
         "fast-glob": "^3.3.3",
         "hono": "^4.12.10",
@@ -392,6 +390,10 @@
     "@babel/traverse": ["@babel/traverse@7.29.0", "", { "dependencies": { "@babel/code-frame": "^7.29.0", "@babel/generator": "^7.29.0", "@babel/helper-globals": "^7.28.0", "@babel/parser": "^7.29.0", "@babel/template": "^7.28.6", "@babel/types": "^7.29.0", "debug": "^4.3.1" } }, "sha512-4HPiQr0X7+waHfyXPZpWPfWL/J7dcN1mx9gL6WdQVMbPnF3+ZhSMs8tCxN7oHddJE9fhNE7+lxdnlyemKfJRuA=="],
 
     "@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
+
+    "@biomejs/js-api": ["@biomejs/js-api@4.0.0", "", { "peerDependencies": { "@biomejs/wasm-bundler": "^2.3.0", "@biomejs/wasm-nodejs": "^2.3.0", "@biomejs/wasm-web": "^2.3.0" }, "optionalPeers": ["@biomejs/wasm-bundler", "@biomejs/wasm-nodejs", "@biomejs/wasm-web"] }, "sha512-EOArR/6drRzM1/hwOIz1pZw90FL31Ud4Y7hEHGWVtMNmAwS9SrwZ8hMENGlLVXCeGW/kL46p8kX7eO6x9Nmezg=="],
+
+    "@biomejs/wasm-nodejs": ["@biomejs/wasm-nodejs@2.4.12", "", {}, "sha512-3SGczq2LKHJw9TYhJEmNwgBY767wSu+nRZVkp+oDiczYn2u7Xekb4smn/r3KJpaxGKkxxtTV4h6RTwBUKzf8Fw=="],
 
     "@bklearn/shadcn": ["@bklearn/shadcn@0.1.2", "", { "dependencies": { "@radix-ui/react-dialog": "^1.1.15", "@radix-ui/react-scroll-area": "^1.2.10", "@radix-ui/react-slot": "^1.2.4", "class-variance-authority": "^0.7.1", "clsx": "^2.1.1", "cmdk": "^1.1.1", "radix-ui": "^1.4.3", "tailwind-merge": "^2.6.0" }, "peerDependencies": { "lucide-react": "^0.563.0", "react": "^18.0.0", "react-dom": "^18.0.0", "tailwindcss": "^4.0.0" } }, "sha512-rhMZnzU+YcInHxPOUttsVWqYN0H3Qr71KT/QXk7tj41leJ3+veHqpMCTSVry9X3aLK3pUfk7AdDifh9dRpouNw=="],
 

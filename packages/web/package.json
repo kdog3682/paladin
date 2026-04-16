@@ -9,8 +9,7 @@
     "test": "bun test --preload ./happydom.ts"
   },
   "dependencies": {
-    "@/lib": "latest",
-    "@bklearn/shadcn": "^0.1.2",
+"@bklearn/shadcn": "^0.1.2",
     "lucide-react": "^0.577.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

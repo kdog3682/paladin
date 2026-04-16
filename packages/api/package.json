@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@biomejs/js-api": "^4.0.0",
+    "@biomejs/wasm-nodejs": "^2.4.12",
     "es-module-lexer": "^2.0.0",
     "fast-glob": "^3.3.3",
     "hono": "^4.12.10"
