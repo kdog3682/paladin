@@ -68,6 +68,11 @@ export function resolvePath(
         `@paladin/${knownTarget}/${rawPath}`,
         baseProjectsDirectory,
       );
+    } else {
+            return resolveScoped(
+        `@paladin/api/${rawPath}`,
+        baseProjectsDirectory,
+      );
     }
     throw new Error(
       `cannot resolve relative path "${rawPath}" without a base directory`,

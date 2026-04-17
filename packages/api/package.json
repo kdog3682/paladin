@@ -10,7 +10,8 @@
     "@biomejs/wasm-nodejs": "^2.4.12",
     "es-module-lexer": "^2.0.0",
     "fast-glob": "^3.3.3",
-    "hono": "^4.12.10"
+    "hono": "^4.12.10",
+    "recast": "^0.23.11"
   },
   "devDependencies": {}
 }

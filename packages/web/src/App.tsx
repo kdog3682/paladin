@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { AppShell } from '@/components/AppShell/AppShell'
 import { useAppletStore } from '@/stores/appletStore'
 import { FileViewer } from '@/components/FileViewer/FileViewer'
-import { SessionMonitor } from '@/components/SessionMonitor'
+// import { SessionMonitor } from '@/components/SessionMonitor'
 
 // placeholder applets
 function Placeholder({ name }: { name: string }) {
@@ -21,7 +21,7 @@ const Settings = () => <Placeholder name="Settings" />
 const Notes = () => <Placeholder name="Notes" />
 
 const APPLETS = [
-  { id: 'monitor', label: 'Monitor', component: SessionMonitor },
+  // { id: 'monitor', label: 'Monitor', component: SessionMonitor },
   { id: 'file-viewer', label: 'Files', component: FileViewer },
   // { id: 'tickets', label: 'Tickets', component: Tickets },
   // { id: 'terminal', label: 'Terminal', component: Terminal },

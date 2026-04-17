@@ -1,4 +1,4 @@
-// src/components/FuzzyPicker/FuzzyPicker.tsx
+// src/components/ui/FuzzyPicker/FuzzyPicker.tsx
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { cn } from '@bklearn/shadcn'

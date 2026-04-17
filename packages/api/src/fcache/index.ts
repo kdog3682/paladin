@@ -100,14 +100,18 @@ async function format(file: string, raw: string): Promise<string> {
 
 // --- public API ---
 
-async function write(file: string, rawContent: string): Promise<string | null> {
+async function write(file: string, rawContent: string, opts: {force?: bool}): Promise<string | null> {
   const p = paths(file)
   const now = new Date().toISOString()
-  const existing = await readFileSafe(p.raw)
+  if (opts.force) {
+  await writeFileSafe(p.createdAt, now)
+}
+    else {
+      const existing = await readFileSafe(p.raw)
 
   if (existing === rawContent) return null
   if (existing === null) await writeFileSafe(p.createdAt, now)
-
+   }
   const formatted = await format(file, preformat(file, rawContent))
 
   await writeFileSafe(p.raw, rawContent)

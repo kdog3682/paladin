@@ -19,7 +19,11 @@ pass("absolute path", r("/tmp/foo"), "/tmp/foo");
 pass("home shortcut", r("~/foo/bar"), "~/foo/bar");
 
 // ─── relative paths (with baseDir) ────────────────────────────────────────────
-
+pass(
+  "relative, with src",
+  r("src/lib/db"),
+  "~/projects/paladin/packages/api/src/lib/db",
+);
 pass(
   "relative, bare",
   r("utils/format", "@paladin/api"),

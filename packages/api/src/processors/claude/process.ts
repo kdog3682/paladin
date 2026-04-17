@@ -25,7 +25,7 @@ export function processConversation(
   const artifacts = extractArtifacts(conversation)
 
   // baseDir — first try messages, then fall back to title
-  const baseDir =
+  const baseDir = null
     extractBaseDir(conversation.messages) ??
     extractScopeFromTitle(conversation.title)
 
