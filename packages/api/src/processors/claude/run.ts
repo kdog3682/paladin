@@ -42,19 +42,27 @@ export async function run(conversation: Conversation): Promise<SessionData | nul
   bus.emit("filewatch:session", partial)
 
   // 3. write files via fcache (skips unchanged)
+  const paths = []
+
   for (const file of files) {
-    await fcache.write(file.path, file.content)
+    const path = await fcache.write(file.path, file.content)
+    paths.push(path)
   }
 
   // 4. bootstrap monorepo
-  await bootstrapMonorepo(project.dir, files.map((f) => f.path))
+  await bootstrapMonorepo(project.dir, paths)
 
   // 5. set up git
   await git.setRepo(project.dir, { autoInit: true })
 
   // 6. collect + run handlers
-  const runList = codeRunner.collect(files)
-  const runResults = runList.length ? await codeRunner.run(runList) : []
+  const runResults = codeRunner.run(paths)
+
+
+
+  // 8. stage + read final git state
+  await git.add('.')
+  const gitState = await git.getData()
 
   // 7. generate commit message if all tests pass (or no tests ran)
   const testsOk = runResults.every((r) => r.name !== "test" || r.success)
@@ -66,12 +74,10 @@ export async function run(conversation: Conversation): Promise<SessionData | nul
     if (userText) {
       commitMessage = await generateCommitMessage(userText)
       await setSeenUuids(conversation.url, collectUserUuids(conversation.messages))
+      git.commit(commitMessage) // commit the message
     }
   }
 
-  // 8. stage + read final git state
-  await git.add()
-  const gitState = await git.getData()
 
   // 9. emit full session
   const session: SessionData = {
