@@ -10,7 +10,7 @@ interface SessionMonitorProps {
 }
 
 export function SessionMonitor({
-  wsUrl = "ws://localhost:3000/filewatch/ws",
+  wsUrl = "ws://localhost:3001/filewatch/ws",
 }: SessionMonitorProps) {
   useFilewatchWs(wsUrl)
   const session = useSessionMonitor((s) => s.session)
