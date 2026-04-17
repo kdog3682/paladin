@@ -74,7 +74,7 @@ export async function run(conversation: Conversation): Promise<SessionData | nul
     if (userText) {
       commitMessage = await generateCommitMessage(userText)
       await setSeenUuids(conversation.url, collectUserUuids(conversation.messages))
-      git.commit(commitMessage) // commit the message
+      await git.commit(commitMessage) // commit the message
     }
   }
 
