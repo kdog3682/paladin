@@ -58,6 +58,11 @@ function getBiome() {
       indentWidth: INDENT_WIDTH,
       lineWidth: LINE_WIDTH,
     },
+    javascript: {
+      formatter: {
+        semicolons: 'asNeeded',
+      },
+    },
   })
   _biome = { biome, projectKey }
   return _biome
