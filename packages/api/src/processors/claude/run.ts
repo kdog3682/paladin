@@ -52,7 +52,7 @@ console.log('unable to find a project root')
   const paths = []
 
   for (const file of files) {
-    const path = await fcache.write(file.path, file.content, {force: true})
+    const path = await fcache.write(file.path, file.content, {force: false})
     if (path) paths.push(path)
   }
   
