@@ -5,7 +5,7 @@ import { create } from 'zustand'
 export interface AppletDefinition {
   id: string
   label: string
-  shortcut: string // "1", "2", etc
+  shortcut?: string // "1", "2", etc
   component: React.ComponentType
 }
 
@@ -25,6 +25,10 @@ export const useAppletStore = create<AppletState>((set) => ({
   },
 
   register(applets) {
-    set({ applets, activeId: applets[0]?.id ?? null })
+    const resolved = applets.map((a, i) => ({
+      ...a,
+      shortcut: a.shortcut ?? String(i + 1),
+    }))
+    set({ applets: resolved, activeId: resolved[0]?.id ?? null })
   },
 }))
