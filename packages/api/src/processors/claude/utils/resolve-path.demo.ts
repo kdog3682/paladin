@@ -27,11 +27,11 @@ resolvePath("@paladin/foo/routes/users.ts") // → api
 // scoped with unknown pkg + no known-ref → defaults to api
 resolvePath("@paladin/foo/lib/helpers.ts")
 
-// relative path with baseDir (scoped)
+// relative path with scope (scoped)
 resolvePath("components/Button.tsx", "@paladin/web")
 resolvePath("routes/users.ts", "@paladin/api")
 
-// relative path with baseDir (filesystem)
+// relative path with scope (filesystem)
 resolvePath(
   "components/Button.tsx",
   "~/projects/paladin/packages/web",
@@ -41,9 +41,9 @@ resolvePath(
   "~/projects/paladin/packages/web",
 )
 
-// relative path without baseDir → infers from known-ref
+// relative path without scope → infers from refs
 resolvePath("components/Button.tsx") // → web
-resolvePath("routes/users.ts") // → api
+resolvePath("routes/users.ts") // → api (default)
 resolvePath("lib/helpers.ts") // → api (default)
 
 // src-prefixed path without baseDir
