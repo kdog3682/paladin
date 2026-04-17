@@ -43,9 +43,11 @@ const KNOWN_REF_MAP: Record<string, "web" | "api"> = {
 
 export function resolvePath(
   rawPath: string,
-  baseDir: string | null,
-  baseProjectsDirectory: string,
+  baseDir?: string | null, // the dir granted from user messages
+  baseProjectsDirectory?: string | null, // ~/projects
 ): string {
+  // if (!baseDir) baseDir = ''
+  if (!baseProjectsDirectory) baseProjectsDirectory = '~/projects'
   if (rawPath.startsWith("~/")) {
     return path.join(os.homedir(), rawPath.slice(2));
   }
