@@ -64,3 +64,57 @@ export async function glob(
     ...options,
   })
 }
+
+
+// src/utils/getMostRecentFile.ts
+import { readdir, stat } from 'fs/promises'
+import { join, extname } from 'path'
+
+function normalizeExt(ext?: string) {
+  if (!ext) return null
+  return ext.startsWith('.') ? ext : `.${ext}`
+}
+
+async function listFiles(dir: string, ext?: string) {
+  const normExt = normalizeExt(ext)
+  const entries = await readdir(dir)
+  const files: { path: string; mtime: number }[] = []
+
+  for (const name of entries) {
+    if (normExt && extname(name) !== normExt) continue
+    const path = join(dir, name)
+    const s = await stat(path)
+    if (!s.isFile()) continue
+    files.push({ path, mtime: s.mtimeMs })
+  }
+
+  return files.sort((a, b) => b.mtime - a.mtime)
+}
+
+export async function getMostRecentFile(dir: string, ext?: string): Promise<string | null> {
+  const files = await listFiles(dir, ext)
+  return files[0]?.path ?? null
+}
+
+/**
+ * Returns the most recent group of files. Starting from the newest file,
+ * includes any older files whose mtime is within `gapMs` of the previous one.
+ */
+export async function getMostRecentFileGroup(
+  dir: string,
+  opts: { ext?: string; gapMs?: number } = {}
+): Promise<string[]> {
+  const { ext, gapMs = 5000 } = opts
+  const files = await listFiles(dir, ext)
+  if (!files.length) return []
+
+  const group = [files[0]]
+  for (let i = 1; i < files.length; i++) {
+    if (group[group.length - 1].mtime - files[i].mtime <= gapMs) {
+      group.push(files[i])
+    } else break
+  }
+
+  return group.map(f => f.path)
+}
+

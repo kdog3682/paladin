@@ -1,89 +1,62 @@
-// src/cli.ts
+// src/processors/claude/cli.ts
+// usage:
+//   bun src/processors/claude/cli.ts                 # run most recent file in SCRATCH_DIR
+//   bun src/processors/claude/cli.ts --watch         # watch SCRATCH_DIR and run on change
+//   bun src/processors/claude/cli.ts --dry           # dry run (no git, no bootstrap)
+//   bun src/processors/claude/cli.ts --watch --dry
 
-import { watch } from "node:fs"
-import { join } from "node:path"
-import { readFileSafe, waitForStable } from "./utils/fs"
-import { run } from "./processors/claude/run"
-import { bus } from "./bus"
-import type { Conversation } from "./types/claude"
-import type { SessionData } from "./types/session"
+import { watch } from 'node:fs'
+import { join } from 'node:path'
+import { parseArgs } from 'node:util'
+import { readFileSafe, waitForStable, getMostRecentFile } from './utils/fs'
+import { run } from './processors/claude/run'
+import type { Conversation } from './types/claude'
 
-const WATCH_DIR = process.env.SCRATCH_DIR
-const PROJECTS_DIR = process.env.PROJECTS_DIR
+const { values } = parseArgs({
+  args: Bun.argv.slice(2),
+  options: {
+    watch: { type: 'boolean', default: false },
+    dry: { type: 'boolean', default: false },
+  },
+  allowPositionals: true,
+})
 
-if (!WATCH_DIR) {
-  console.error("SCRATCH_DIR is required")
+const dir = process.env.SCRATCH_DIR
+if (!dir) {
+  console.error('SCRATCH_DIR not set')
   process.exit(1)
 }
-if (!PROJECTS_DIR) {
-  console.error("PROJECTS_DIR is required")
-  process.exit(1)
-}
 
-function shortPath(filepath: string): string {
-  const parts = filepath.split("/")
-  const idx = parts.findIndex((p) => p === "packages")
-  if (idx >= 0 && idx + 1 < parts.length) {
-    return parts.slice(idx + 1).join("/")
-  }
-  return parts.slice(-3).join("/")
-}
+const dryRun = values.dry ?? false
 
-// Track state per conversation — first emit is partial, second is full
-const seenPartial = new Set<string>()
-
-bus.on("filewatch:session", (session: SessionData) => {
-  const id = session.conversation.id
-
-  if (!seenPartial.has(id)) {
-    seenPartial.add(id)
-    console.log(`\n  project: ${session.project.name}`)
-    console.log(`  dir: ${session.project.dir}`)
-    console.log(`  conversation: ${session.conversation.title}`)
+async function runFile(filepath: string) {
+  await waitForStable(filepath)
+  const conversation = (await readFileSafe(filepath)) as Conversation | null
+  if (!conversation) {
+    console.log('no conversation at', filepath)
     return
   }
+  console.log(`running ${filepath}${dryRun ? ' (dry)' : ''}`)
+  await run(conversation, { dryRun })
+}
 
-  seenPartial.delete(id)
-
-  console.log(`  branch: ${session.git.branch}`)
-  if (session.git.files.length) {
-    console.log(`  files:`)
-    for (const f of session.git.files) {
-      console.log(`    ${f.status === "created" ? "+" : "~"} ${shortPath(f.path)}`)
+if (values.watch) {
+  console.log(`watching ${dir}${dryRun ? ' (dry)' : ''}`)
+  watch(dir, async (event, filename) => {
+    if (event !== 'rename' || !filename) return
+    if (filename.startsWith('.') || filename.endsWith('.crdownload')) return
+    if (!filename.endsWith('.json')) return
+    try {
+      await runFile(join(dir, filename))
+    } catch (e) {
+      console.error('cli error:', e)
     }
+  })
+} else {
+  const recent = await getMostRecentFile(dir, 'json')
+  if (!recent) {
+    console.log('no files in', dir)
+    process.exit(0)
   }
-  if (session.git.commitMessage) {
-    console.log(`  commit: ${session.git.commitMessage}`)
-  }
-  if (session.runResults.length) {
-    console.log(`  runs:`)
-    for (const r of session.runResults) {
-      const icon = r.success ? "✓" : "✗"
-      console.log(`    ${icon} ${r.name} ${shortPath(r.file)}`)
-    }
-  }
-  console.log()
-})
-
-console.log(`Started watch process: ${WATCH_DIR}`)
-
-watch(WATCH_DIR, async (event, filename) => {
-  if (event !== "rename" || !filename) return
-  if (filename.startsWith(".") || filename.endsWith(".crdownload")) return
-  if (!filename.endsWith(".json")) return
-
-  const filepath = join(WATCH_DIR, filename)
-  await waitForStable(filepath)
-
-  console.log("processing:", filename)
-
-  try {
-    const conversation = (await readFileSafe(filepath)) as Conversation | null
-    if (!conversation) return
-
-    const result = await run(conversation)
-    if (!result) console.log("no updates")
-  } catch (e) {
-    console.error("ERROR", e)
-  }
-})
+  await runFile(recent)
+}

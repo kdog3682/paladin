@@ -18,3 +18,5 @@ export async function setSeenUuids(conversationId: string, uuids: string[]): Pro
   store[conversationId] = uuids
   await writeFileSafe(CACHE_FILE, store)
 }
+
+/* instruct.refactor: save as .paladin/cache/conversations/<conv>/messageIds.json */

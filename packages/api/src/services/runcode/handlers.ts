@@ -17,7 +17,7 @@ export const handlers: HandlerDef[] = [
     suffix: ".demo.",
     run: async (file) => bash(["bun", "run", file]),
     pairs: true,
-    autoRun: false,
+    autoRun: true,
   },
   {
     name: "mochi",
