@@ -17,6 +17,7 @@ import type { SessionData } from "../../types/session"
 
 export interface RunOptions {
   dryRun?: boolean
+  baseProjectsDir?: string
 }
 
 export async function run(
@@ -25,9 +26,10 @@ export async function run(
 ): Promise<SessionData | null> {
   const { dryRun = false } = opts
 
+  const baseProjectsDir = opts.baseProjectDir ?? config.baseProjectsDir
   const result = processConversation(
     conversation,
-    config.baseProjectsDir,
+    baseProjectsDir,
   )
   if (!result) {
     console.log("no result from processConversation. no files")
@@ -37,7 +39,7 @@ export async function run(
 
   const project = findProjectRoot(
     files[0].path,
-    config.baseProjectsDir,
+    baseProjectsDir,
   )
   if (!project) {
     console.log("unable to find a project root")
@@ -70,13 +72,14 @@ export async function run(
   }
 
   const morePaths: string[] = []
+  const runResults = await codeRunner.run(paths)
 
   if (dryRun) {
     const session: SessionData = {
       conversation: conversationData,
       project,
       git: { branch: "", files: [] },
-      runResults: [],
+      runResults: runResults,
     }
     bus.emit("filewatch:session", session)
     return session
@@ -87,37 +90,12 @@ export async function run(
 
   // set up git
   await git.setRepo(project.dir, { autoInit: true })
-
-  // collect + run handlers
-  const runResults = await codeRunner.run(paths)
-
-  // stage + read final git state
-  await git.add(".")
   const gitState = await git.getData()
-
-  // generate commit message if all tests pass (or no tests ran)
-  const testsOk = runResults.every(
-    (r) => r.name !== "test" || r.success,
-  )
-
-  let commitMessage: string | undefined
-  if (testsOk) {
-    const seen = await getSeenUuids(conversation.url)
-    const userText = extractUserText(conversation.messages, seen)
-    if (userText) {
-      commitMessage = await generateCommitMessage(userText)
-      await setSeenUuids(
-        conversation.url,
-        collectUserUuids(conversation.messages),
-      )
-      await git.commit(commitMessage)
-    }
-  }
 
   const session: SessionData = {
     conversation: conversationData,
     project,
-    git: { ...gitState, commitMessage },
+    git: { ...gitState  },
     runResults,
   }
 

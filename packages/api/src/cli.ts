@@ -32,6 +32,7 @@ const dryRun = values.dry ?? false
 const force = values.force
 async function runFile(filepath: string) {
   console.log('@runFile')
+
   await waitForStable(filepath)
   const conversation = (await readFileSafe(filepath)) as Conversation | null
   if (!conversation) {
@@ -56,7 +57,8 @@ if (values.watch) {
   })
   if (abc == 0) {
     abc = 1
-    runFile(await getMostRecentFile(dir, 'json'))
+    console.log(await runFile(await getMostRecentFile(dir, 'json')))
+    
   }
 } else {
   const recent = await getMostRecentFile(dir, 'json')
