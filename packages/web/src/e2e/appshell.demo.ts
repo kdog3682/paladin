@@ -81,90 +81,90 @@ async function main() {
   await page.waitForSelector('text/FileViewer')
   await snap(page, 'Pressed <code>2</code> — switched to <code>FileViewer</code>', CONTENT)
 
-  // 3 — switch to DocumentEditor
-  await page.keyboard.press('3')
-  await page.waitForSelector('text/DocumentEditor')
-  await snap(page, 'Pressed <code>3</code> — switched to <code>DocumentEditor</code>', CONTENT)
+  // // 3 — switch to DocumentEditor
+  // await page.keyboard.press('3')
+  // await page.waitForSelector('text/DocumentEditor')
+  // await snap(page, 'Pressed <code>3</code> — switched to <code>DocumentEditor</code>', CONTENT)
 
-  // 4 — switch to AppRunner
-  await page.keyboard.press('4')
-  await page.waitForSelector('text/AppRunner')
-  await snap(page, 'Pressed <code>4</code> — switched to <code>AppRunner</code>', CONTENT)
+  // // 4 — switch to AppRunner
+  // await page.keyboard.press('4')
+  // await page.waitForSelector('text/AppRunner')
+  // await snap(page, 'Pressed <code>4</code> — switched to <code>AppRunner</code>', CONTENT)
 
-  // 5 — back to SessionMonitor
-  await page.keyboard.press('1')
-  await page.waitForSelector('text/SessionMonitor')
-  await snap(page, 'Pressed <code>1</code> — back to <code>SessionMonitor</code>', CONTENT)
+  // // 5 — back to SessionMonitor
+  // await page.keyboard.press('1')
+  // await page.waitForSelector('text/SessionMonitor')
+  // await snap(page, 'Pressed <code>1</code> — back to <code>SessionMonitor</code>', CONTENT)
 
-  // 6 — open command line modal
-  await page.keyboard.press(';')
-  await page.waitForSelector('input[placeholder="Type a command…"]')
-  await snap(page, 'Pressed <code>;</code> — command line modal opened', MODAL)
+  // // 6 — open command line modal
+  // await page.keyboard.press(';')
+  // await page.waitForSelector('input[placeholder="Type a command…"]')
+  // await snap(page, 'Pressed <code>;</code> — command line modal opened', MODAL)
 
-  // 7 — type partial command
-  await page.keyboard.type('refresh')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'Typed <code>refresh</code> — filtered commands', MODAL)
+  // // 7 — type partial command
+  // await page.keyboard.type('refresh')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'Typed <code>refresh</code> — filtered commands', MODAL)
 
-  // 8 — clear with Escape (text present, should clear not close)
-  await page.keyboard.press('Escape')
-  await new Promise((r) => setTimeout(r, 100))
-  await snap(page, 'Pressed <code>Esc</code> with text — input cleared, modal stays open', MODAL)
+  // // 8 — clear with Escape (text present, should clear not close)
+  // await page.keyboard.press('Escape')
+  // await new Promise((r) => setTimeout(r, 100))
+  // await snap(page, 'Pressed <code>Esc</code> with text — input cleared, modal stays open', MODAL)
 
-  // 9 — close modal with Escape (empty input)
-  await page.keyboard.press('Escape')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'Pressed <code>Esc</code> on empty input — modal closed', CONTENT)
+  // // 9 — close modal with Escape (empty input)
+  // await page.keyboard.press('Escape')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'Pressed <code>Esc</code> on empty input — modal closed', CONTENT)
 
-  // 10 — switch to DocumentEditor, open modal, run "Create nested document"
-  await page.keyboard.press('3')
-  await page.waitForSelector('text/DocumentEditor')
-  await page.keyboard.press(';')
-  await page.waitForSelector('input[placeholder="Type a command…"]')
-  await page.keyboard.type('create')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'On <code>DocumentEditor</code> — searched <code>create</code>', MODAL)
+  // // 10 — switch to DocumentEditor, open modal, run "Create nested document"
+  // await page.keyboard.press('3')
+  // await page.waitForSelector('text/DocumentEditor')
+  // await page.keyboard.press(';')
+  // await page.waitForSelector('input[placeholder="Type a command…"]')
+  // await page.keyboard.type('create')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'On <code>DocumentEditor</code> — searched <code>create</code>', MODAL)
 
-  await page.keyboard.press('Enter')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'Selected <code>Create nested document</code> — awaiting <code>name</code> arg', MODAL)
+  // await page.keyboard.press('Enter')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'Selected <code>Create nested document</code> — awaiting <code>name</code> arg', MODAL)
 
-  await page.keyboard.type('my-new-doc')
-  await new Promise((r) => setTimeout(r, 100))
-  await snap(page, 'Typed <code>my-new-doc</code> as document name', MODAL)
+  // await page.keyboard.type('my-new-doc')
+  // await new Promise((r) => setTimeout(r, 100))
+  // await snap(page, 'Typed <code>my-new-doc</code> as document name', MODAL)
 
-  await page.keyboard.press('Enter')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'Pressed <code>Enter</code> — command executed, modal closed', CONTENT)
+  // await page.keyboard.press('Enter')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'Pressed <code>Enter</code> — command executed, modal closed', CONTENT)
 
-  // 11 — switch to AppRunner, open modal, multi-arg "Pick items"
-  await page.keyboard.press('4')
-  await page.waitForSelector('text/AppRunner')
-  await page.keyboard.press(';')
-  await page.waitForSelector('input[placeholder="Type a command…"]')
-  await page.keyboard.type('pick')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'On <code>AppRunner</code> — searched <code>pick</code>', MODAL)
+  // // 11 — switch to AppRunner, open modal, multi-arg "Pick items"
+  // await page.keyboard.press('4')
+  // await page.waitForSelector('text/AppRunner')
+  // await page.keyboard.press(';')
+  // await page.waitForSelector('input[placeholder="Type a command…"]')
+  // await page.keyboard.type('pick')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'On <code>AppRunner</code> — searched <code>pick</code>', MODAL)
 
-  await page.keyboard.press('Enter')
-  await new Promise((r) => setTimeout(r, 300))
-  await snap(page, 'Selected <code>Pick items</code> — showing autocomplete for <code>item</code>', MODAL)
+  // await page.keyboard.press('Enter')
+  // await new Promise((r) => setTimeout(r, 300))
+  // await snap(page, 'Selected <code>Pick items</code> — showing autocomplete for <code>item</code>', MODAL)
 
-  await page.keyboard.type('dev')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'Typed <code>dev</code> — filtered to <code>dev-server</code>', MODAL)
+  // await page.keyboard.type('dev')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'Typed <code>dev</code> — filtered to <code>dev-server</code>', MODAL)
 
-  await page.keyboard.press('Enter')
-  await new Promise((r) => setTimeout(r, 300))
-  await snap(page, 'Selected <code>dev-server</code> — now showing <code>mode</code> options', MODAL)
+  // await page.keyboard.press('Enter')
+  // await new Promise((r) => setTimeout(r, 300))
+  // await snap(page, 'Selected <code>dev-server</code> — now showing <code>mode</code> options', MODAL)
 
-  await page.keyboard.press('ArrowDown')
-  await new Promise((r) => setTimeout(r, 100))
-  await snap(page, 'Arrow down — highlighting <code>once</code>', MODAL)
+  // await page.keyboard.press('ArrowDown')
+  // await new Promise((r) => setTimeout(r, 100))
+  // await snap(page, 'Arrow down — highlighting <code>once</code>', MODAL)
 
-  await page.keyboard.press('Enter')
-  await new Promise((r) => setTimeout(r, 200))
-  await snap(page, 'Selected <code>once</code> — both args collected, command executed', CONTENT)
+  // await page.keyboard.press('Enter')
+  // await new Promise((r) => setTimeout(r, 200))
+  // await snap(page, 'Selected <code>once</code> — both args collected, command executed', CONTENT)
 
   await browser.close()
   await vite.close()

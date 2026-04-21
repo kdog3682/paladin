@@ -17,10 +17,11 @@ const { values } = parseArgs({
   options: {
     watch: { type: 'boolean', default: false },
     dry: { type: 'boolean', default: false },
+    force: { type: 'boolean', default: false },
   },
   allowPositionals: true,
 })
-
+let abc = 0
 const dir = process.env.SCRATCH_DIR || '/home/kdog3682/scratch'
 if (!dir) {
   console.error('SCRATCH_DIR not set')
@@ -28,16 +29,17 @@ if (!dir) {
 }
 
 const dryRun = values.dry ?? false
-
+const force = values.force
 async function runFile(filepath: string) {
+  console.log('@runFile')
   await waitForStable(filepath)
   const conversation = (await readFileSafe(filepath)) as Conversation | null
   if (!conversation) {
     console.log('no conversation at', filepath)
     return
   }
-  console.log(`running ${filepath}${dryRun ? ' (dry)' : ''}`)
-  return await run(conversation, { dryRun })
+  console.log(`running ${filepath}${dryRun ? ' (dry)' : ''} ---`)
+  return await run(conversation, { dryRun, force })
 }
 
 if (values.watch) {
@@ -52,6 +54,10 @@ if (values.watch) {
       console.error('cli error:', e)
     }
   })
+  if (abc == 0) {
+    abc = 1
+    runFile(await getMostRecentFile(dir, 'json'))
+  }
 } else {
   const recent = await getMostRecentFile(dir, 'json')
   if (!recent) {

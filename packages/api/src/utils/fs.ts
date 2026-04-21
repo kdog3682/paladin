@@ -79,12 +79,11 @@ async function listFiles(dir: string, ext?: string) {
   const normExt = normalizeExt(ext)
   const entries = await readdir(dir)
   const files: { path: string; mtime: number }[] = []
-
   for (const name of entries) {
     if (normExt && extname(name) !== normExt) continue
     const path = join(dir, name)
     const s = await stat(path)
-    if (!s.isFile()) continue
+    if (!s.isFile() || s.size < 10) continue
     files.push({ path, mtime: s.mtimeMs })
   }
 
@@ -118,3 +117,52 @@ export async function getMostRecentFileGroup(
   return group.map(f => f.path)
 }
 
+
+// src/utils/collectFiles.ts
+import { readdir, stat } from 'fs/promises'
+import { join } from 'path'
+
+const SKIP = new Set([
+  'node_modules',
+  '.git',
+  '.next',
+  '.turbo',
+  'dist',
+  'build',
+  '.cache',
+  '.DS_Store',
+])
+
+type Opts = {
+  include?: RegExp
+  exclude?: RegExp
+}
+
+export async function collectFiles(dir: string, opts: Opts = {}): Promise<string[]> {
+  const { include, exclude } = opts
+  const results: string[] = []
+
+  async function walk(current: string) {
+    const entries = await readdir(current, { withFileTypes: true })
+    for (const entry of entries) {
+      if (SKIP.has(entry.name)) continue
+      const path = join(current, entry.name)
+      if (entry.isDirectory()) {
+        await walk(path)
+      } else if (entry.isFile()) {
+        if (include && !include.test(path)) continue
+        if (exclude && exclude.test(path)) continue
+          if (entry.size < 5) {
+            continue
+          }
+          console.log(entry)
+        results.push(path)
+      }
+    }
+  }
+
+  const s = await stat(dir)
+  if (s.isFile()) return [dir]
+  await walk(dir)
+  return results
+}
