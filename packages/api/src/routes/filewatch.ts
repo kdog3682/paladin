@@ -1,5 +1,3 @@
-// src/routes/filewatch.ts
-
 import { Hono } from "hono"
 import { createBunWebSocket } from "hono/bun"
 import { watch } from "node:fs"
@@ -11,22 +9,23 @@ import { bus } from "../bus"
 import type { Conversation } from "../types/claude"
 import type { SessionData } from "../types/session"
 
-const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>()
+const { upgradeWebSocket, websocket } =
+  createBunWebSocket<ServerWebSocket>()
 
 const clients = new Set<{ send: (data: string) => void }>()
 
 function broadcast(event: string, data: unknown) {
   const payload = JSON.stringify({ event, data })
   for (const client of clients) {
-    try { client.send(payload) } catch {}
+    try {
+      client.send(payload)
+    } catch {}
   }
 }
 
 bus.on("filewatch:session", (session: SessionData) => {
   broadcast("session", session)
 })
-
-// ── Watcher ──────────────────────────────────────────────
 
 let watcherStarted = false
 
@@ -38,21 +37,27 @@ function startWatcher() {
     return
   }
 
+  const dryRun = process.env.FILEWATCH_DRY_RUN === "1"
   watcherStarted = true
-  console.log(`filewatch: watching ${dir}`)
+  console.log(
+    `filewatch: watching ${dir}${dryRun ? " (dryRun)" : ""}`,
+  )
 
   watch(dir, async (event, filename) => {
     if (event !== "rename" || !filename) return
-    if (filename.startsWith(".") || filename.endsWith(".crdownload")) return
+    if (filename.startsWith(".") || filename.endsWith(".crdownload"))
+      return
     if (!filename.endsWith(".json")) return
 
     const filepath = join(dir, filename)
     await waitForStable(filepath)
 
     try {
-      const conversation = (await readFileSafe(filepath)) as Conversation | null
+      const conversation = (await readFileSafe(
+        filepath,
+      )) as Conversation | null
       if (!conversation) return
-      await run(conversation)
+      await run(conversation, { dryRun })
     } catch (e) {
       console.error("filewatch error:", e)
     }
@@ -60,8 +65,6 @@ function startWatcher() {
 }
 
 startWatcher()
-
-// ── Route ────────────────────────────────────────────────
 
 const app = new Hono()
 

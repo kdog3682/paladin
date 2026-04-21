@@ -1,8 +1,9 @@
-// src/processors/claude/run.ts
-
 import { processConversation } from "./process"
 import { findProjectRoot } from "./utils/find-root"
-import { extractUserText, collectUserUuids } from "./utils/extract-user-text"
+import {
+  extractUserText,
+  collectUserUuids,
+} from "./utils/extract-user-text"
 import { getSeenUuids, setSeenUuids } from "./utils/seen-cache"
 import { generateCommitMessage } from "./utils/generate-commit"
 import { bootstrapMonorepo } from "../../services/bootstrap/monorepo"
@@ -24,16 +25,22 @@ export async function run(
 ): Promise<SessionData | null> {
   const { dryRun = false } = opts
 
-  const result = processConversation(conversation, config.baseProjectsDir)
+  const result = processConversation(
+    conversation,
+    config.baseProjectsDir,
+  )
   if (!result) {
     console.log("no result from processConversation. no files")
     return null
   }
   const { files } = result
 
-  const project = findProjectRoot(files[0].path, config.baseProjectsDir)
+  const project = findProjectRoot(
+    files[0].path,
+    config.baseProjectsDir,
+  )
   if (!project) {
-    console.log('unable to find a project root')
+    console.log("unable to find a project root")
     return null
   }
 
@@ -56,7 +63,9 @@ export async function run(
   // write files via fcache (skips unchanged)
   const paths = []
   for (const file of files) {
-    const path = await fcache.write(file.path, file.content, { force: false })
+    const path = await fcache.write(file.path, file.content, {
+      force: false,
+    })
     if (path) paths.push(path)
   }
 
@@ -83,11 +92,13 @@ export async function run(
   const runResults = await codeRunner.run(paths)
 
   // stage + read final git state
-  await git.add('.')
+  await git.add(".")
   const gitState = await git.getData()
 
   // generate commit message if all tests pass (or no tests ran)
-  const testsOk = runResults.every((r) => r.name !== "test" || r.success)
+  const testsOk = runResults.every(
+    (r) => r.name !== "test" || r.success,
+  )
 
   let commitMessage: string | undefined
   if (testsOk) {
@@ -95,7 +106,10 @@ export async function run(
     const userText = extractUserText(conversation.messages, seen)
     if (userText) {
       commitMessage = await generateCommitMessage(userText)
-      await setSeenUuids(conversation.url, collectUserUuids(conversation.messages))
+      await setSeenUuids(
+        conversation.url,
+        collectUserUuids(conversation.messages),
+      )
       await git.commit(commitMessage)
     }
   }

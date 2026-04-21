@@ -21,7 +21,7 @@ const { values } = parseArgs({
   allowPositionals: true,
 })
 
-const dir = process.env.SCRATCH_DIR
+const dir = process.env.SCRATCH_DIR || '/home/kdog3682/scratch'
 if (!dir) {
   console.error('SCRATCH_DIR not set')
   process.exit(1)
@@ -37,7 +37,7 @@ async function runFile(filepath: string) {
     return
   }
   console.log(`running ${filepath}${dryRun ? ' (dry)' : ''}`)
-  await run(conversation, { dryRun })
+  return await run(conversation, { dryRun })
 }
 
 if (values.watch) {
@@ -58,5 +58,6 @@ if (values.watch) {
     console.log('no files in', dir)
     process.exit(0)
   }
-  await runFile(recent)
+  const result = await runFile(recent)
+  console.log(result)
 }
