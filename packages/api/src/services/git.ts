@@ -26,26 +26,49 @@ export async function getData(): Promise<GitData> {
     run(['git', 'status', '--porcelain']),
   ])
   const branch = branchResult.stdout.trim()
-  const files = parseStatus(statusResult.stdout.trim())
+  const files = await parseStatus(statusResult.stdout.trim())
   return { branch, files }
 }
 
-function parseStatus(raw: string): GitFile[] {
+async function parseStatus(raw: string): Promise<GitFile[]> {
   if (!raw) return []
-  return raw.split('\n').map((line) => {
+
+  const entries = raw.split('\n').map((line) => {
     const index = line[0]
     const worktree = line[1]
     const path = line.slice(3)
-
     const staged = index !== ' ' && index !== '?'
     let status: GitFileStatus = 'modified'
-
     if (index === '?' || index === 'A' || worktree === 'A') {
       status = 'created'
     }
-
     return { path, status, staged }
   })
+
+  const dirs = entries.filter((e) => e.path.endsWith('/'))
+
+  let expandedFiles: string[] = []
+  if (dirs.length > 0) {
+    const lsResult = await run([
+      'git', 'ls-files', '--others', '--exclude-standard',
+      ...dirs.map((e) => e.path),
+    ])
+    const raw = lsResult.stdout.trim()
+    if (raw) expandedFiles = raw.split('\n')
+  }
+
+  const results: GitFile[] = []
+  for (const entry of entries) {
+    if (entry.path.endsWith('/')) {
+      for (const p of expandedFiles.filter((f) => f.startsWith(entry.path))) {
+        results.push({ path: p, status: entry.status, staged: entry.staged })
+      }
+    } else {
+      results.push(entry)
+    }
+  }
+
+  return results
 }
 
 export async function add(pathspec: string = '.') {

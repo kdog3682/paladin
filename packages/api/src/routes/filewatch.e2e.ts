@@ -14,136 +14,80 @@ import {
 } from "../utils/conversation-test-utils"
 import { glob } from "../utils/fs"
 
-const HARD_TIMEOUT_MS = 20_000
-const MAX_RUNS = 2 // 1 initial + 1 increment
-const RUN_MARKER = /filewatch:session|processConversation|wrote:/i
+const TEMPLATE = `
 
-const scratch = await mkdtemp(join(tmpdir(), "fw-scratch-"))
-const projects = await mkdtemp(join(tmpdir(), "fw-projects-"))
-console.log("scratch:", scratch)
-console.log("projects:", projects)
+  ===
+  src/foobar.ts
+  ===
 
-let runCount = 0
-let aborted = false
-
-async function cleanup(code: number, reason: string) {
-  console.log(`cleanup: ${reason}`)
-  try {
-    api.kill()
-  } catch {}
-  await rm(scratch, { recursive: true, force: true })
-  await rm(projects, { recursive: true, force: true })
-  process.exit(code)
-}
-
-// hard timeout — no matter what, kill it
-const hardTimeout = setTimeout(() => {
-  aborted = true
-  cleanup(2, `hard timeout after ${HARD_TIMEOUT_MS}ms`)
-}, HARD_TIMEOUT_MS)
-
-// spawn api
-const api = spawn({
-  cmd: ["bun", "--watch", "src/api.ts"],
-  env: {
-    ...process.env,
-    SCRATCH_DIR: scratch,
-    BASE_PROJECTS_DIR: projects,
-    FILEWATCH_DRY_RUN: "1",
-    PORT: "3999",
-  },
-  stdout: "pipe",
-  stderr: "pipe",
-})
-
-// stream stdout, count runs, abort on runaway
-async function watchStream(
-  stream: ReadableStream<Uint8Array> | null,
-  label: string,
-) {
-  if (!stream) return
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
-  let buf = ""
-  while (!aborted) {
-    const { value, done } = await reader.read()
-    if (done) return
-    buf += decoder.decode(value)
-    const lines = buf.split("\n")
-    buf = lines.pop() ?? ""
-    for (const line of lines) {
-      process.stdout.write(`[${label}] ${line}\n`)
-      if (RUN_MARKER.test(line)) {
-        runCount++
-        if (runCount > MAX_RUNS) {
-          aborted = true
-          clearTimeout(hardTimeout)
-          await cleanup(
-            3,
-            `infinite loop detected: runCount=${runCount}`,
-          )
-        }
-      }
-    }
+  function foobar() {
+    return 'foobar'
   }
+
+
+
+
+  ===
+  src/foobar.demo.ts
+  ===
+
+  import {foobar} from './foobar.ts'
+
+  console.log(foobar())
+
+`
+import { parseTemplate } from "../services/bootstrap/monorepo"
+
+export function createArtifactsFromTemplate(
+  s: string,
+): { path: string; content: string }[] {
+  return parseTemplate(s).map(({ path, content }) => ({
+    content: `// ${path}\n\n${content}`,
+  }))
 }
 
-watchStream(api.stdout, "api")
-watchStream(api.stderr, "api!")
+export async function incrementArtifact(
+  pathOrConv: string | Conversation,
+  key?: string,
+): Promise<string> {
+  const conv: Conversation =
+    typeof pathOrConv === "string"
+      ? ((await readFileSafe(pathOrConv)) as Conversation)
+      : pathOrConv
+  if (!conv) throw new Error(`could not read conversation`)
 
-// wait for boot
-await new Promise((r) => setTimeout(r, 1500))
+  // collect all artifact tool_use blocks across assistant messages
+  const toolUses = conv.messages
+    .filter((m) => m.sender === "assistant")
+    .flatMap((m) => m.content)
+    .filter((c) => c.type === "tool_use")
 
-const conv = buildConversation({
-  url: "https://claude.ai/chat/e2e-resolve-path",
-  title: "resolve-path e2e",
-  userText: "write resolve-path.ts and its demo",
-  artifacts: [
-    makeArtifact({
-      path: "src/utils/resolve-path.ts",
-      content: `
-export function resolvePath(p: string) {
-  return p.startsWith('/') ? p : './' + p
+  if (!toolUses.length) throw new Error("no artifact tool_use")
+
+  // key matches against artifact content filename (the `// path` header)
+  const matches = key
+    ? toolUses.filter((t) => {
+        const content = (t.input.content.split('\n')[0] as string) ?? ""
+        return content.includes(key)
+      })
+    : toolUses
+
+  if (key && !matches.length)
+    throw new Error(`no artifact matching key: ${key}`)
+
+  const stampLine = `// incremented at ${new Date().toISOString()}\n`
+  for (const toolUse of matches) {
+    const existing = (toolUse.input.content as string) ?? ""
+    toolUse.input.content = stampLine + existing
+    toolUse.input.version_uuid = randomUUID()
+  }
+
+  conv.updatedAt = new Date().toISOString()
+  return writeConversation(conv)
 }
-`,
-    }),
-    makeArtifact({
-      path: "src/utils/resolve-path.demo.ts",
-      content: `
-import { resolvePath } from './resolve-path'
 
-console.log(resolvePath('foo'))
-console.log(resolvePath('/abs'))
-`,
-    }),
-  ],
-})
-
-process.env.SCRATCH_DIR = scratch
-const jsonPath = await writeConversation(conv)
-console.log("wrote:", jsonPath)
-
-// wait for initial run
-await new Promise((r) => setTimeout(r, 3000))
-
-// increment to verify one additional run (and no more)
-await incrementArtifact(jsonPath)
-await new Promise((r) => setTimeout(r, 3000))
-
-// assertions
-const files = await glob(projects, "**/resolve-path*.{ts,tsx}")
-const hasMain = files.some((f) => f.endsWith("resolve-path.ts"))
-const hasDemo = files.some((f) => f.endsWith("resolve-path.demo.ts"))
-
-console.log("files:", files)
-console.log("runCount:", runCount)
-console.log("hasMain:", hasMain, "hasDemo:", hasDemo)
-
-clearTimeout(hardTimeout)
-
-if (!hasMain || !hasDemo) await cleanup(1, "missing expected files")
-if (runCount < 1) await cleanup(1, "run() never fired")
-if (runCount > MAX_RUNS)
-  await cleanup(1, `too many runs: ${runCount}`)
-
-await cleanup(0, "ok")
+const payload = buildConversation({artifacts: createArtifactsFromTemplate(TEMPLATE)})
+const referenceArtifact = await writeConversation(payload)
+console.log(payload)
+console.log(referenceArtifact, 'hi')
+// incrementArtifact(referenceArtifact, 'foobar.ts')

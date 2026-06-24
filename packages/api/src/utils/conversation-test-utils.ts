@@ -4,6 +4,7 @@
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import { writeFileSafe, readFileSafe } from "./fs"
+import { parseTemplate } from "../services/bootstrap/monorepo"
 import type {
   Conversation,
   Message,
@@ -38,7 +39,7 @@ export function buildConversation(
 
   const userMsg: Message = {
     uuid: userUuid,
-    text: "",
+    text: userText,
     content: [
       {
         type: "text",
@@ -98,7 +99,7 @@ export function buildConversation(
 
   const asstMsg: Message = {
     uuid: asstUuid,
-    text: "",
+    text: assistantText,
     content: asstContent,
     sender: "assistant",
     index: 1,
@@ -117,7 +118,7 @@ export function buildConversation(
   return { url, title, updatedAt: now, messages: [userMsg, asstMsg] }
 }
 
-// ── artifact helper ──────────────────────────────────────
+// ── artifact helpers ─────────────────────────────────────
 
 interface ArtifactOpts {
   path: string
@@ -146,6 +147,14 @@ export function makeArtifact({
   }
 }
 
+export function createArtifactsFromTemplate(
+  s: string,
+): ArtifactInput[] {
+  return parseTemplate(s).map(({ path, content }) =>
+    makeArtifact({ path, content }),
+  )
+}
+
 // ── writing fixtures to scratch dir ──────────────────────
 
 function scratchDir(): string {
@@ -170,36 +179,46 @@ export async function writeConversation(
 // ── incrementing (to retrigger run) ──────────────────────
 
 // run.ts skips files whose content hasn't changed (via fcache).
-// incrementArtifact appends a tiny timestamp comment to the first
-// artifact's content so fcache sees a new hash and re-writes.
+// incrementArtifact prepends a timestamp comment to the artifact's
+// content so fcache sees a new hash and re-writes.
 
 export async function incrementArtifact(
   pathOrConv: string | Conversation,
+  key?: string,
 ): Promise<string> {
   const conv: Conversation =
     typeof pathOrConv === "string"
       ? ((await readFileSafe(pathOrConv)) as Conversation)
       : pathOrConv
-
   if (!conv) throw new Error(`could not read conversation`)
 
-  const assistantMsg = conv.messages.find(
-    (m) => m.sender === "assistant",
-  )
-  if (!assistantMsg) throw new Error("no assistant message")
+  // collect all artifact tool_use blocks across assistant messages
+  const toolUses = conv.messages
+    .filter((m) => m.sender === "assistant")
+    .flatMap((m) => m.content)
+    .filter((c) => c.type === "tool_use")
 
-  const toolUse = assistantMsg.content.find(
-    (c) => c.type === "tool_use",
-  )
-  if (!toolUse || toolUse.type !== "tool_use")
-    throw new Error("no artifact tool_use")
+  if (!toolUses.length) throw new Error("no artifact tool_use")
+
+  // key matches against artifact content filename (the `// path` header)
+  const matches = key
+    ? toolUses.filter((t) => {
+        const firstLine =
+          (t.input.content as string)?.split("\n")[0] ?? ""
+        return firstLine.includes(key)
+      })
+    : toolUses
+
+  if (key && !matches.length)
+    throw new Error(`no artifact matching key: ${key}`)
 
   const stampLine = `// incremented at ${new Date().toISOString()}\n`
-  const existing = (toolUse.input.content as string) ?? ""
-  toolUse.input.content = stampLine + existing
-  toolUse.input.version_uuid = randomUUID()
+  for (const toolUse of matches) {
+    const existing = (toolUse.input.content as string) ?? ""
+    toolUse.input.content = existing + "\n" + stampLine
+    toolUse.input.version_uuid = randomUUID()
+  }
 
   conv.updatedAt = new Date().toISOString()
-
   return writeConversation(conv)
 }

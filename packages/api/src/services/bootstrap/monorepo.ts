@@ -34,8 +34,24 @@ interface MonorepoData {
 
 // ── Scaffold ────────────────────────────────────────────────
 
-function parseTemplate(raw: string): { path: string, content: string }[] {
-  const blocks = raw
+
+export function trimdent(str: string): string {
+  const lines = str.split('\n')
+
+  const indents = lines
+    .filter(line => line.trim().length > 0)
+    .map(line => line.match(/^(\s*)/)?.[1].length ?? 0)
+
+  const minIndent = indents.length > 0 ? Math.min(...indents) : 0
+
+  return lines
+    .map(line => line.slice(minIndent))
+    .join('\n')
+    .trim()
+}
+
+export function parseTemplate(raw: string): { path: string, content: string }[] {
+  const blocks = trimdent(raw)
     .split(/^={3,}\s*$/m)
     .map((b) => b.trim())
     .filter(Boolean)
