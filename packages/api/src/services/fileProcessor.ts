@@ -68,7 +68,7 @@ let pending: { file: string; opts: Partial<ScaffoldOptions> } | null = null
 async function finalize(project: ProjectData | null) {
   if (!project) return
   if (project.error) {
-    return { event: 'scaffold', data: { project: toRelpaths(project) } }
+    return { event: 'fileProcessor:scaffold', data: { project: toRelpaths(project) } }
   }
 
   const files = [...project.files, ...project.packages.flatMap((p) => p.files)]
@@ -78,7 +78,7 @@ async function finalize(project: ProjectData | null) {
     runResults = await codeRunner(files, scaffoldOpts())
   }
 
-  return { event: 'scaffold', data: { project: toRelpaths(project), runResults } }
+  return { event: 'fileProcessor:scaffold', data: { project: toRelpaths(project), runResults } }
 }
 
 export async function processFile(file: string) {

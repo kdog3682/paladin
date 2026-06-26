@@ -1,10 +1,10 @@
-// src/server.ts
+// @paladin/api/src/server.ts
 
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { createBunWebSocket } from "hono/bun"
 
-import routes from "./routes"
+// import routes from "./routes"
 
 import { createWatcher } from "./watcher"
 import { processFile } from "./services/fileProcessor"
@@ -15,7 +15,7 @@ const app = new Hono()
 app.use("*", cors())
 
 // Register all HTTP routes.
-app.route("/", routes)
+// app.route("/", routes)
 
 // WebSocket endpoint for pushing events to connected clients.
 const { upgradeWebSocket, websocket } =
@@ -54,13 +54,14 @@ const stopWatching = createWatcher({
 
     if (event) {
       broadcast(event.event, event.data)
+      console.log(event.data)
     }
   },
 })
 
 // Start the HTTP and WebSocket server.
 const server = Bun.serve({
-  port: 3000,
+  port: process.env.PORT || 3000
   fetch: app.fetch,
   websocket,
 })

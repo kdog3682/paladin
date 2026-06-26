@@ -125,7 +125,6 @@ export async function scaffoldFromContents(
   if (project.isNew) {
     await hydrate(join(import.meta.dir, 'templates', 'typescript-monorepo.tpl'), project.dir, {
       PROJECT_NAME: project.name,
-      PACKAGE_NAME: project.name,
     })
   }
 
