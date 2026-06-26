@@ -1,12 +1,10 @@
 // @paladin/packages/api/src/logger.ts
 
-const isTesting = !!process.env.TESTING || true
-
 const prefix = (level: string) => `[${level}] ${new Date().toISOString()}`
 
 const noop = (..._args: unknown[]) => {}
 
-export const log = isTesting
+export const log = !!process.env.DEBUG
   ? { info: noop, warn: noop, error: noop }
   : {
       info: (...args: unknown[]) => console.log(prefix("INFO"), ...args),

@@ -119,3 +119,49 @@ watch(SCRATCH, (_event, filename) => {
   if (!existsSync(zipPath)) return
   handleZip(zipPath)
 })
+
+
+
+/*
+
+@paladin/api/commands/movePath
+@paladin/api/utils/fs/mostRecentProject
+
+
+movePath(from, to, source)
+
+bootstrap/templates -> scaffold/templates
+
+foobar.ts -> scripts/foobar.ts
+
+source: @paladin/api
+source: @projects/foobar
+source: @documents
+default source: most recently touched project in @projects
+if the project is a monorepo, most recent package in that monorepo
+
+path resolution {
+  documents, projects, dotfiles, downloads with '@' are all ~/<>
+
+  otherwise it is ~/projects/<>
+}
+
+for example: bootstrap/templates -> scaffold/templates
+
+if the dest doesnt exist, great.
+if the dest is a file like templates.ts or templates or templates.py etc should report that
+if the dest exists as templates/ report that
+
+if multiple places have it for example api/scaffold/templates, demos/scaffold/templates
+sort by most recent.
+
+the first step of the fileMover is essentailly the data generation.
+only if completely ambigious does it proceed
+otherwise returns data following a CommandConfirmation schema.
+
+the user then chooses one, and it is executed.
+
+
+
+
+*/
