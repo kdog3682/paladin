@@ -1,8 +1,0 @@
-{
-  "name": "@paladin/conversation-processor",
-  "version": "0.1.0",
-  "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "test": "bun test"
-  }
-}
