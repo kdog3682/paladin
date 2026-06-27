@@ -1,8 +1,9 @@
 import { rmSync, existsSync } from 'fs'
+import { join } from 'path'
 import { expandHome } from '../../utils/path'
 import { setOptions, processFile } from '../fileProcessor'
 
-const ZIP = expandHome('~/scratch/files (4).zip')
+const ZIP = join(import.meta.dir, 'fixtures/foobar.zip')
 const FOOBAR_DIR = expandHome('~/projects/foobar')
 
 beforeAll(() => {
