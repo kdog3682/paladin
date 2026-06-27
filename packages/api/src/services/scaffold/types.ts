@@ -1,9 +1,13 @@
 export interface ScaffoldOptions {
   baseProjectDir: string
   activeDir: string | null
-  git?: boolean
-  remote?: boolean
+  git: {
+    initLocalRepo: boolean
+    initRemoteRepository: boolean
+  }
 }
+
+export type ScaffoldConfig = Partial<Omit<ScaffoldOptions, 'git'>> & { git?: Partial<ScaffoldOptions['git']> }
 
 export interface FileEntry {
   path: string
@@ -11,17 +15,13 @@ export interface FileEntry {
   content: string
 }
 
-export interface ScaffoldError {
-  type: 'pathResolution' | 'bunInit'
-  message: string
-  data?: unknown
-}
-
 export interface PackageData {
   name: string
   isNew: boolean | null
   files: FileEntry[]
   dir: string
+  deps: Record<string, string>
+  devDeps: Record<string, string>
 }
 
 export interface ProjectData {
@@ -30,5 +30,4 @@ export interface ProjectData {
   files: FileEntry[]
   dir: string
   packages: PackageData[]
-  error?: ScaffoldError
 }

@@ -54,14 +54,14 @@ const stopWatching = createWatcher({
 
     if (event) {
       broadcast(event.event, event.data)
-      console.log(event.data)
+      console.log(Bun.inspect(event.data, { depth: Infinity, colors: true }))
     }
   },
 })
 
 // Start the HTTP and WebSocket server.
 const server = Bun.serve({
-  port: process.env.PORT || 3000
+  port: process.env.PORT || 3000,
   fetch: app.fetch,
   websocket,
 })

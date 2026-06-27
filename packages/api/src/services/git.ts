@@ -1,18 +1,30 @@
-// src/services/git.ts
-
 import { bash } from '../utils/bash'
-import type { GitFile, GitData, GitLogEntry, GitFileStatus } from '../types'
+
+export type GitFileStatus = 'modified' | 'created'
+
+export interface GitFile {
+  relpath: string
+  status: GitFileStatus
+  staged: boolean
+}
+
+export interface GitData {
+  dir: string
+  branch: string
+  files: GitFile[]
+}
+
+export interface GitLogEntry {
+  hash: string
+  message: string
+  date: string
+  author: string
+}
 
 let cwd: string | null = null
 
-export async function setRepo(rootDir: string, opts?: { autoInit?: boolean }) {
+export async function setRepo(rootDir: string) {
   cwd = rootDir
-  if (opts?.autoInit) {
-    const result = await run(['git', 'rev-parse', '--is-inside-work-tree'])
-    if (result.exitCode !== 0) {
-      await run(['git', 'init'])
-    }
-  }
 }
 
 function run(cmds: string[]) {
@@ -27,7 +39,7 @@ export async function getData(): Promise<GitData> {
   ])
   const branch = branchResult.stdout.trim()
   const files = await parseStatus(statusResult.stdout.trim())
-  return { branch, files }
+  return { dir: cwd!, branch, files }
 }
 
 async function parseStatus(raw: string): Promise<GitFile[]> {
@@ -36,22 +48,22 @@ async function parseStatus(raw: string): Promise<GitFile[]> {
   const entries = raw.split('\n').map((line) => {
     const index = line[0]
     const worktree = line[1]
-    const path = line.slice(3)
+    const relpath = line.slice(3)
     const staged = index !== ' ' && index !== '?'
     let status: GitFileStatus = 'modified'
     if (index === '?' || index === 'A' || worktree === 'A') {
       status = 'created'
     }
-    return { path, status, staged }
+    return { relpath, status, staged }
   })
 
-  const dirs = entries.filter((e) => e.path.endsWith('/'))
+  const dirs = entries.filter((e) => e.relpath.endsWith('/'))
 
   let expandedFiles: string[] = []
   if (dirs.length > 0) {
     const lsResult = await run([
       'git', 'ls-files', '--others', '--exclude-standard',
-      ...dirs.map((e) => e.path),
+      ...dirs.map((e) => e.relpath),
     ])
     const raw = lsResult.stdout.trim()
     if (raw) expandedFiles = raw.split('\n')
@@ -59,9 +71,9 @@ async function parseStatus(raw: string): Promise<GitFile[]> {
 
   const results: GitFile[] = []
   for (const entry of entries) {
-    if (entry.path.endsWith('/')) {
-      for (const p of expandedFiles.filter((f) => f.startsWith(entry.path))) {
-        results.push({ path: p, status: entry.status, staged: entry.staged })
+    if (entry.relpath.endsWith('/')) {
+      for (const p of expandedFiles.filter((f) => f.startsWith(entry.relpath))) {
+        results.push({ relpath: p, status: entry.status, staged: entry.staged })
       }
     } else {
       results.push(entry)
@@ -117,9 +129,7 @@ export async function log(opts?: { limit?: number }): Promise<GitLogEntry[]> {
     '--format=%H\t%s\t%aI\t%an',
   ])
   const raw = result.stdout.trim()
-
   if (!raw) return []
-
   return raw.split('\n').map((line) => {
     const [hash, message, date, author] = line.split('\t')
     return { hash, message, date, author }
@@ -136,4 +146,25 @@ export async function diff(ref?: string): Promise<string> {
 export async function diffStaged(): Promise<string> {
   const result = await run(['git', 'diff', '--cached'])
   return result.stdout
+}
+
+export async function init(): Promise<void> {
+  await run(['git', 'init'])
+}
+
+export async function isRepo(): Promise<boolean> {
+  const result = await run(['git', 'rev-parse', '--is-inside-work-tree'])
+  return result.exitCode === 0
+}
+
+export async function hasRemote(name = 'origin'): Promise<boolean> {
+  const result = await run(['git', 'remote'])
+  return result.stdout.split('\n').map((s) => s.trim()).includes(name)
+}
+
+export async function initRemoteRepo(projectName: string): Promise<void> {
+  if (await hasRemote()) return
+  await run(['git', 'add', '.'])
+  await run(['git', 'commit', '-m', 'initial'])
+  await run(['gh', 'repo', 'create', projectName, '--private', '--source=.', '--push'])
 }
