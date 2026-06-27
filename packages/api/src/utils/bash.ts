@@ -1,45 +1,16 @@
 // /home/kdog3682/projects/paladin/packages/api/src/utils/bash.ts
-import { $ } from "bun"
 export interface BashResult {
   stdout: string
   stderr: string
   exitCode: number
   args: string[]
 }
-const BUN_VERSION_RE = /\nbun v[\d.]+\s*$/i
-const GIT_SUCCESS_STDERR = [
-  /^Switched to /,
-  /^Already on /,
-  /^Your branch is /,
-  /^Everything up-to-date/,
-  /^To https?:\/\//,
-  /^\s*\w+\.\.\w+/,
-  /^Enumerating objects/,
-  /^Counting objects/,
-  /^Compressing objects/,
-  /^Writing objects/,
-  /^remote:/,
-]
-const BUN_SUCCESS_STDERR = [
-  /^Resolving dependencies$/,
-  /^Resolved, downloaded and extracted/,
-  /^Saved lockfile$/,
-]
+const BUN_VERSION_RE = /(?:^|\n)bun v[\d.]+\s*$/i
+
 function stripBunVersion(s: string): string {
-  return s.replace(BUN_VERSION_RE, "").trimEnd()
+  return s.replace(BUN_VERSION_RE, '')
 }
-function isGitSuccessStderr(stderr: string): boolean {
-  const lines = stderr.trim().split("\n")
-  return lines.every((line) =>
-    GIT_SUCCESS_STDERR.some((re) => re.test(line.trim()))
-  )
-}
-function isBunSuccessStderr(stderr: string): boolean {
-  const lines = stderr.trim().split("\n")
-  return lines.some((line) =>
-    BUN_SUCCESS_STDERR.some((re) => re.test(line.trim()))
-  )
-}
+
 export async function bash(
   args: string[],
   opts: { cwd?: string; env?: Record<string, string> } = {}
@@ -55,22 +26,11 @@ export async function bash(
     new Response(proc.stderr).text(),
   ])
   const exitCode = await proc.exited
-  let stdout = stripBunVersion(stdoutRaw)
-  let stderr = stripBunVersion(stderrRaw)
-  // bun sometimes writes stdout content to stderr
-  if (!stdout && stderr && exitCode === 0) {
-    stdout = stderr
-    stderr = ""
-  }
-  // git writes success info to stderr
-  if (stderr && exitCode === 0 && isGitSuccessStderr(stderr)) {
-    if (!stdout) stdout = stderr
-    stderr = ""
-  }
-  // bun writes dependency resolution info to stderr
-  if (stderr && exitCode === 0 && isBunSuccessStderr(stderr)) {
-    if (!stdout) stdout = stderr
-    stderr = ""
+  let stdout = stripBunVersion(stdoutRaw.trim())
+  let stderr = stripBunVersion(stderrRaw.trim())
+  if (exitCode === 0 && stderr) {
+    stdout = stdout ? `${stdout}\n\n${stderr}` : stderr
+    stderr = ''
   }
   return {
     stdout,

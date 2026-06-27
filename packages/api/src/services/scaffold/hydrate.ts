@@ -19,11 +19,11 @@ function parseTemplate(text: string): { path: string; content: string }[] {
   let i = 0
 
   while (i < lines.length) {
-    if (lines[i].trim() === '===') {
+    if (/^={3,}$/.test(lines[i].trim())) {
       const path = lines[i + 1]?.trim()
       i += 3 // skip ===, path, ===
       const buf: string[] = []
-      while (i < lines.length && lines[i].trim() !== '===') {
+      while (i < lines.length && !/^={3,}$/.test(lines[i].trim())) {
         buf.push(lines[i])
         i++
       }

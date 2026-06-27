@@ -1,130 +1,88 @@
-import { expandHome } from '../../utils/path'
-import { scaffold, scaffoldFromContents, readInputs } from './scaffold'
-import { extractHeader } from './scaffold/prepare'
+import { existsSync } from 'fs'
+import { join } from 'path'
+import { expandHome } from '../utils/path'
+import { scaffold } from './scaffold'
 import { codeRunner } from './codeRunner'
-import type { ProjectData, ScaffoldOptions } from './scaffold/types'
+import * as git from './git'
+import type { ScaffoldOptions, ProjectData } from './scaffold/types'
+import type { BashResult } from '../utils/bash'
+import type { GitFile } from './git'
 
-// fileProcessor is the orchestrator: every option the frontend toggles flows
-// through this config and is fanned out to the scaffold / codeRunner services.
-let config = {
-  projectScaffold: {
-    git: {
-      initLocalRepo: true,
-      initRemoteRepository: true,
-    },
-    activeDir: null as string | null,
-    baseProjectsDir: '~/projects',
-  },
-  codeExecution: {
-    autoRun: true,
+export interface GitData {
+  branch: string
+  files: GitFile[]
+}
+
+export interface ProcessFileResult {
+  event: 'fileProcessor:scaffold'
+  data: {
+    projectData: ProjectData
+    gitData: GitData
+    codeExecutionResults: BashResult[]
+  }
+}
+
+const ACTIVE_DIR_FILE = expandHome('~/activeDir.txt')
+
+let config: ScaffoldOptions = {
+  baseProjectDir: '~/projects',
+  activeDir: null,
+  git: {
+    initLocalRepo: true,
+    initRemoteRepository: true,
   },
 }
 
-type Config = typeof config
+type ScaffoldConfig = Partial<Omit<ScaffoldOptions, 'git'>> & { git?: Partial<ScaffoldOptions['git']> }
 
-export function setOptions(opts: {
-  projectScaffold?: Partial<Omit<Config['projectScaffold'], 'git'>> & {
-    git?: Partial<Config['projectScaffold']['git']>
-  }
-  codeExecution?: Partial<Config['codeExecution']>
-}): void {
+export function setOptions(opts: ScaffoldConfig): void {
   config = {
-    projectScaffold: {
-      ...config.projectScaffold,
-      ...opts.projectScaffold,
-      git: { ...config.projectScaffold.git, ...opts.projectScaffold?.git },
-    },
-    codeExecution: { ...config.codeExecution, ...opts.codeExecution },
+    ...config,
+    ...opts,
+    git: { ...config.git, ...opts.git },
   }
 }
 
-export function getOptions(): Config {
+export function getOptions(): ScaffoldOptions {
   return config
 }
 
-// maps the partitioned frontend config onto the scaffold service options
-function scaffoldOpts(): Partial<ScaffoldOptions> {
-  const ps = config.projectScaffold
-  return {
-    baseProjectDir: ps.baseProjectsDir,
-    activeDir: ps.activeDir,
-    git: ps.git.initLocalRepo,
-    remote: ps.git.initRemoteRepository,
+function expandActiveDir(raw: string, base: string): string {
+  if (raw.startsWith('@')) {
+    const segs = raw.slice(1).split('/')
+    const scope = segs[0]
+    const name = segs.slice(1).join('/')
+    return join(expandHome(base), scope, 'packages', name)
   }
+  return expandHome(raw)
 }
 
-// collapses each file entry down to its relpath string for the frontend.
-function toRelpaths(project: ProjectData) {
-  return {
-    ...project,
-    files: project.files.map((f) => f.relpath),
-    packages: project.packages.map((p) => ({ ...p, files: p.files.map((f) => f.relpath) })),
+async function resolveOptions(): Promise<ScaffoldOptions> {
+  if (config.activeDir !== null) {
+    return { ...config, activeDir: expandActiveDir(config.activeDir, config.baseProjectDir) }
   }
-}
-
-// pending invalid-path state, awaiting corrections from the frontend
-let pending: { file: string; opts: Partial<ScaffoldOptions> } | null = null
-
-async function finalize(project: ProjectData | null) {
-  if (!project) return
-  if (project.error) {
-    return { event: 'fileProcessor:scaffold', data: { project: toRelpaths(project) } }
-  }
-
-  const files = [...project.files, ...project.packages.flatMap((p) => p.files)]
-
-  let runResults
-  if (config.codeExecution.autoRun) {
-    runResults = await codeRunner(files, scaffoldOpts())
-  }
-
-  return { event: 'fileProcessor:scaffold', data: { project: toRelpaths(project), runResults } }
-}
-
-export async function processFile(file: string) {
-  // no extension gate: any file with a path comment is resolved as normal
-  // (e.g. a vite.tpl that needs to land somewhere specific)
-
-  // if (basename(file) === 'actions.json') {
-  //   return { event: 'actions', data: await processActions(JSON.parse(await Bun.file(file).text())) }
-  // }
-
-  const opts = scaffoldOpts()
-  const project = await scaffold(file, opts)
-
-  pending = project?.error?.type === 'pathResolution' ? { file, opts } : null
-
-  return finalize(project)
-}
-
-// rewrites a single file's path comment when a correction targets it.
-function applyCorrection(content: string, corrections: { original: string; new: string }[]): string {
-  const header = extractHeader(content)
-  if (!header) return content
-
-  const corr = corrections.find((c) => c.original === header.rawPath)
-  if (!corr) return content
-
-  const lines = content.split('\n')
-  for (let i = 0; i < Math.min(lines.length, 2); i++) {
-    if (lines[i].includes(header.rawPath)) {
-      lines[i] = lines[i].replace(header.rawPath, corr.new)
-      break
+  if (existsSync(ACTIVE_DIR_FILE)) {
+    const raw = (await Bun.file(ACTIVE_DIR_FILE).text()).trim()
+    if (raw) {
+      return { ...config, activeDir: expandActiveDir(raw, config.baseProjectDir) }
     }
   }
-  return lines.join('\n')
+  return config
 }
 
-// applies the user's path corrections and resumes scaffolding from where it
-// left off (already-written files are skipped as unchanged).
-export async function fixInvalidPaths(corrections: { original: string; new: string }[]) {
-  if (!pending) return
+export async function processFile(file: string): Promise<ProcessFileResult | null> {
+  const opts = await resolveOptions()
+  const project = await scaffold(file, opts)
+  if (!project) return null
 
-  const contents = await readInputs(expandHome(pending.file))
-  const fixed = contents.map((c) => applyCorrection(c, corrections))
-  const project = await scaffoldFromContents(fixed, pending.opts)
+  const files = [...project.files, ...project.packages.flatMap((p) => p.files)]
+  const [codeExecutionResults, gitResult] = await Promise.all([
+    codeRunner(files),
+    git.getData(),
+  ])
 
-  pending = project?.error?.type === 'pathResolution' ? pending : null
-
-  return finalize(project)
+  return {
+    event: 'fileProcessor:scaffold' as const,
+    data: { projectData: project, gitData: { branch: gitResult.branch, files: gitResult.files }, codeExecutionResults },
+  }
 }

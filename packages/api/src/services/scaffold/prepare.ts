@@ -1,5 +1,5 @@
 import { join, relative, isAbsolute, basename, dirname } from 'path'
-import { expandHome } from '../../../utils/path'
+import { expandHome } from '../../utils/path'
 import type { ScaffoldOptions, ProjectData, PackageData, FileEntry } from './types'
 
 const SRC_DIRS = ['src', 'docs', 'scripts']
@@ -10,10 +10,6 @@ function firstSeg(p: string): string {
   return p.split('/')[0]
 }
 
-// extracts the path comment header and returns the body with it stripped.
-// a hashbang on the first line is allowed; the comment is then on line two.
-// auto-skips (returns null) when the trimmed content is empty, or when
-// "deprecated" appears within the first three lines.
 export function extractHeader(content: string): { rawPath: string; body: string } | null {
   if (content.trim() === '') return null
 
@@ -40,23 +36,18 @@ export function extractHeader(content: string): { rawPath: string; body: string 
   return { rawPath, body }
 }
 
-// resolves a path comment to an absolute path on disk.
-// returns null when the path needs an active dir but none is set.
 function resolvePath(rawPath: string, opts: ScaffoldOptions): string | null {
   const base = expandHome(opts.baseProjectDir)
 
-  // absolute or ~/
   if (rawPath.startsWith('/') || rawPath.startsWith('~')) {
     return expandHome(rawPath)
   }
 
-  // scoped: @scope/...
   if (rawPath.startsWith('@')) {
     const segs = rawPath.slice(1).split('/')
     const scope = segs[0]
     const rest = segs.slice(1)
 
-    // @paladin/packages/abc/ghi.ts -> base/paladin/packages/abc/src/ghi.ts
     if (rest[0] === 'packages') {
       const pkg = rest[1]
       const tail = rest.slice(2).join('/')
@@ -64,19 +55,16 @@ function resolvePath(rawPath: string, opts: ScaffoldOptions): string | null {
       return join(base, scope, 'packages', pkg, withSrc)
     }
 
-    // @paladin/abc/ghi.ts -> base/paladin/packages/abc/ghi.ts
     return join(base, scope, 'packages', rest.join('/'))
   }
 
-  // relative to active dir: basename, ./ ../, or already inside src|docs|scripts
   const isBasename = !rawPath.includes('/')
   const isDotRel = rawPath.startsWith('./') || rawPath.startsWith('../')
   if (isBasename || isDotRel || SRC_DIRS.includes(firstSeg(rawPath))) {
-    if (!opts.activeDir) return null
-    return join(expandHome(opts.activeDir), rawPath)
+    if (!opts.activeDir) throw new Error(`scaffold: cannot resolve relative path "${rawPath}" without activeDir`)
+    return join(opts.activeDir, rawPath)
   }
 
-  // project-rooted: foobar/abc/ghi.ts -> base/foobar/src/abc/ghi.ts
   const segs = rawPath.split('/')
   const project = segs[0]
   const rest = segs.slice(1).join('/')
@@ -92,7 +80,6 @@ interface Located {
   relpath: string
 }
 
-// derives the owning project / package and the relpath from an absolute path.
 function locate(abs: string, opts: ScaffoldOptions): Located {
   const base = expandHome(opts.baseProjectDir)
   const relBase = relative(base, abs)
@@ -117,7 +104,7 @@ function locate(abs: string, opts: ScaffoldOptions): Located {
   }
 
   if (opts.activeDir) {
-    const active = expandHome(opts.activeDir)
+    const active = opts.activeDir
     const relA = relative(active, abs)
     if (relA && !relA.startsWith('..') && !isAbsolute(relA)) {
       const segs = relA.split('/')
@@ -142,31 +129,24 @@ function locate(abs: string, opts: ScaffoldOptions): Located {
   return { projectName: basename(projectDir), projectDir, pkgName: null, pkgDir: null, relpath: basename(abs) }
 }
 
-// pure: builds the structural ProjectData from raw file contents.
-// isNew is left null here and determined on disk by index.ts.
-// paths that need an active dir (when none is set) are reported via error.
 export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData | null {
   const located: { entry: FileEntry; loc: Located }[] = []
-  const invalidFilesPaths: string[] = []
 
   for (const content of contents) {
     const header = extractHeader(content)
     if (!header) continue
 
     const abs = resolvePath(header.rawPath, opts)
-    if (abs === null) {
-      invalidFilesPaths.push(header.rawPath)
-      continue
-    }
+    if (abs === null) continue
 
     const loc = locate(abs, opts)
     located.push({ entry: { path: abs, relpath: loc.relpath, content: header.body }, loc })
   }
 
-  if (located.length === 0 && invalidFilesPaths.length === 0) return null
+  if (located.length === 0) return null
 
-  const projectName = located[0]?.loc.projectName ?? ''
-  const projectDir = located[0]?.loc.projectDir ?? ''
+  const projectName = located[0].loc.projectName
+  const projectDir = located[0].loc.projectDir
 
   const projectFiles: FileEntry[] = []
   const pkgMap = new Map<string, PackageData>()
@@ -175,7 +155,7 @@ export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData 
     if (loc.pkgDir && loc.pkgName) {
       let pkg = pkgMap.get(loc.pkgDir)
       if (!pkg) {
-        pkg = { name: loc.pkgName, isNew: null, files: [], dir: loc.pkgDir }
+        pkg = { name: loc.pkgName, isNew: null, files: [], dir: loc.pkgDir, deps: {}, devDeps: {} }
         pkgMap.set(loc.pkgDir, pkg)
       }
       pkg.files.push(entry)
@@ -184,24 +164,11 @@ export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData 
     }
   }
 
-  const packages = [...pkgMap.values()]
-
-  const project: ProjectData = {
+  return {
     name: projectName,
     isNew: null,
     files: projectFiles,
     dir: projectDir,
-    packages,
+    packages: [...pkgMap.values()],
   }
-
-  if (invalidFilesPaths.length) {
-    const activeDirSuggestions = [...new Set([project.dir, ...packages.map((p) => p.dir)].filter(Boolean))]
-    project.error = {
-      type: 'pathResolution',
-      message: `${invalidFilesPaths.length} require an active directory to complete file resolution`,
-      data: { invalidFilesPaths, activeDirSuggestions },
-    }
-  }
-
-  return project
 }
