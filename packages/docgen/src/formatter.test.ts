@@ -6,8 +6,6 @@ import { join } from "path"
 import { tmpdir } from "os"
 import { document } from "./documenter"
 import { format } from "./formatter"
-import { FileCache } from "./cache"
-import type { FileDoc } from "./documenter.types"
 
 const TYPES = `
 /** A user in the system */
@@ -113,21 +111,14 @@ afterAll(async () => {
 
 describe("formatter", () => {
   it("generates agent spec", async () => {
-    const cache = new FileCache<FileDoc>("/dev/null")
     const files = [
       join(dir, "types.ts"),
       join(dir, "lib/service.ts"),
       join(dir, "lib/handler.ts"),
     ]
-    const result = await document(dir, files, cache)
-    const spec = format(result)
+    const result = await document(dir, files)
+    const spec = format(result).replace(dir, "<tmpdir>")
 
-    // Shared: User (used by service + handler), Role (service), PageOpts (service)
-    // Omitted from Shared: MAX_RETRIES (const), InternalMeta (not imported)
-    // types.ts: no file section (only types/consts)
-    // lib/service.ts: relative path, class with public/private/protected props,
-    //   getter, setter, static method, private method, async method
-    // lib/handler.ts: relative path, two functions
     expect(spec).toMatchSnapshot()
   })
 })

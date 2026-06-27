@@ -1,7 +1,7 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`formatter generates agent spec 1`] = `
-"# /tmp/codeform-SOuAWd
+"# <tmpdir>
 
 ## Shared
 type User = {

@@ -6,8 +6,6 @@ import { join } from "path"
 import { tmpdir } from "os"
 import { document } from "./documenter"
 import { format } from "./formatter"
-import { FileCache } from "./cache"
-import type { FileDoc } from "./documenter.types"
 
 const MATH = `
 /** Add two numbers */
@@ -40,30 +38,23 @@ afterAll(async () => {
   await rm(dir, { recursive: true })
 })
 
-function makeCache() {
-  return new FileCache<FileDoc>("/dev/null")
-}
-
 describe("documenter", () => {
   it("parses a single file", async () => {
-    const cache = makeCache()
-    const result = await document(dir, [join(dir, "math.ts")], cache)
+    const result = await document(dir, [join(dir, "math.ts")])
 
     expect(result.files).toHaveLength(1)
     expect(result.files[0]).toMatchSnapshot()
   })
 
   it("builds index from exported symbols", async () => {
-    const cache = makeCache()
-    const result = await document(dir, [join(dir, "math.ts")], cache)
+    const result = await document(dir, [join(dir, "math.ts")])
 
     expect(result.index).toMatchSnapshot()
   })
 
   it("formats a single file", async () => {
-    const cache = makeCache()
-    const result = await document(dir, [join(dir, "math.ts")], cache)
-    const spec = format(result)
+    const result = await document(dir, [join(dir, "math.ts")])
+    const spec = format(result).replace(dir, "<tmpdir>")
 
     expect(spec).toMatchSnapshot()
   })

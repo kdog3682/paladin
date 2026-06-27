@@ -1,8 +1,0 @@
-{
-  "name": "code-analysis",
-  "version": "0.0.0",
-  "type": "module",
-  "dependencies": {
-    "es-module-lexer": "^2.0.0"
-  }
-}

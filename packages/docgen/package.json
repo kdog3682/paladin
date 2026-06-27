@@ -1,8 +1,18 @@
+// @paladin/packages/docgen/package.json
 {
   "name": "@paladin/docgen",
-  "version": "0.1.0",
-  "scripts": {},
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./documenter": "./documenter.ts"
+  },
   "dependencies": {
-    "@paladin/utils": "workspace:*"
+    "@paladin/fcache": "workspace:*",
+    "tree-sitter": "^0.22.4",
+    "tree-sitter-typescript": "^0.23.2"
   }
 }

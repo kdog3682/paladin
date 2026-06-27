@@ -100,7 +100,7 @@ exports[`documenter builds index from exported symbols 1`] = `
 `;
 
 exports[`documenter formats a single file 1`] = `
-"# /tmp/codeform-documenter-oQfaYL
+"# <tmpdir>
 
 ## math.ts
 fn add(a: number, b: number): number — Add two numbers

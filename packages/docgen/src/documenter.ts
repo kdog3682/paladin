@@ -2,9 +2,9 @@
 
 import Parser from "tree-sitter"
 import TypeScript from "tree-sitter-typescript"
-import { readFile, stat } from "fs/promises"
+import { readFile } from "fs/promises"
 import { relative, dirname, join } from "path"
-import { FileCache } from "./cache"
+import { fcache } from "@paladin/fcache"
 import type {
   FileDoc,
   SymbolDoc,
@@ -291,28 +291,20 @@ function buildIndex(files: FileDoc[]): Record<string, SymbolRef> {
   return index
 }
 
-/**
- * Parse and document a list of TypeScript files using tree-sitter.
- * Extracts all symbols (functions, classes, types, interfaces, enums, consts)
- * along with their JSDoc descriptions, parameters, and import references.
- * Results are cached by file mtime — unchanged files are skipped.
- */
-export async function document(root: string, files: string[], cache: FileCache<FileDoc>): Promise<DirectoryDoc> {
-  const docs: FileDoc[] = []
+async function parseFileCached(filepath: string): Promise<FileDoc> {
+  const source = await readFile(filepath, "utf-8")
+  return parseFile(source, filepath)
+}
 
-  for (const filepath of files) {
-    const cached = await cache.get(filepath)
-    if (cached) {
-      docs.push(cached)
-      continue
-    }
+const cachedParse = fcache(parseFileCached)
 
-    const info = await stat(filepath)
-    const source = await readFile(filepath, "utf-8")
-    const doc = parseFile(source, relative(root, filepath))
-    cache.set(filepath, info.mtimeMs, doc)
-    docs.push(doc)
-  }
+export async function document(root: string, files: string[]): Promise<DirectoryDoc> {
+  const docs = await Promise.all(
+    files.map(async filepath => {
+      const doc = await cachedParse(filepath)
+      return { ...doc, path: relative(root, filepath) }
+    })
+  )
 
   const allPaths = docs.map(d => d.path)
   for (const doc of docs) {
