@@ -3,9 +3,8 @@ import { existsSync } from 'fs'
 import { expandHome } from '../../utils/path'
 import { extractHeader } from './prepare'
 import { hydrate } from './hydrate'
-import { codeRunner } from '../codeRunner'
-import { handleGit, logProject } from './shared'
-import type { ScaffoldOptions, FileEntry, ScaffoldResult } from './types'
+import { syncFiles } from './shared'
+import type { ScaffoldOptions, FileEntry, PreparedProject } from './types'
 
 const PROJECTS_BASE = expandHome('~/projects')
 
@@ -20,19 +19,7 @@ function resolveTypstPath(rawPath: string): string {
   return join(PROJECTS_BASE, projectName, ...withSrc)
 }
 
-async function readInputs(file: string): Promise<string[]> {
-  if (file.endsWith('.zip')) {
-    const { unzipSync, strFromU8 } = await import('fflate')
-    const buf = new Uint8Array(await Bun.file(file).arrayBuffer())
-    const entries = unzipSync(buf)
-    return Object.values(entries).map((u8) => strFromU8(u8))
-  }
-  return [await Bun.file(file).text()]
-}
-
-export async function scaffoldTypst(file: string, opts: ScaffoldOptions): Promise<ScaffoldResult | null> {
-  const contents = await readInputs(expandHome(file))
-
+export async function prepareTypst(contents: string[], opts: ScaffoldOptions): Promise<PreparedProject | null> {
   const fileEntries: FileEntry[] = []
   let projectName: string | null = null
   let projectDir: string | null = null
@@ -54,27 +41,18 @@ export async function scaffoldTypst(file: string, opts: ScaffoldOptions): Promis
 
   const isNew = !existsSync(projectDir)
 
-  const written: FileEntry[] = []
-  for (const f of fileEntries) {
-    if (existsSync(f.path) && (await Bun.file(f.path).text()) === f.content) continue
-    await Bun.write(f.path, f.content)
-    written.push(f)
-  }
+  const written = await syncFiles(fileEntries)
 
   if (isNew) {
     await hydrate(join(import.meta.dir, 'templates', 'typst.tpl'), projectDir, {
       PROJECT_NAME: projectName,
     })
-    await logProject(projectName, 'typst')
   }
 
-  const [codeExecutionResults, gitData] = await Promise.all([
-    codeRunner(fileEntries),
-    handleGit(projectDir, projectName, isNew, {
-      initLocal: opts.git.initLocalRepo,
-      initRemote: opts.git.initRemoteRepository,
-    }),
-  ])
-
-  return { gitData, codeExecutionResults }
+  return {
+    name: projectName,
+    dir: projectDir,
+    isNew,
+    files: written,
+  }
 }

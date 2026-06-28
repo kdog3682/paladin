@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { dirname, extname } from 'path'
+import { basename, dirname, extname } from 'path'
 import { bash, type BashResult } from '../utils/bash'
 import type { FileEntry } from './scaffold/types'
 
@@ -16,6 +16,8 @@ const PAIR_INFIXES = ['demo', 'test', 'e2e', 'script']
 
 function classify(path: string): 'demo' | 'test' | 'script' | null {
   const p = path.replace(/\\/g, '/')
+  const stem = basename(p, extname(p)).toLowerCase()
+  if (['demo', 'example', 'sample', 'playground', 'scratch'].includes(stem)) return 'demo'
   if (/\.demo\./.test(p)) return 'demo'
   if (/\.test\./.test(p) || /\.e2e\./.test(p) || p.includes('/tests/') || p.includes('/__tests__/')) return 'test'
   if (/\.script\./.test(p) || p.includes('/scripts/')) return 'script'
