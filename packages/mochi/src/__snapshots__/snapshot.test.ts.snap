@@ -1,0 +1,128 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`parseMochiFile fixture 1`] = `
+{
+  "path": "demo.ts",
+  "sections": [
+    {
+      "stories": [
+        {
+          "calls": [
+            {
+              "isLog": true,
+              "note": null,
+              "source": "add(1, 2)",
+            },
+            {
+              "isLog": true,
+              "note": null,
+              "source": "add(-1, 1)",
+            },
+          ],
+          "context": [],
+          "description": "basic addition",
+        },
+        {
+          "calls": [
+            {
+              "isLog": true,
+              "note": null,
+              "source": "add(0.1, 0.2)",
+            },
+          ],
+          "context": [],
+          "description": "handles floats",
+        },
+      ],
+      "title": "math",
+    },
+    {
+      "stories": [
+        {
+          "calls": [
+            {
+              "isLog": true,
+              "note": null,
+              "source": "slugify("Hello World")",
+            },
+            {
+              "isLog": true,
+              "note": null,
+              "source": "slugify("  trim me  ")",
+            },
+          ],
+          "context": [],
+          "description": null,
+        },
+        {
+          "calls": [
+            {
+              "isLog": false,
+              "note": null,
+              "source": "formatDate("2024-01-01")",
+            },
+          ],
+          "context": [],
+          "description": "no result expected — just runs",
+        },
+      ],
+      "title": "strings",
+    },
+    {
+      "stories": [
+        {
+          "calls": [
+            {
+              "isLog": true,
+              "note": null,
+              "source": "formatDate(user.createdAt)",
+            },
+          ],
+          "context": [
+            "const user = createUser({ name: "kai" })",
+          ],
+          "description": "chained: declare then use",
+        },
+      ],
+      "title": "pipeline",
+    },
+    {
+      "stories": [
+        {
+          "calls": [
+            {
+              "isLog": true,
+              "note": null,
+              "source": "add(0, 0)",
+            },
+            {
+              "isLog": true,
+              "note": null,
+              "source": "slugify("")",
+            },
+          ],
+          "context": [],
+          "description": null,
+        },
+      ],
+      "title": "edge cases",
+    },
+    {
+      "stories": [
+        {
+          "calls": [
+            {
+              "isLog": true,
+              "note": null,
+              "source": "formatDate(null)",
+            },
+          ],
+          "context": [],
+          "description": "returns undefined for unknown input",
+        },
+      ],
+      "title": "jsdoc section",
+    },
+  ],
+}
+`;
