@@ -8,8 +8,8 @@ const app = new Hono()
 // POST /git/repo
 // body: { rootDir, autoInit? }
 app.post('/repo', async (c) => {
-  const { rootDir, autoInit } = await c.req.json()
-  await git.setRepo(rootDir, { autoInit })
+  const { rootDir } = await c.req.json()
+  await git.setRepo(rootDir)
   return c.json({ ok: true })
 })
 

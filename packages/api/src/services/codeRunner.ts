@@ -3,6 +3,15 @@ import { dirname, extname } from 'path'
 import { bash, type BashResult } from '../utils/bash'
 import type { FileEntry } from './scaffold/types'
 
+async function runTypst(file: string): Promise<BashResult> {
+  const svgPath = file.replace(/\.typ$/, '.svg')
+  const result = await bash(['typst', 'compile', '--format=svg', file, svgPath], { cwd: dirname(file) })
+  if (result.exitCode === 0) {
+    await bash(['python3', '-c', `import webbrowser; webbrowser.open('file://${svgPath}')`])
+  }
+  return result
+}
+
 const PAIR_INFIXES = ['demo', 'test', 'e2e', 'script']
 
 function classify(path: string): 'demo' | 'test' | 'script' | null {
@@ -24,6 +33,7 @@ function findPair(path: string): string | null {
 }
 
 async function run(file: string, type: 'demo' | 'test' | 'script'): Promise<BashResult> {
+  if (extname(file) === '.typ') return runTypst(file)
   const args = type === 'test' ? ['bun', 'test', file] : ['bun', file]
   return bash(args, { cwd: dirname(file) })
 }

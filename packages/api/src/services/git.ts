@@ -149,6 +149,7 @@ export async function diffStaged(): Promise<string> {
 }
 
 export async function init(): Promise<void> {
+  if (await isRepo()) return
   await run(['git', 'init'])
 }
 

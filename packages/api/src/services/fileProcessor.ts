@@ -1,25 +1,22 @@
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { expandHome } from '../utils/path'
-import { scaffold } from './scaffold'
+import { prepareTypescript, prepareTypst } from './scaffold'
+import { extractHeader } from './scaffold/prepare'
 import { codeRunner } from './codeRunner'
-import * as git from './git'
-import type { ScaffoldOptions, ProjectData } from './scaffold/types'
+import { handleGit, logProject } from './scaffold/shared'
+import type { ScaffoldOptions } from './scaffold/types'
+import type { GitData } from './git'
 import type { BashResult } from '../utils/bash'
-import type { GitFile } from './git'
 
-export interface GitData {
-  branch: string
-  files: GitFile[]
+export interface ScaffoldResult {
+  gitData: GitData | null
+  codeExecutionResults: BashResult[]
 }
 
 export interface ProcessFileResult {
   event: 'fileProcessor:scaffold'
-  data: {
-    projectData: ProjectData
-    gitData: GitData
-    codeExecutionResults: BashResult[]
-  }
+  data: ScaffoldResult
 }
 
 const ACTIVE_DIR_FILE = expandHome('~/activeDir.txt')
@@ -70,19 +67,45 @@ async function resolveOptions(): Promise<ScaffoldOptions> {
   return config
 }
 
+export async function readInputs(file: string): Promise<string[]> {
+  const expanded = expandHome(file)
+  if (expanded.endsWith('.zip')) {
+    const { unzipSync, strFromU8 } = await import('fflate')
+    const buf = new Uint8Array(await Bun.file(expanded).arrayBuffer())
+    const entries = unzipSync(buf)
+    return Object.values(entries).map((u8) => strFromU8(u8))
+  }
+  return [await Bun.file(expanded).text()]
+}
+
+export function detectLanguage(contents: string[]): 'typescript' | 'typst' {
+  for (const content of contents) {
+    const header = extractHeader(content)
+    if (header) return header.rawPath.endsWith('.typ') ? 'typst' : 'typescript'
+  }
+  return 'typescript'
+}
+
 export async function processFile(file: string): Promise<ProcessFileResult | null> {
   const opts = await resolveOptions()
-  const project = await scaffold(file, opts)
-  if (!project) return null
+  const contents = await readInputs(file)
+  const lang = detectLanguage(contents)
 
-  const files = [...project.files, ...project.packages.flatMap((p) => p.files)]
-  const [codeExecutionResults, gitResult] = await Promise.all([
-    codeRunner(files),
-    git.getData(),
+  const prepared = lang === 'typst'
+    ? await prepareTypst(contents, opts)
+    : await prepareTypescript(contents, opts)
+
+  if (!prepared) return null
+
+  if (prepared.isNew) await logProject(prepared.name, lang)
+
+  const [codeExecutionResults, gitData] = await Promise.all([
+    codeRunner(prepared.files),
+    handleGit(prepared.dir, prepared.name, prepared.isNew, {
+      initLocal: opts.git.initLocalRepo,
+      initRemote: opts.git.initRemoteRepository,
+    }),
   ])
 
-  return {
-    event: 'fileProcessor:scaffold' as const,
-    data: { projectData: project, gitData: { branch: gitResult.branch, files: gitResult.files }, codeExecutionResults },
-  }
+  return { event: 'fileProcessor:scaffold', data: { gitData, codeExecutionResults } }
 }

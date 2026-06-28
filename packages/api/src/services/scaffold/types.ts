@@ -24,6 +24,13 @@ export interface PackageData {
   devDeps: Record<string, string>
 }
 
+export interface PreparedProject {
+  name: string
+  dir: string
+  isNew: boolean
+  files: FileEntry[]
+}
+
 export interface ProjectData {
   name: string
   isNew: boolean | null
