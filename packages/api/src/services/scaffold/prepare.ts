@@ -42,7 +42,9 @@ function resolvePath(rawPath: string, opts: ScaffoldOptions): string | null {
   if (rawPath.startsWith('/') || rawPath.startsWith('~')) {
     return expandHome(rawPath)
   }
-
+  if (rawPath.startsWith('paladin')) {
+    rawPath = '@' + rawPath
+  }
   if (rawPath.startsWith('@')) {
     const segs = rawPath.slice(1).split('/')
     const scope = segs[0]
