@@ -16,10 +16,14 @@ const PAIR_INFIXES = ['demo', 'test', 'e2e', 'script']
 
 function classify(path: string): 'demo' | 'test' | 'script' | null {
   const p = path.replace(/\\/g, '/')
-  const stem = basename(p, extname(p)).toLowerCase()
+  const ext = extname(p)
+  if (ext == 'mjs') {
+    return 'script'
+  }
+  const stem = basename(p, ext).toLowerCase()
   if (['demo', 'example', 'sample', 'playground', 'scratch'].includes(stem)) return 'demo'
-  if (/\.demo\./.test(p)) return 'demo'
-  if (/\.test\./.test(p) || /\.e2e\./.test(p) || p.includes('/tests/') || p.includes('/__tests__/')) return 'test'
+  if (/\.demo\./.test(p) || p.includes('/demos/')) return 'demo'
+  if (/\.test\./.test(p) || /\.e2e\./.test(p) || p.includes('/tests/') || p.includes('/test/') || p.includes('/__tests__/')) return 'test'
   if (/\.script\./.test(p) || p.includes('/scripts/')) return 'script'
   return null
 }
