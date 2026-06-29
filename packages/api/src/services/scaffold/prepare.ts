@@ -55,7 +55,13 @@ function resolvePath(rawPath: string, opts: ScaffoldOptions): string | null {
       return join(base, scope, 'packages', pkg, withSrc)
     }
 
-    return join(base, scope, 'packages', rest.join('/'))
+    const pkg = rest[0]
+  const tail = rest.slice(1).join('/')
+  if (tail) {
+    const withSrc = SRC_DIRS.includes(firstSeg(tail)) ? tail : join('src', tail)
+    return join(base, scope, 'packages', pkg, withSrc)
+  }
+  return join(base, scope, 'packages', pkg)
   }
 
   const isBasename = !rawPath.includes('/')
