@@ -4,10 +4,10 @@ import { bash, type BashResult } from '../utils/bash'
 import type { FileEntry } from './scaffold/types'
 
 async function runTypst(file: string): Promise<BashResult> {
-  const svgPath = file.replace(/\.typ$/, '.svg')
-  const result = await bash(['typst', 'compile', '--format=svg', file, svgPath], { cwd: dirname(file) })
+  const pdfPath = '/home/kdog3682/scratch/typst.svg'
+  const result = await bash(['typst', 'compile', '--format=svg', file, pdfPath], { cwd: dirname(file) })
   if (result.exitCode === 0) {
-    await bash(['python3', '-c', `import webbrowser; webbrowser.open('file://${svgPath}')`])
+    await bash(['python3', '-c', `import webbrowser; webbrowser.open('file://${pdfPath}')`])
   }
   return result
 }
