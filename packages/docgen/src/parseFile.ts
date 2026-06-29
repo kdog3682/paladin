@@ -1,4 +1,4 @@
-// @paladin/packages/codeform/documenter.ts
+// @paladin/packages/docgen/parseFile.ts
 
 import Parser from "tree-sitter"
 import TypeScript from "tree-sitter-typescript"
@@ -17,7 +17,7 @@ import type {
   MethodDoc,
   Param,
   ImportRef,
-} from "./documenter.types"
+} from "./parseFile.types"
 
 const parser = new Parser()
 parser.setLanguage(TypeScript.typescript)
