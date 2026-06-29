@@ -38,8 +38,9 @@ export function extractHeader(content: string): { rawPath: string; body: string 
 
 function resolvePath(rawPath: string, opts: ScaffoldOptions): string | null {
   const base = expandHome(opts.baseProjectDir)
-  if (rawPath.endsWith('.mjs')) {
-    rawPath = '@paladin/scripts/' + basename(rawPath)
+  if (rawPath.endsWith('.mjs') || rawPath.includes('script')) {
+    return join(base, 'paladin', 'scripts', basename(rawPath))
+
   }
   if (rawPath.startsWith('/') || rawPath.startsWith('~')) {
     return expandHome(rawPath)
