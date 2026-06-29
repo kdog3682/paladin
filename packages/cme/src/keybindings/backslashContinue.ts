@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/backslashContinue.ts
+// @paladin/cme/keybindings/backslashContinue.ts
 import { keymap } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'

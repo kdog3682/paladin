@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/dashRule.ts
+// @paladin/cme/keybindings/dashRule.ts
 import { keymap, EditorView } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 

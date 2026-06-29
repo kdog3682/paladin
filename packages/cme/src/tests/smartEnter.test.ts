@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/smartEnter.test.ts
+// @paladin/cme/tests/smartEnter.test.ts
 import { describe, it } from 'bun:test'
 import { mkView, typeKey, expectView } from './helpers'
 import { smartEnter } from '../keybindings/smartEnter'

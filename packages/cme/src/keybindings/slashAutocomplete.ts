@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/slashAutocomplete.ts
+// @paladin/cme/keybindings/slashAutocomplete.ts
 import { keymap, EditorView } from '@codemirror/view'
 import {
   autocompletion,

@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/pasteCodeWidget.ts
+// @paladin/cme/keybindings/pasteCodeWidget.ts
 import {
   EditorView,
   Decoration,

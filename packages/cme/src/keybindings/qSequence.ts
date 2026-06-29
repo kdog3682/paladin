@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/qSequence.ts
+// @paladin/cme/keybindings/qSequence.ts
 import { EditorView } from '@codemirror/view'
 import { Extension, EditorState } from '@codemirror/state'
 

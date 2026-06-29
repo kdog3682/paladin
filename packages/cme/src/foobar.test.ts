@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/foobar.test.ts
+// @paladin/cme/foobar.test.ts
 
 import { describe, it, expect } from "bun:test"
 

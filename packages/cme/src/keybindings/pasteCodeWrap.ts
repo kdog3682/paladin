@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/pasteCodeWrap.ts
+// @paladin/cme/keybindings/pasteCodeWrap.ts
 import { EditorView } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 

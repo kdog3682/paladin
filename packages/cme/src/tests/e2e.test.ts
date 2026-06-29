@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/e2e.test.ts
+// @paladin/cme/tests/e2e.test.ts
 import { describe, it, beforeAll, afterAll } from 'bun:test'
 import puppeteer, { Browser, Page } from 'puppeteer'
 import { mkdir } from 'fs/promises'

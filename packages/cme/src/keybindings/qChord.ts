@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/qChord.ts
+// @paladin/cme/keybindings/qChord.ts
 import { EditorView } from '@codemirror/view'
 import { Extension, EditorState } from '@codemirror/state'
 import { inoremap } from './inoremap'

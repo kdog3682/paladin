@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/foobar.demo.ts
+// @paladin/cme/foobar.demo.ts
 
 const message = "foobar is alive"
 console.log(message)

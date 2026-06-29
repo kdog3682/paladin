@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/decorations.ts
+// @paladin/cme/decorations.ts
 import { ViewPlugin, Decoration, DecorationSet, ViewUpdate } from '@codemirror/view'
 import { EditorState, Range } from '@codemirror/state'
 

@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/Editor.tsx
+// @paladin/cme/Editor.tsx
 import { useRef, useEffect, useCallback } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'

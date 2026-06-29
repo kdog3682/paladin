@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/helpers.ts
+// @paladin/cme/tests/helpers.ts
 import { Window } from 'happy-dom'
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view'
 import { EditorState, Extension } from '@codemirror/state'

@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/angleBracket.ts
+// @paladin/cme/keybindings/angleBracket.ts
 import { keymap } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import type { EditorView, KeyBinding } from '@codemirror/view'

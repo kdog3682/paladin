@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/backslashContinue.test.ts
+// @paladin/cme/tests/backslashContinue.test.ts
 import { describe, it } from 'bun:test'
 import { mkView, typeKey, expectView } from './helpers'
 import { backslashContinue } from '../keybindings/backslashContinue'

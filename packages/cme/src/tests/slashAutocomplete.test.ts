@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/slashAutocomplete.test.ts
+// @paladin/cme/tests/slashAutocomplete.test.ts
 import { describe, it, expect } from 'bun:test'
 import { getWordCompletions } from '../keybindings/slashAutocomplete'
 

@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/qeNewlineTabExit.ts
+// @paladin/cme/keybindings/qeNewlineTabExit.ts
 import { EditorView } from '@codemirror/view'
 import { Extension, EditorState } from '@codemirror/state'
 

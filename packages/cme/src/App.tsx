@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/App.tsx
+// @paladin/cme/App.tsx
 import { Editor } from './Editor'
 
 export default function App() {

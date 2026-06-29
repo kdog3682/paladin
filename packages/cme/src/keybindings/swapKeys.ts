@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/swapKeys.ts
+// @paladin/cme/keybindings/swapKeys.ts
 import { EditorView } from '@codemirror/view'
 import { Extension, Prec } from '@codemirror/state'
 

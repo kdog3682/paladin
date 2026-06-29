@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/toggleComment.ts
+// @paladin/cme/keybindings/toggleComment.ts
 import { keymap } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'

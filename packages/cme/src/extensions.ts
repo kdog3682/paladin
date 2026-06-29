@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/extensions.ts
+// @paladin/cme/extensions.ts
 import { EditorView, placeholder, keymap, drawSelection } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import { indentOnInput, indentUnit, bracketMatching } from '@codemirror/language'

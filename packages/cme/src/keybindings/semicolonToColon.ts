@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/semicolonToColon.ts
+// @paladin/cme/keybindings/semicolonToColon.ts
 import { keymap } from '@codemirror/view'
 import { EditorSelection, Extension } from '@codemirror/state'
 import type { EditorView, KeyBinding } from '@codemirror/view'

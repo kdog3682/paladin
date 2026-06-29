@@ -1,5 +1,5 @@
 // === /home/kdog3682/projects/paladin/packages/codemirror-editor-experiment/src/extensions.ts ===
-// @paladin/codemirror-editor-experiment/extensions.ts
+// @paladin/cme/_codeblock-context.ts
 import { EditorView, placeholder, keymap } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import { indentOnInput, indentUnit, bracketMatching } from '@codemirror/language'

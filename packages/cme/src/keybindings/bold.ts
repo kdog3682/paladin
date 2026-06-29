@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/bold.ts
+// @paladin/cme/keybindings/bold.ts
 import { keymap, EditorView, Decoration, DecorationSet } from '@codemirror/view'
 import { StateEffect, StateField } from '@codemirror/state'
 import type { Extension, Range } from '@codemirror/state'

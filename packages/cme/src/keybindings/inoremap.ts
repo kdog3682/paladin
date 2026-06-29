@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/inoremap.ts
+// @paladin/cme/keybindings/inoremap.ts
 import { EditorView } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 

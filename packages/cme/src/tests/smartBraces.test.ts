@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/smartBraces.test.ts
+// @paladin/cme/tests/smartBraces.test.ts
 import { describe, it } from 'bun:test'
 import { mkView, typeText, expectView } from './helpers'
 import { closeBrackets } from '@codemirror/autocomplete'

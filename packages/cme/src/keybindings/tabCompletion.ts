@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/tabCompletion.ts
+// @paladin/cme/keybindings/tabCompletion.ts
 import { keymap, EditorView } from '@codemirror/view'
 import {
   autocompletion,

@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/qwqe.test.ts
+// @paladin/cme/tests/qwqe.test.ts
 import { describe, it } from 'bun:test'
 import { mkView, typeText, expectView } from './helpers'
 import { qSequence } from '../keybindings/qSequence'

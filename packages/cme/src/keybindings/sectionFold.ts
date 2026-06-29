@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/sectionFold.ts
+// @paladin/cme/keybindings/sectionFold.ts
 import { EditorView, Decoration, DecorationSet, WidgetType } from '@codemirror/view'
 import { Extension, StateField, StateEffect, Range } from '@codemirror/state'
 import { invertedEffects } from '@codemirror/commands'

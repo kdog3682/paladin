@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/tests/semicolonToColon.test.ts
+// @paladin/cme/tests/semicolonToColon.test.ts
 import { describe, it } from 'bun:test'
 import { mkView, typeKey, expectView } from './helpers'
 import { semicolonToColon } from '../keybindings/semicolonToColon'

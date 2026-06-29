@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/docs/generateDocs.ts
+// @paladin/cme/docs/generateDocs.ts
 
 export type SymbolKind = 'function' | 'class' | 'variable' | 'import' | 'type'
 

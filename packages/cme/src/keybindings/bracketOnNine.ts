@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/bracketOnNine.ts
+// @paladin/cme/keybindings/bracketOnNine.ts
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorSelection, Extension } from '@codemirror/state'
 

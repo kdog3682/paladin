@@ -1,4 +1,4 @@
-// @paladin/codemirror-editor-experiment/keybindings/bracketNewline.ts
+// @paladin/cme/keybindings/bracketNewline.ts
 import { keymap } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 import type { EditorView, KeyBinding } from '@codemirror/view'
