@@ -1,5 +1,5 @@
 {
-  "name": "@paladin/codemirror-editor-experiment",
+  "name": "@paladin/cme",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
