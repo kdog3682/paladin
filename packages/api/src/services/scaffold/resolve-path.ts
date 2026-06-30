@@ -45,7 +45,7 @@ export function resolvePath(
   const baseDir = expandHome(base)
 
   // scripts always live in a fixed location, regardless of where they were "written"
-  if (raw.endsWith('.mjs') || raw.includes('script')) {
+  if (raw.includes('/scripts/') || raw.includes('.script.')) {
     return join(baseDir, 'paladin', 'scripts', basename(raw))
   }
 

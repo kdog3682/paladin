@@ -5,10 +5,10 @@ export interface BashResult {
   exitCode: number
   args: string[]
 }
-const BUN_VERSION_RE = /(?:^|\n)bun v[\d.]+\s*$/i
+const BUN_VERSION_RE = /bun (?:test )?v[\d.]+\s*(?:\(.*?\))?/i
 
 function stripBunVersion(s: string): string {
-  return s.replace(BUN_VERSION_RE, '')
+  return s.trim().replace(BUN_VERSION_RE, '').trim()
 }
 
 export async function bash(
@@ -26,8 +26,8 @@ export async function bash(
     new Response(proc.stderr).text(),
   ])
   const exitCode = await proc.exited
-  let stdout = stripBunVersion(stdoutRaw.trim())
-  let stderr = stripBunVersion(stderrRaw.trim())
+  let stdout = stripBunVersion(stdoutRaw)
+  let stderr = stripBunVersion(stderrRaw)
   if (exitCode === 0 && stderr) {
     stdout = stdout ? `${stdout}\n\n${stderr}` : stderr
     stderr = ''

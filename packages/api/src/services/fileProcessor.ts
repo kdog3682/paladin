@@ -5,7 +5,7 @@ import { prepareTypescript, prepareTypst } from './scaffold'
 import { extractHeader } from './scaffold/prepare'
 import { codeRunner } from './codeRunner'
 import { handleGit, logProject } from './scaffold/shared'
-import type { ScaffoldOptions } from './scaffold/types'
+import type { ScaffoldOptions, ScaffoldConfig } from './scaffold/types'
 import type { GitData } from './git'
 import type { BashResult } from '../utils/bash'
 
@@ -24,13 +24,8 @@ const ACTIVE_DIR_FILE = expandHome('~/activeDir.txt')
 let config: ScaffoldOptions = {
   baseProjectDir: '~/projects',
   activeDir: null,
-  git: {
-    initLocalRepo: true,
-    initRemoteRepository: true,
-  },
+  git: { initLocalRepo: true, initRemoteRepository: true },
 }
-
-type ScaffoldConfig = Partial<Omit<ScaffoldOptions, 'git'>> & { git?: Partial<ScaffoldOptions['git']> }
 
 export function setOptions(opts: ScaffoldConfig): void {
   config = {
@@ -108,8 +103,8 @@ export async function processFile(file: string): Promise<ProcessFileResult | nul
   const [codeExecutionResults, gitData] = await Promise.all([
     codeRunner(prepared.files),
     handleGit(prepared.dir, prepared.name, prepared.isNew, {
-      initLocal: opts.git.initLocalRepo,
-      initRemote: opts.git.initRemoteRepository,
+      initLocal: opts.git?.initLocalRepo ?? true,
+      initRemote: opts.git?.initRemoteRepository ?? true,
     }),
   ])
 

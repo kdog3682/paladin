@@ -11,6 +11,7 @@ export async function syncFiles(files: FileEntry[]): Promise<FileEntry[]> {
   const changed: FileEntry[] = []
   for (const f of files) {
     if (existsSync(f.path) && (await Bun.file(f.path).text()) === f.content) continue
+    mkdirSync(dirname(f.path), { recursive: true })
     await Bun.write(f.path, f.content)
     changed.push(f)
   }
@@ -33,7 +34,7 @@ export async function handleGit(
 ): Promise<GitData | null> {
   await git.setRepo(dir)
   if (opts.initLocal && isNew) await git.init()
-  if (opts.initRemote && isNew) await git.initRemoteRepo(projectName)
+  if (opts.initLocal && opts.initRemote && isNew) await git.initRemoteRepo(projectName)
   try {
     return await git.getData()
   } catch {

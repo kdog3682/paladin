@@ -1,13 +1,13 @@
 export interface ScaffoldOptions {
   baseProjectDir: string
-  activeDir: string | null
-  git: {
+  activeDir?: string | null
+  git?: {
     initLocalRepo: boolean
     initRemoteRepository: boolean
   }
 }
 
-export type ScaffoldConfig = Partial<Omit<ScaffoldOptions, 'git'>> & { git?: Partial<ScaffoldOptions['git']> }
+export type ScaffoldConfig = Partial<ScaffoldOptions>
 
 export interface FileEntry {
   path: string

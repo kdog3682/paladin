@@ -1,0 +1,45 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`prepareTypescript scaffolds workspace packages with deps 1`] = `
+{
+  "dir": "/tmp/scaffold-test/mathpenny",
+  "files": [
+    {
+      "content": 
+"import { greet } from '@mathpenny/utils'
+import _ from 'lodash'
+
+console.log(greet(_.upperCase('manim')))
+"
+,
+      "path": "/tmp/scaffold-test/mathpenny/packages/manim/src/index.ts",
+      "relpath": "src/index.ts",
+    },
+    {
+      "content": 
+"export function greet(name: string) {
+  return \`hello \${name}\`
+}
+"
+,
+      "path": "/tmp/scaffold-test/mathpenny/packages/utils/src/index.ts",
+      "relpath": "src/index.ts",
+    },
+    {
+      "content": 
+"import { test, expect } from 'bun:test'
+import { greet } from './index'
+
+test('greet', () => {
+  expect(greet('mathpenny')).toMatchSnapshot()
+})
+"
+,
+      "path": "/tmp/scaffold-test/mathpenny/packages/utils/src/greet.test.ts",
+      "relpath": "src/greet.test.ts",
+    },
+  ],
+  "isNew": true,
+  "name": "mathpenny",
+}
+`;
