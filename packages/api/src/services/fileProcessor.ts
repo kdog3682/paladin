@@ -87,6 +87,12 @@ export function detectLanguage(contents: string[]): 'typescript' | 'typst' {
 }
 
 export async function processFile(file: string): Promise<ProcessFileResult | null> {
+  const base = file.split('/').pop() ?? ''
+  if (base.startsWith('conversation') && base.endsWith('.json')) {
+    const { processFile: processConversationFile } = await import('./old/index')
+    return processConversationFile(file)
+  }
+
   const opts = await resolveOptions()
   const contents = await readInputs(file)
   const lang = detectLanguage(contents)
