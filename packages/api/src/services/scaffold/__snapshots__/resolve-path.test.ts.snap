@@ -1,0 +1,15 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`resolvePath snapshot 1`] = `
+{
+  "absolute": "/tmp/foo.ts",
+  "bareFilename": "~/projects/paladin/utils.ts",
+  "dotRelative": "~/projects/paladin/helpers/foo.ts",
+  "projectRelative": "/home/kdog3682/projects/myproj/src/web/Foobar/index.ts",
+  "scopedPackagesPrefixed": "/home/kdog3682/projects/paladin/packages/core/src/index.ts",
+  "scopedPkg": "/home/kdog3682/projects/paladin/packages/web/src/components/Foobar/useFoo.ts",
+  "scopedPkgNoTail": "/home/kdog3682/projects/paladin/packages/core",
+  "script": "/home/kdog3682/projects/paladin/scripts/build.mjs",
+  "shorthandPaladin": "/home/kdog3682/projects/paladin/packages/ui/src/components/Button/index.tsx",
+}
+`;

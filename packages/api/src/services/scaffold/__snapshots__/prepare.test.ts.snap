@@ -1,0 +1,63 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`prepare snapshot 1`] = `
+{
+  "dir": "/home/kdog3682/projects/paladin",
+  "files": [],
+  "isNew": null,
+  "name": "paladin",
+  "packages": [
+    {
+      "deps": {},
+      "devDeps": {},
+      "dir": "/home/kdog3682/projects/paladin/packages/web",
+      "files": [
+        {
+          "content": 
+"export const useFoo = () => {}
+"
+,
+          "path": "/home/kdog3682/projects/paladin/packages/web/src/components/Foobar/useFoo.ts",
+          "relpath": "src/components/Foobar/useFoo.ts",
+        },
+      ],
+      "isNew": null,
+      "name": "web",
+    },
+    {
+      "deps": {},
+      "devDeps": {},
+      "dir": "/home/kdog3682/projects/paladin/packages/core",
+      "files": [
+        {
+          "content": 
+"export const core = true
+"
+,
+          "path": "/home/kdog3682/projects/paladin/packages/core/src/index.ts",
+          "relpath": "src/index.ts",
+        },
+      ],
+      "isNew": null,
+      "name": "core",
+    },
+    {
+      "deps": {},
+      "devDeps": {},
+      "dir": "/home/kdog3682/projects/paladin/packages/README.md",
+      "files": [
+        {
+          "content": 
+"# readme
+"
+,
+          "path": "/home/kdog3682/projects/paladin/packages/README.md",
+          "relpath": "",
+        },
+      ],
+      "isNew": null,
+      "name": "README.md",
+    },
+  ],
+}
+`;

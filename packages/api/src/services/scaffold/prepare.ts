@@ -1,21 +1,25 @@
-import { join, relative, isAbsolute, basename, dirname } from 'path'
+import { relative, isAbsolute, basename, dirname, join } from 'path'
 import { expandHome } from '../../utils/path'
+import { resolvePath } from './resolve-path'
 import type { ScaffoldOptions, ProjectData, PackageData, FileEntry } from './types'
 
-const SRC_DIRS = ['src', 'docs', 'scripts']
+// matches a leading '// path' or '# path' comment line
 const COMMENT_RE = /^\s*(?:\/\/|#)\s*(.+?)\s*$/
+// requires the path to end in a file extension, e.g. '.ts'
 const EXT_RE = /\.[a-z0-9]+$/i
 
-function firstSeg(p: string): string {
-  return p.split('/')[0]
-}
-
+/**
+ * Pulls the path header off the first line of a file's content (after an
+ * optional shebang). Returns null if there's no valid header, the file is
+ * empty, or it's marked deprecated.
+ */
 export function extractHeader(content: string): { rawPath: string; body: string } | null {
   if (content.trim() === '') return null
 
   const lines = content.split('\n')
   if (lines.slice(0, 3).join('\n').toLowerCase().includes('deprecated')) return null
 
+  // skip a shebang line if present, so the header comment is checked next
   let commentIdx = 0
   if (lines[0] !== undefined && lines[0].startsWith('#!')) commentIdx = 1
 
@@ -28,60 +32,13 @@ export function extractHeader(content: string): { rawPath: string; body: string 
   const rawPath = match[1].trim()
   if (!rawPath || !EXT_RE.test(rawPath)) return null
 
+  // body is everything except the header/shebang line, with leading blank lines trimmed
   const body = lines
     .filter((_, i) => i !== commentIdx)
     .join('\n')
     .replace(/^\n+/, '')
 
   return { rawPath, body }
-}
-
-function resolvePath(rawPath: string, opts: ScaffoldOptions): string | null {
-  const base = expandHome(opts.baseProjectDir)
-  if (rawPath.endsWith('.mjs') || rawPath.includes('script')) {
-    return join(base, 'paladin', 'scripts', basename(rawPath))
-
-  }
-  if (rawPath.startsWith('/') || rawPath.startsWith('~')) {
-    return expandHome(rawPath)
-  }
-
-  if (rawPath.startsWith('paladin')) {
-    rawPath = '@' + rawPath
-  }
-  if (rawPath.startsWith('@')) {
-    const segs = rawPath.slice(1).split('/')
-    const scope = segs[0]
-    const rest = segs.slice(1)
-
-    if (rest[0] === 'packages') {
-      const pkg = rest[1]
-      const tail = rest.slice(2).join('/')
-      const withSrc = SRC_DIRS.includes(firstSeg(tail)) ? tail : join('src', tail)
-      return join(base, scope, 'packages', pkg, withSrc)
-    }
-
-    const pkg = rest[0]
-  const tail = rest.slice(1).join('/')
-  if (tail) {
-    const withSrc = SRC_DIRS.includes(firstSeg(tail)) ? tail : join('src', tail)
-    return join(base, scope, 'packages', pkg, withSrc)
-  }
-  return join(base, scope, 'packages', pkg)
-  }
-
-  const isBasename = !rawPath.includes('/')
-  const isDotRel = rawPath.startsWith('./') || rawPath.startsWith('../')
-  if (isBasename || isDotRel || SRC_DIRS.includes(firstSeg(rawPath))) {
-    if (!opts.activeDir) throw new Error(`scaffold: cannot resolve relative path "${rawPath}" without activeDir`)
-    return join(opts.activeDir, rawPath)
-  }
-
-  const segs = rawPath.split('/')
-  const project = segs[0]
-  const rest = segs.slice(1).join('/')
-  const withSrc = SRC_DIRS.includes(firstSeg(rest)) ? rest : join('src', rest)
-  return join(base, project, withSrc)
 }
 
 interface Located {
@@ -92,55 +49,78 @@ interface Located {
   relpath: string
 }
 
-function locate(abs: string, opts: ScaffoldOptions): Located {
+// if segs[pkgIdx] === 'packages', extract the package entry from segs; else null.
+// pkgIdx is the index of the 'packages' segment, which shifts depending on
+// whether segs starts at the projects root (1) or at activeDir itself (0)
+function extractPackageEntry(
+  segs: string[],
+  projectName: string,
+  projectDir: string,
+  pkgIdx: number
+): Located | null {
+  if (segs[pkgIdx] !== 'packages' || segs.length <= pkgIdx + 1) return null
+  const pkgName = segs[pkgIdx + 1]
+  return {
+    projectName,
+    projectDir,
+    pkgName,
+    pkgDir: join(projectDir, 'packages', pkgName),
+    relpath: segs.slice(pkgIdx + 2).join('/'),
+  }
+}
+
+/**
+ * Given an absolute file path, figure out which project (and optionally
+ * package) it belongs to, plus its path relative to that location.
+ */
+function locateInProject(abs: string, opts: ScaffoldOptions): Located {
   const base = expandHome(opts.baseProjectDir)
   const relBase = relative(base, abs)
 
+  // fast path: abs lives cleanly inside the projects root
   if (relBase && !relBase.startsWith('..') && !isAbsolute(relBase)) {
     const segs = relBase.split('/')
     const projectName = segs[0]
     const projectDir = join(base, projectName)
-
-    if (segs[1] === 'packages' && segs.length > 2) {
-      const pkgName = segs[2]
-      return {
+    return (
+      extractPackageEntry(segs, projectName, projectDir, 1) ?? {
         projectName,
         projectDir,
-        pkgName,
-        pkgDir: join(projectDir, 'packages', pkgName),
-        relpath: segs.slice(3).join('/'),
+        pkgName: null,
+        pkgDir: null,
+        relpath: segs.slice(1).join('/'),
       }
-    }
-
-    return { projectName, projectDir, pkgName: null, pkgDir: null, relpath: segs.slice(1).join('/') }
+    )
   }
 
+  // fallback: abs lives inside the currently active project dir
   if (opts.activeDir) {
     const active = opts.activeDir
     const relA = relative(active, abs)
     if (relA && !relA.startsWith('..') && !isAbsolute(relA)) {
       const segs = relA.split('/')
       const projectName = basename(active)
-
-      if (segs[0] === 'packages' && segs.length > 1) {
-        const pkgName = segs[1]
-        return {
+      return (
+        extractPackageEntry(segs, projectName, active, 0) ?? {
           projectName,
           projectDir: active,
-          pkgName,
-          pkgDir: join(active, 'packages', pkgName),
-          relpath: segs.slice(2).join('/'),
+          pkgName: null,
+          pkgDir: null,
+          relpath: relA,
         }
-      }
-
-      return { projectName, projectDir: active, pkgName: null, pkgDir: null, relpath: relA }
+      )
     }
   }
 
+  // last resort: abs is unrelated to base/activeDir, treat its parent dir as the project
   const projectDir = dirname(abs)
   return { projectName: basename(projectDir), projectDir, pkgName: null, pkgDir: null, relpath: basename(abs) }
 }
 
+/**
+ * Parses each file's header, resolves it to an absolute path, and groups
+ * the results into a single ProjectData tree (with nested packages).
+ */
 export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData | null {
   const located: { entry: FileEntry; loc: Located }[] = []
 
@@ -148,15 +128,16 @@ export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData 
     const header = extractHeader(content)
     if (!header) continue
 
-    const abs = resolvePath(header.rawPath, opts)
+    const abs = resolvePath(header.rawPath, opts.baseProjectDir, opts.activeDir ?? null)
     if (abs === null) continue
 
-    const loc = locate(abs, opts)
+    const loc = locateInProject(abs, opts)
     located.push({ entry: { path: abs, relpath: loc.relpath, content: header.body }, loc })
   }
 
   if (located.length === 0) return null
 
+  // all entries share the same project (the first one determines it)
   const projectName = located[0].loc.projectName
   const projectDir = located[0].loc.projectDir
 
