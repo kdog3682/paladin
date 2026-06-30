@@ -102,7 +102,14 @@ class DependencyResolver {
       if (!IMPORT_EXTS.has(extname(file.path))) continue
       const bucket = isTestFile(file.path) ? devDeps : deps
 
-      for (const root of await collectImports(file.content)) {
+      let imports: string[]
+      try {
+        imports = await collectImports(file.content)
+      } catch (err) {
+        console.error(`collectImports failed on ${file.path}:`, err)
+        throw err
+      }
+      for (const root of imports) {
         if (declared.has(root) || root in deps || root in devDeps) continue
 
         const workspace = workspaceName(root)
