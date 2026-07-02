@@ -1,6 +1,1 @@
-// @paladin/cme/App.tsx
-import { Editor } from './Editor'
-
-export default function App() {
-  return <Editor />
-}
+export default function App() { return <div className="p-4">cme</div>; }

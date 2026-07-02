@@ -1,6 +1,5 @@
-import { EditorView } from '@codemirror/view'
-import { Extension, EditorState } from '@codemirror/state'
-import { inoremap } from './inoremap'
+import type { EditorView } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
 
 const INDENT = '  '
 
@@ -18,8 +17,7 @@ function dedent(indent: string): string {
 
 function nextLineIsBlank(state: EditorState, lineNumber: number): boolean {
   if (lineNumber >= state.doc.lines) return false
-  const nextLine = state.doc.line(lineNumber + 1)
-  return nextLine.text.trim() === ''
+  return state.doc.line(lineNumber + 1).text.trim() === ''
 }
 
 function moveToBlankNextLine(view: EditorView, lineNumber: number) {
@@ -28,7 +26,7 @@ function moveToBlankNextLine(view: EditorView, lineNumber: number) {
   view.dispatch({ selection: { anchor: nextLine.from + nextLine.text.length } })
 }
 
-function executeNewlineIndent(view: EditorView) {
+export function executeNewlineIndent(view: EditorView) {
   const { state } = view
   const line = state.doc.lineAt(state.selection.main.head)
   if (nextLineIsBlank(state, line.number)) {
@@ -44,7 +42,7 @@ function executeNewlineIndent(view: EditorView) {
   })
 }
 
-function executeNewlineDedent(view: EditorView) {
+export function executeNewlineDedent(view: EditorView) {
   const { state } = view
   const line = state.doc.lineAt(state.selection.main.head)
   if (nextLineIsBlank(state, line.number)) {
@@ -60,7 +58,7 @@ function executeNewlineDedent(view: EditorView) {
   })
 }
 
-function executeNewline(view: EditorView) {
+export function executeNewline(view: EditorView) {
   const { state } = view
   const line = state.doc.lineAt(state.selection.main.head)
   if (nextLineIsBlank(state, line.number)) {
@@ -75,7 +73,7 @@ function executeNewline(view: EditorView) {
   })
 }
 
-function executeCursorRight(view: EditorView) {
+export function executeCursorRight(view: EditorView) {
   const { state } = view
   const pos = state.selection.main.head
   if (pos < state.doc.length) {

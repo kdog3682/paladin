@@ -30,19 +30,35 @@ function isBuiltin(spec: string): boolean {
   return NODE_BUILTINS.has(root) || BUN_BUILTINS.has(root)
 }
 
-// collects external + workspace package roots from a file's content using
-// es-module-lexer. relative imports and node/bun builtins are excluded.
-export async function collectImports(content: string): Promise<string[]> {
-  await init
-  const [imports] = parse(content)
-  const found = new Set<string>()
+const STATIC_IMPORT_RE = /\bfrom\s+['"]([^'"]+)['"]/g
 
-  for (const imp of imports) {
-    const spec = imp.n
-    if (!spec) continue // dynamic import with a non-literal specifier
+function collectImportsRegex(content: string): string[] {
+  const found = new Set<string>()
+  let m: RegExpExecArray | null
+  while ((m = STATIC_IMPORT_RE.exec(content)) !== null) {
+    const spec = m[1]
     if (isRelative(spec) || isBuiltin(spec)) continue
     found.add(packageRoot(spec))
   }
-
   return [...found]
+}
+
+// collects external + workspace package roots from a file's content using
+// es-module-lexer. falls back to regex for files with JSX or other syntax
+// the lexer can't handle. relative imports and node/bun builtins are excluded.
+export async function collectImports(content: string): Promise<string[]> {
+  await init
+  try {
+    const [imports] = parse(content)
+    const found = new Set<string>()
+    for (const imp of imports) {
+      const spec = imp.n
+      if (!spec) continue // dynamic import with a non-literal specifier
+      if (isRelative(spec) || isBuiltin(spec)) continue
+      found.add(packageRoot(spec))
+    }
+    return [...found]
+  } catch {
+    return collectImportsRegex(content)
+  }
 }
