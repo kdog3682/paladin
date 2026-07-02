@@ -46,27 +46,19 @@ function native(placeholderText: string): Extension[] {
   ]
 }
 
-export { foldsFacet }
 
-type SaveFn = (view: EditorView) => boolean
-
-export function createExtensions(
-  saveToStorage: SaveFn,
-  savedFolds: string[] = [],
-  placeholderText = 'Start typing...',
+function createExtensions(
 ): Extension[] {
   return [
-    initialFoldsFacet.of(savedFolds),
     theme,
     tabCompletion(),
-    ...native(placeholderText),
+    ...native('start typing'),
     keymap.of([
       { key: 'Enter', run: smartEnter },
       { key: '`', run: insertCodeBlock },
       { key: '#', run: heading },
       { key: '9', run: bracketOnNine },
       { key: 'Mod-/', run: toggleComment },
-      { key: 'Mod-s', run: saveToStorage },
     ]),
     inoremap({
       'qw': executeNewlineIndent,
@@ -78,6 +70,7 @@ export function createExtensions(
     syntaxHighlighter,
     dashRule(),
     swapKeys(),
-    sectionFold(),
   ]
 }
+
+export const basicSetup = createExtensions()
