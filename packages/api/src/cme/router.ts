@@ -1,101 +1,55 @@
-interface DocRecord {
-  id: string
-  project: string
-  title: string
-  content: string
-  editorState: unknown | null
-  parent: string | null
-}
+import { Hono } from 'hono'
+import {
+  createDoc,
+  getDoc,
+  updateDoc,
+  listProjects,
+  listRecentDocs,
+  createNote,
+  listNotesForDoc,
+  flushDirty,
+} from './docStore'
+import { commitProject } from './git'
+import { getConfig, setConfig } from './config'
 
-// in-memory for now — swap for real persistence later
-const docs = new Map<string, DocRecord>()
-
-function scratchpadTitle(): string {
-  const d = new Date()
-  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-  const hour = d.getHours()
-  const bin = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
-  return `${weekday}-${bin}`
-}
-
-function createDoc(input: { project?: string; title?: string; parent?: string | null }): DocRecord {
-  const doc: DocRecord = {
-    id: crypto.randomUUID(),
-    project: input.project ?? 'scratchpad',
-    title: input.title ?? scratchpadTitle(),
-    content: '',
-    editorState: null,
-    parent: input.parent ?? null,
-  }
-  docs.set(doc.id, doc)
-  return doc
-}
-
-function getDoc(id: string): DocRecord {
-  const doc = docs.get(id)
-  if (!doc) throw new Error(`doc not found: ${id}`)
-  return doc
-}
+export const cmeRoute = new Hono()
 
 type Handler = (args: any[]) => Promise<unknown> | unknown
 
 const handlers: Record<string, Handler> = {
-  'doc.currentOrCreate': () => {
-    // stub: real impl looks up the last-open doc for this session
-    return createDoc({}).id
-  },
+  'doc.currentOrCreate': () => createDoc({}).id,
   'doc.open': ([id]) => getDoc(id),
   'doc.create': ([input]) => createDoc(input ?? {}).id,
   'doc.save': ([id, editorState]) => {
-    getDoc(id).editorState = editorState
+    updateDoc(id, { editorState })
     return { ok: true }
   },
-  'doc.setTitle': ([id, title]) => {
-    getDoc(id).title = title
-    return { ok: true }
-  },
-  'doc.setProject': ([id, project]) => {
-    getDoc(id).project = project
-    return { ok: true }
-  },
-  'doc.move': ([id, dest]) => {
-    getDoc(id).project = dest
-    return { ok: true }
-  },
-  'doc.currentParent': () => {
-    // stub: parent project of the doc last focused
-    return 'scratchpad'
-  },
-  'doc.compileExport': ([id]) => {
-    const doc = getDoc(id)
-    return { ok: true, path: `/tmp/${doc.id}.pdf` }
-  },
+  'doc.setTitle': ([id, title]) => updateDoc(id, { title }),
+  'doc.setProject': ([id, project]) => updateDoc(id, { project }),
+  'doc.move': ([id, dest]) => updateDoc(id, { project: dest }),
+  'doc.currentParent': () => 'scratchpad', // stub: parent project of the doc last focused
+  'doc.compileExport': ([id]) => ({ ok: true, path: `/tmp/${getDoc(id).id}.pdf` }),
   'doc.print': ([id]) => {
     getDoc(id)
     return { ok: true }
   },
-  'git.commit': ([message]) => ({ ok: true, message: message || '(no message)' }),
-  'fzf.files': () => [],
-  'project.list': () => [...new Set([...docs.values()].map((d) => d.project))],
+  'documents.list': () => listRecentDocs(10), // sorted by mtime desc
+  'project.list': () => listProjects(),
+  'note.create': ([docId, text]) => createNote(docId, text),
+  'note.list': ([docId]) => listNotesForDoc(docId),
+  'git.commit': ([project, message]) => commitProject(project, message || '.'),
+  'system.flush': () => flushDirty(),
+  'config.get': () => getConfig(),
+  'config.set': ([key, value]) => setConfig({ [key]: value } as any),
 }
 
-export async function handleCmeRequest(req: Request): Promise<Response> {
-  const { method, args = [] } = await req.json()
+cmeRoute.post('/', async (c) => {
+  const { method, args = [] } = await c.req.json()
   const handler = handlers[method]
-  if (!handler) return new Response(`unknown method: ${method}`, { status: 400 })
+  if (!handler) return c.text(`unknown method: ${method}`, 400)
   try {
-    return Response.json(await handler(args))
+    return c.json(await handler(args))
   } catch (err) {
-    return new Response(err instanceof Error ? err.message : 'error', { status: 500 })
+    return c.text(err instanceof Error ? err.message : 'error', 500)
   }
-}
-
-// wiring:
-// Bun.serve({
-//   port: 3001,
-//   fetch: (req) => {
-//     const url = new URL(req.url)
-//     if (url.pathname === '/api/cme' && req.method === 'POST') return handleCmeRequest(req)
-//     return new Response('not found', { status: 404 })
-//   },
-// })
+})

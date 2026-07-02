@@ -1,9 +1,9 @@
-import type { ApiClient } from './commands'
+import type { ApiClient } from './commands/types'
 
 const ENDPOINT = '/api/cme'
 
 export const apiClient: ApiClient = {
-  async call(method, args = [], opts) {
+  async call(method, args = [], onSuccess, onError) {
     try {
       const res = await fetch(ENDPOINT, {
         method: 'POST',
@@ -12,10 +12,10 @@ export const apiClient: ApiClient = {
       })
       if (!res.ok) throw new Error(await res.text())
       const result = await res.json()
-      opts?.onSuccess?.(result)
+      onSuccess?.(result)
       return result
     } catch (err) {
-      opts?.onError?.(err)
+      onError?.(err)
       throw err
     }
   },

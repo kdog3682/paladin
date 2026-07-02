@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@import "@bklearn/shadcn/globals.css";
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,29 +9,9 @@
 
 body {
   font-family: monospace;
-  background: #1e1e1e;
-  color: #d4d4d4;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 #root {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.editor-container {
-  flex: 1;
-  overflow: hidden;
-}
-
-.editor-container .cm-editor {
-  height: 100%;
-  font-size: 14px;
-}
-
-.editor-container .cm-scroller {
-  overflow: auto;
 }

@@ -4,9 +4,8 @@ import { useAppStore } from './store'
 
 export function Cmdline() {
   const mode = useAppStore((s) => s.mode)
-  const docProject = useAppStore((s) => s.docProject)
-  const docTitle = useAppStore((s) => s.docTitle)
   const cmdBuffer = useAppStore((s) => s.cmdBuffer)
+  const cmdArgs = useAppStore((s) => s.cmdArgs)
   const cmdArg = useAppStore((s) => s.cmdArg)
   const cmdSuggestions = useAppStore((s) => s.cmdSuggestions)
   const cmdError = useAppStore((s) => s.cmdError)
@@ -18,35 +17,33 @@ export function Cmdline() {
     return () => clearTimeout(t)
   }, [cmdError, resetCmdline])
 
-  const writing = mode === 'cmdline' // past abbr + space: cmdBuffer is the expanded "name " prefix
+  const writing = mode === 'cmdline'
 
   return (
-    <div className="relative flex h-7 items-center gap-2 border-t bg-muted/40 px-3 font-mono text-sm">
-      {/* input */}
-      <div className="flex min-w-0 flex-1 items-center gap-1">
-        {cmdError ? (
-          <span className="text-destructive">{cmdError}</span>
-        ) : (
-          <>
-            {/* expanded command name is colored like a fish autosuggestion once it resolves */}
-            <span className={writing ? 'text-blue-500' : undefined}>{cmdBuffer}</span>
-            {writing && <span>{cmdArg}</span>}
-            <Cursor />
-          </>
-        )}
-      </div>
+    <div className="relative flex h-7 items-center gap-1 border-t bg-muted/40 px-3 font-mono text-sm">
+      {/* caret turns blue once you're in normal mode, ready to take a command */}
+      <span className={mode === 'normal' ? 'text-blue-500' : 'text-muted-foreground'}>{'>'}</span>
 
-      <span className="text-muted-foreground">|</span>
-
-      {/* display name */}
-      <span className="shrink-0 text-muted-foreground">
-        @{docProject}/{docTitle}
-      </span>
+      {cmdError ? (
+        <span className="text-destructive">{cmdError}</span>
+      ) : (
+        <>
+          {/* expanded command name is colored like a fish autosuggestion once it resolves */}
+          <span className={writing ? 'text-blue-500' : undefined}>{cmdBuffer}</span>
+          {writing && cmdArgs.length > 0 && <span className="text-muted-foreground">{cmdArgs.join(' ')} </span>}
+          {writing && <span>{cmdArg}</span>}
+          <BlockCursor />
+        </>
+      )}
 
       {cmdSuggestions.length > 0 && (
         <div className="absolute bottom-7 left-3 flex flex-col rounded-md border bg-popover shadow-md">
-          {cmdSuggestions.slice(0, 8).map((s, i) => (
-            <div key={s} className={cn('px-2 py-1 text-sm', i === 0 && 'bg-accent text-accent-foreground')}>
+          {cmdSuggestions.slice(0, 9).map((s, i) => (
+            <div
+              key={s}
+              className={cn('flex gap-2 px-2 py-1 text-sm', i === 0 && 'bg-accent text-accent-foreground')}
+            >
+              <span className="text-muted-foreground">{i + 1}</span>
               {s}
             </div>
           ))}
@@ -56,6 +53,6 @@ export function Cmdline() {
   )
 }
 
-function Cursor() {
-  return <span className="h-4 w-[2px] animate-pulse bg-foreground" />
+function BlockCursor() {
+  return <span className="inline-block h-4 w-2 bg-green-400/70" />
 }

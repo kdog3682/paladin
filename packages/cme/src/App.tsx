@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { basicSetup } from 'codemirror'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
-import { foldGutter } from '@codemirror/language'
 import { useAppStore } from './store'
-import { editorKeymap, installGlobalKeymap, handleNormalKey, type AppContext } from './commands'
-import { defaultGlobalBindings } from './globalBindings'
+import { editorKeymap, installGlobalKeymap } from './commands/keymap'
+import { handleNormalKey } from './commands/dispatch'
+import { defaultGlobalBindings } from './commands/globalBindings'
+import type { AppContext } from './commands/types'
 import { apiClient } from './apiClient'
-import { flushSave, scheduleSave, restoreEditorState } from './persistence'
+import { flushSave, flushToDisk, scheduleSave, restoreEditorState } from './persistence'
+import { basicSetup } from './extensions'
 import { Cmdline } from './Cmdline'
+import { DocContext } from './DocContext'
+import { OmniPanel } from './OmniPanel'
 
 export default function App() {
   const editorRef = useRef<HTMLDivElement>(null)
+
+  const mode = useAppStore((s) => s.mode)
+  const zenMode = useAppStore((s) => s.zenMode)
+  const omniOpen = useAppStore((s) => s.omniOpen)
+  const omniPinned = useAppStore((s) => s.omniPinned)
+  const setZenMode = useAppStore((s) => s.setZenMode)
 
   const ctx: AppContext = useMemo(
     () => ({
@@ -24,6 +33,11 @@ export default function App() {
     }),
     []
   )
+
+  // zen mode persists across sessions via system/config
+  useEffect(() => {
+    ctx.api.call('config.get').then((cfg) => cfg?.zenMode && setZenMode(cfg.zenMode))
+  }, [ctx, setZenMode])
 
   // mount CM6, load the current doc (restoring folds/selection if present), wire autosave
   useEffect(() => {
@@ -39,7 +53,6 @@ export default function App() {
 
       const extensions = [
         basicSetup,
-        foldGutter(),
         keymap.of(editorKeymap(ctx)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) scheduleSave(ctx, update.view)
@@ -61,21 +74,20 @@ export default function App() {
     }
   }, [ctx])
 
-  // Ctrl/Cmd shortcuts — work regardless of focus/mode
   useEffect(() => installGlobalKeymap(ctx, defaultGlobalBindings), [ctx])
 
-  // normal-mode / cmdline typing, only relevant when the editor isn't focused
   useEffect(() => {
-    const handler = (evt: KeyboardEvent) => handleNormalKey(evt, ctx)
+    const handler = (e: KeyboardEvent) => void handleNormalKey(e, ctx)
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [ctx])
 
-  // flush pending edits on blur and before the tab closes/refreshes
+  // flush pending edits (memory + disk) on blur and before the tab closes/refreshes
   useEffect(() => {
     const flush = () => {
       const view = ctx.store.getState().view
-      if (view) flushSave(ctx, view)
+      if (!view) return
+      flushSave(ctx, view).then(() => flushToDisk(ctx))
     }
     window.addEventListener('blur', flush)
     window.addEventListener('beforeunload', flush)
@@ -85,10 +97,15 @@ export default function App() {
     }
   }, [ctx])
 
+  const showOmni = zenMode !== 'partial' && omniOpen && (mode !== 'insert' || omniPinned)
+  const showChrome = !(zenMode === 'full' && mode === 'insert') // ctx row + cmdline row
+
   return (
-    <div className="flex h-screen flex-col">
-      <div ref={editorRef} className="min-h-0 flex-1 overflow-auto" />
-      <Cmdline />
+    <div className="grid h-screen grid-cols-[1fr_auto] grid-rows-[1fr_auto]">
+      <div ref={editorRef} className="min-h-0 min-w-0 overflow-auto p-1" />
+      {showOmni ? <OmniPanel ctx={ctx} /> : <div />}
+      <div className="col-span-2">{showChrome && <DocContext />}</div>
+      <div className="col-span-2">{showChrome && <Cmdline />}</div>
     </div>
   )
 }

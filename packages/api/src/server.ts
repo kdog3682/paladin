@@ -5,6 +5,7 @@ import { cors } from "hono/cors"
 import { createBunWebSocket } from "hono/bun"
 
 // import routes from "./routes"
+import { cmeRoute } from "./cme/router"
 
 import { createWatcher } from "./watcher"
 import { processFile } from "./services/fileProcessor"
@@ -16,6 +17,7 @@ app.use("*", cors())
 
 // Register all HTTP routes.
 // app.route("/", routes)
+app.route("/api/cme", cmeRoute)
 
 // WebSocket endpoint for pushing events to connected clients.
 const { upgradeWebSocket, websocket } =
