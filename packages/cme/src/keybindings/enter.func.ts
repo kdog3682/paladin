@@ -1,7 +1,4 @@
-// @paladin/cme/keybindings/smartEnter.ts
-import { keymap } from '@codemirror/view'
-import { Extension } from '@codemirror/state'
-import type { EditorView, KeyBinding } from '@codemirror/view'
+import type { EditorView } from '@codemirror/view'
 
 const ROMAN_ORDER = ['i', 'ii', 'iii', 'iv', 'v', 'vi']
 
@@ -21,12 +18,20 @@ function nextLetter(letter: string): string {
   return String.fromCharCode(letter.charCodeAt(0) + 1)
 }
 
+const BRACKET_PAIRS: Record<string, string> = {
+  '{': '}',
+  '[': ']',
+  '(': ')',
+}
+
+const INDENT = '  '
+
 type Pattern = {
   regex: RegExp
   // match groups: [full, indent, ...captures, content]
   // getNext returns the full prefix for the next line (indent + next marker + space)
   getNext: (m: RegExpMatchArray) => string
-  // getMarkerLength returns how many chars the marker+space takes (without indent)
+  // getContentIndex is the match group index holding the line content
   // used to detect "empty" lines (only marker, no content)
   getContentIndex: number
 }
@@ -85,8 +90,8 @@ const PATTERNS: Pattern[] = [
     getContentIndex: 3,
   },
   {
-    // bullet: - or *
-    regex: /^(\s*)([-*]) (.*)$/,
+    // bullet: - * • ◦ ▪ ▫ ■ □ ● ○ ‣
+    regex: /^(\s*)([-*•◦▪▫■□●○‣]) (.*)$/,
     getNext: m => `${m[1]}${m[2]} `,
     getContentIndex: 3,
   },
@@ -106,70 +111,90 @@ export function matchLine(line: string): { next: string, markerOnly: boolean } |
   return null
 }
 
-const handleEnter: KeyBinding = {
-  key: 'Enter',
-  run(view: EditorView) {
-    const { state } = view
-    const sel = state.selection.main
-    if (!sel.empty) return false
-    const { head } = sel
-    const line = state.doc.lineAt(head)
+export function smartEnter(view: EditorView): boolean {
+  const { state } = view
+  const sel = state.selection.main
+  if (!sel.empty) return false
+  const { head } = sel
+  const line = state.doc.lineAt(head)
 
-    if (head !== line.to) {
-      const afterCursor = line.text.slice(head - line.from)
-      if (/^\s+$/.test(afterCursor)) {
-        // only trailing spaces after cursor — delete them and treat as end-of-line
-        const lineTextTrimmed = line.text.slice(0, head - line.from)
-        const result2 = matchLine(lineTextTrimmed)
-        const nextPrefix = result2 && !result2.markerOnly ? result2.next : (lineTextTrimmed.match(/^(\s*)/)?.[1] ?? '')
-        const insert = '\n' + nextPrefix
+  // bracket handling: cursor immediately after an opening bracket
+  if (head > 0) {
+    const before = state.doc.sliceString(head - 1, head)
+    const closer = BRACKET_PAIRS[before]
+    if (closer) {
+      const baseIndent = line.text.match(/^(\s*)/)?.[1] ?? ''
+      const innerIndent = baseIndent + INDENT
+      const after = state.doc.sliceString(head, head + 1)
+      if (after === closer) {
+        // matching pair right after cursor — expand onto three lines
+        const insert = '\n' + innerIndent + '\n' + baseIndent
         view.dispatch({
-          changes: { from: head, to: line.to, insert },
-          selection: { anchor: head + insert.length },
+          changes: { from: head, insert },
+          selection: { anchor: head + 1 + innerIndent.length },
         })
         return true
       }
-      // cursor in middle of real content: preserve indent only
-      const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
-      if (!indent) return false
-      const insert = '\n' + indent
+      // no immediate match — just indent one level
+      const insert = '\n' + innerIndent
       view.dispatch({
         changes: { from: head, insert },
         selection: { anchor: head + insert.length },
       })
       return true
     }
+  }
 
-    const result = matchLine(line.text)
-    if (!result) {
-      const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
-      if (!indent) return false
-      const insert = '\n' + indent
+  if (head !== line.to) {
+    const afterCursor = line.text.slice(head - line.from)
+    if (/^\s+$/.test(afterCursor)) {
+      // only trailing spaces after cursor — delete them and treat as end-of-line
+      const lineTextTrimmed = line.text.slice(0, head - line.from)
+      const result2 = matchLine(lineTextTrimmed)
+      const nextPrefix = result2 && !result2.markerOnly ? result2.next : (lineTextTrimmed.match(/^(\s*)/)?.[1] ?? '')
+      const insert = '\n' + nextPrefix
       view.dispatch({
-        changes: { from: head, insert },
+        changes: { from: head, to: line.to, insert },
         selection: { anchor: head + insert.length },
       })
       return true
     }
-
-    if (result.markerOnly) {
-      // empty list item — remove the marker, exit list
-      view.dispatch({
-        changes: { from: line.from, to: line.to, insert: '' },
-        selection: { anchor: line.from },
-      })
-      return true
-    }
-
-    const insert = '\n' + result.next
+    // cursor in middle of real content: preserve indent only
+    const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
+    if (!indent) return false
+    const insert = '\n' + indent
     view.dispatch({
       changes: { from: head, insert },
       selection: { anchor: head + insert.length },
     })
     return true
-  },
-}
+  }
 
-export function smartEnter(): Extension {
-  return keymap.of([handleEnter])
+  const result = matchLine(line.text)
+  if (!result) {
+    const indent = line.text.match(/^(\s*)/)?.[1] ?? ''
+    if (!indent) return false
+    const insert = '\n' + indent
+    view.dispatch({
+      changes: { from: head, insert },
+      selection: { anchor: head + insert.length },
+    })
+    return true
+  }
+
+  if (result.markerOnly) {
+    // empty list item — remove the marker, exit list
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert: '' },
+      selection: { anchor: line.from },
+    })
+    return true
+  }
+
+  const insert = '\n' + result.next
+  view.dispatch({
+    changes: { from: head, insert },
+    selection: { anchor: head + insert.length },
+  })
+  return true
 }

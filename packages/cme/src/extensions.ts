@@ -25,6 +25,18 @@ import { angleBracket } from './keybindings/angleBracket'
 import { bold } from './keybindings/bold'
 import { search, searchKeymap } from '@codemirror/search'
 
+
+export function qChord(): Extension {
+  return inoremap({
+    'qw': executeNewlineIndent,
+    'qe': executeNewlineDedent,
+    'ql': executeCursorRight,
+    'qo': executeNewline,
+  })
+}
+
+
+
 type SaveFn = (view: EditorView) => boolean
 
 export function createExtensions(saveToStorage: SaveFn): Extension[] {

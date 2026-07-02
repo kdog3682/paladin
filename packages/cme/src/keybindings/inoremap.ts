@@ -2,7 +2,7 @@
 import { EditorView } from '@codemirror/view'
 import { Extension } from '@codemirror/state'
 
-const CHORD_TIMEOUT = 200
+const CHORD_TIMEOUT = 50
 
 /**
  * Vim-style insert-mode chord mapping.

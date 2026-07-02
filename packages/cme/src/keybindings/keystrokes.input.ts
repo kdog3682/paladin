@@ -14,8 +14,10 @@ const CHAR_MAP: Record<string, string> = {
 
 // Two-character sequence remappings: typed char → { preceding char → replacement }
 const SEQUENCE_MAP: Record<string, Record<string, string>> = {
-  r: { '\\': '→' },
+  r: { '\\': '->' },
 }
+
+
 
 function padWithSpaces(insert: string, before: string, after: string): string {
   const needsBefore = before !== '' && before !== ' ' && before !== '\n'
