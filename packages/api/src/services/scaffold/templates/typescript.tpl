@@ -12,7 +12,10 @@ package.json
   "version": "0.1.0",
   "type": "module",
   "scripts": {},
-  "dependencies": {}
+  "dependencies": {},
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }
 ================================================================
 tsconfig.json

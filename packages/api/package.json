@@ -14,5 +14,8 @@
     "fflate": "^0.8.2",
     "recast": "^0.23.11"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }
