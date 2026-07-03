@@ -18,7 +18,8 @@ app.use("*", cors())
 // Register all HTTP routes.
 // app.route("/", routes)
 app.route("/api/cme", cmeRoute)
-
+import spv  from "./routes/simple-project-viewer.ts"
+app.route("/simple-project-viewer", spv)
 // WebSocket endpoint for pushing events to connected clients.
 const { upgradeWebSocket, websocket } =
   createBunWebSocket<WebSocket>()
