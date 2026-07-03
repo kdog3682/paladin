@@ -3,24 +3,32 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { createBunWebSocket } from "hono/bun"
-
-// import routes from "./routes"
-import { cmeRoute } from "./cme/router"
-
 import { createWatcher } from "./watcher"
 import { processFile } from "./services/fileProcessor"
 
-const app = new Hono()
+import { createHandlerRouter } from './createHandlerRouter'
+import { readdirSync } from 'fs'
+import { join } from 'path'
 
-// Allow requests from the frontend application.
+
+
+
+const app = new Hono()
 app.use("*", cors())
 
-// Register all HTTP routes.
-// app.route("/", routes)
-app.route("/api/cme", cmeRoute)
-import spv  from "./routes/simple-project-viewer.ts"
-app.route("/simple-project-viewer", spv)
-// WebSocket endpoint for pushing events to connected clients.
+const featuresDir = join(import.meta.dir, 'features')
+for (const pkg of readdirSync(featuresDir)) {
+  const pkgDir = join(featuresDir, pkg)
+  const files = readdirSync(pkgDir).filter(f => f.endsWith('.handlers.ts'))
+  const allHandlers: Record<string, (kwargs: any) => unknown> = {}
+  for (const file of files) {
+    const mod = await import(join(pkgDir, file))
+    Object.assign(allHandlers, mod.handlers)
+  }
+  app.route(`/${pkg}`, createHandlerRouter(allHandlers))
+}
+
+
 const { upgradeWebSocket, websocket } =
   createBunWebSocket<WebSocket>()
 
@@ -57,7 +65,20 @@ const stopWatching = createWatcher({
 
     if (event) {
       broadcast(event.event, event.data)
-      console.log(Bun.inspect(event.data, { depth: Infinity, colors: true }))
+      // console.log(Bun.inspect(event.data, { depth: Infinity, colors: true }))
+      if (Array.isArray(event.data.codeExecutionResults)) {
+  console.log("\n=== Code Execution Results ===")
+
+  event.data.codeExecutionResults.forEach((result, i) => {
+    console.log(`\n--- Result ${i + 1} ---`)
+    console.log("Args:", result.args)
+    console.log("Stdout:")
+    console.log(result.stdout)
+    console.log("Stderr:")
+    console.log(result.stderr)
+    console.log("Exit Code:", result.exitCode)
+  })
+}
     }
   },
 })
