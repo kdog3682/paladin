@@ -1,13 +1,12 @@
-
 # Please use this router system 
 
 ## Backend
 // @paladin/api/routes/<pkgname>.ts
-import { createHandlerRouter } from "@paladin/api"
 
-export const router = createHandlerRouter({
-  'doc.get': ({ id }) => db.doc.findUnique({ where: { id } }),
-})
+export const handlers = {
+  'doc.get': ({ id }) => db.doc.findUnique({ where: { id } })
+  ...
+}
 
 
 ## Frontend
