@@ -11,11 +11,14 @@ package.json
   "name": "@{{PROJECT_NAME}}/{{PACKAGE_NAME}}",
   "version": "0.1.0",
   "type": "module",
-  "scripts": {},
-  "dependencies": {},
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
-  }
+    ".": "./src/index.ts",
+    "./*": ["./src/*/index.ts", "./src/*.ts"]
+  },
+  "scripts": {},
+  "dependencies": {}
 }
 ================================================================
 tsconfig.json

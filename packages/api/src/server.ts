@@ -57,6 +57,10 @@ app.get(
   })),
 )
 
+
+
+
+
 // Watch the downloads directory for newly downloaded files.
 const stopWatching = createWatcher({
   dir: process.env.DOWNLOAD_DIR!,

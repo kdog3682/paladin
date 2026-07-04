@@ -1,124 +1,123 @@
-// @paladin/packages/codeform/formatter.test.ts
+// @paladin/codeform/formatter.test.ts
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test"
-import { mkdtemp, writeFile, mkdir, rm } from "fs/promises"
-import { join } from "path"
-import { tmpdir } from "os"
-import { document } from "./documenter"
+import { test, expect } from "bun:test"
+import { parseSource } from "./parseFile"
 import { format } from "./formatter"
 
-const TYPES = `
-/** A user in the system */
-export type User = {
-  id: string
-  name: string
-  email?: string
+const ROOT = "/home/kdog3682/projects/paladin/packages/utils/src"
+
+const geometry = `
+export interface Point {
+  x: number
+  y: number
+  label?: string
 }
 
-/** Available roles */
-export enum Role {
-  Admin,
-  Member,
-  Guest
+export interface Rect {
+  origin: Point
+  width: number
+  height: number
 }
 
-/** Pagination options */
-export interface PageOpts {
-  page: number
-  limit: number
-  sort?: string
+export type Vec = [number, number]
+
+export enum Axis {
+  X,
+  Y,
+  Z,
 }
 
-/** Max retry attempts */
-export const MAX_RETRIES = 3
+export type Shape =
+  | { kind: "circle"; center: Point; radius: number }
+  | { kind: "rect"; bounds: Rect }
 
-/** Internal — not imported anywhere */
-export type InternalMeta = {
-  created: number
+export type Transform = (p: Point) => Point
+
+/** Euclidean distance between two points. */
+export function distance(a: Point, b: Point): number {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+export function translate(p: Point, v: Vec): Point {
+  return { x: p.x + v[0], y: p.y + v[1] }
+}
+
+export async function loadShapes(url: string): Promise<Shape[]> {
+  const res = await fetch(url)
+  return res.json()
+}
+
+const INTERNAL_EPSILON = 1e-9
+
+function nearlyEqual(a: number, b: number): boolean {
+  return Math.abs(a - b) < INTERNAL_EPSILON
+}
+
+/** Mutable path builder. */
+export class Path {
+  private points: Point[] = []
+  static readonly MAX = 1000
+
+  constructor(start?: Point) {
+    if (start) this.points.push(start)
+  }
+
+  get length(): number {
+    return this.points.length
+  }
+
+  add(p: Point): this {
+    this.points.push(p)
+    return this
+  }
+
+  static fromRect(r: Rect): Path {
+    const p = new Path(r.origin)
+    return p
+  }
+
+  async render(t: Transform): Promise<Point[]> {
+    return this.points.map(t)
+  }
+
+  private isClosed(): boolean {
+    const { points } = this
+    if (points.length < 2) return false
+    return nearlyEqual(points[0].x, points[points.length - 1].x)
+  }
+}
+
+interface NotExported {
+  hidden: boolean
 }
 `
 
-const SERVICE = `
-import { User, Role, PageOpts } from "../types"
+// render.ts imports Point + Shape, making them shared (hoisted).
+const render = `
+import { Point, Shape } from "@paladin/utils/geometry"
 
-/** User service for managing accounts */
-export class UserService {
-  /** All cached users */
-  public users: User[]
-
-  /** Service name */
-  private name: string
-
-  /** Whether the service is running */
-  protected active: boolean
-
-  /** Get the current user count */
-  get count(): number {
-    return this.users.length
-  }
-
-  /** Set the active state */
-  set running(val: boolean) {
-    this.active = val
-  }
-
-  /** Find users by role */
-  async findByRole(role: Role, opts: PageOpts): Promise<User[]> {
-    return []
-  }
-
-  /** Reset all users */
-  static reset(): void {}
-
-  /** Internal cleanup */
-  private cleanup(): void {}
-}
-
-/** Fetch a user by id */
-export async function getUser(id: string): Promise<User> {
-  return { id, name: "test" }
+export function draw(shapes: Shape[]): Point[] {
+  return shapes.map((s) => (s.kind === "circle" ? s.center : s.bounds.origin))
 }
 `
 
-const HANDLER = `
-import { User } from "../types"
-import { UserService } from "./service"
-
-/** Handle an incoming request */
-export function handle(req: Request, user: User): Response {
-  return new Response("ok")
-}
-
-/** Create a new handler with defaults */
-export function create(svc: UserService): (req: Request) => Response {
-  return (req) => new Response("ok")
-}
-`
-
-let dir: string
-
-beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "codeform-"))
-  await writeFile(join(dir, "types.ts"), TYPES)
-  await mkdir(join(dir, "lib"), { recursive: true })
-  await writeFile(join(dir, "lib/service.ts"), SERVICE)
-  await writeFile(join(dir, "lib/handler.ts"), HANDLER)
+test("format snapshot", () => {
+  const files = [
+    parseSource(geometry, `${ROOT}/geometry.ts`),
+    parseSource(render, `${ROOT}/render.ts`),
+  ]
+  expect(format(files)).toMatchSnapshot()
 })
 
-afterAll(async () => {
-  await rm(dir, { recursive: true })
-})
-
-describe("formatter", () => {
-  it("generates agent spec", async () => {
-    const files = [
-      join(dir, "types.ts"),
-      join(dir, "lib/service.ts"),
-      join(dir, "lib/handler.ts"),
-    ]
-    const result = await document(dir, files)
-    const spec = format(result).replace(dir, "<tmpdir>")
-
-    expect(spec).toMatchSnapshot()
-  })
+// formatted one file at a time: nothing is shared, so every type
+// (Point, Rect, Vec, Axis, Shape, Transform) shows in geometry's own section.
+test("format snapshot (one at a time)", () => {
+  const files = [
+    parseSource(geometry, `${ROOT}/geometry.ts`),
+    parseSource(render, `${ROOT}/render.ts`),
+  ]
+  const out = files.map((f) => format(f)).join("\n")
+  expect(out).toMatchSnapshot()
 })

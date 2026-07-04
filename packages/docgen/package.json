@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@paladin/fcache": "workspace:*",
+    "@paladin/utils": "workspace:*",
     "tree-sitter": "^0.22.4",
     "tree-sitter-typescript": "^0.23.2"
   }

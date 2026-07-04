@@ -1,7 +1,7 @@
-// @paladin/packages/codeform/formatter.ts
+// @paladin/codeform/formatter.ts
 
 import type {
-  DirectoryDoc,
+  FileDoc,
   SymbolDoc,
   FunctionDoc,
   ClassDoc,
@@ -9,6 +9,175 @@ import type {
   MethodDoc,
   Param,
 } from "./documenter.types"
+
+// ---------- reshaped data (frontend-consumable) ----------
+
+export interface ReshapedFile {
+  path: string
+  importPath: string
+  functions: FunctionDoc[]
+  classes: ClassDoc[]
+  types: TypeDoc[]
+  exports: string[]
+}
+
+export interface SharedGroup {
+  source: string
+  importPath: string
+  types: TypeDoc[]
+}
+
+export interface Reshaped {
+  shared: SharedGroup[]
+  files: ReshapedFile[]
+}
+
+// ---------- helpers ----------
+
+function isCallable(s: SymbolDoc): s is FunctionDoc | ClassDoc {
+  return s.kind === "function" || s.kind === "class"
+}
+
+function isType(s: SymbolDoc): s is TypeDoc {
+  return s.kind === "type" || s.kind === "interface" || s.kind === "enum"
+}
+
+function toImportPath(abs: string): string {
+  const m = abs.match(/\/projects\/([^/]+)\/packages\/([^/]+)\/(.+)$/)
+  if (!m) return abs
+  const [, project, pkg, rest] = m
+  const sub = rest
+    .replace(/\.(ts|tsx)$/, "")
+    .replace(/^src\//, "")
+    .replace(/(^|\/)index$/, "")
+  return sub ? `@${project}/${pkg}/${sub}` : `@${project}/${pkg}`
+}
+
+/**
+ * Collect names of types (defined in the same file) that are referenced
+ * by the given functions, classes, or by other referenced types.
+ * This ensures that e.g. a non-exported `Config` interface used as a
+ * parameter type is included in the formatted output.
+ */
+function collectReferencedTypeNames(
+  functions: FunctionDoc[],
+  classes: ClassDoc[],
+  typeByName: Map<string, TypeDoc>,
+): Set<string> {
+  const names = [...typeByName.keys()]
+  if (!names.length) return new Set()
+
+  const patterns = names.map(n => ({ name: n, re: new RegExp(`\\b${n}\\b`) }))
+  const referenced = new Set<string>()
+
+  const check = (typeStr: string) => {
+    for (const { name, re } of patterns) {
+      if (re.test(typeStr)) referenced.add(name)
+    }
+  }
+
+  for (const f of functions) {
+    for (const p of f.params) check(p.type)
+    check(f.returns)
+  }
+  for (const c of classes) {
+    for (const p of c.properties) check(p.type)
+    for (const m of c.methods) {
+      for (const p of m.params) check(p.type)
+      check(m.returns)
+    }
+  }
+
+  // recursively resolve types referenced by other referenced types
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const name of [...referenced]) {
+      const t = typeByName.get(name)
+      if (!t) continue
+      const before = referenced.size
+      if (t.signature) check(t.signature)
+      for (const p of t.properties) check(p.type)
+      if (referenced.size > before) changed = true
+    }
+  }
+
+  return referenced
+}
+
+// ---------- reshape ----------
+
+export function reshapeData(input: FileDoc | FileDoc[]): Reshaped {
+  const files = Array.isArray(input) ? input : [input]
+
+  const index = new Map<string, { file: string; sym: SymbolDoc }>()
+  for (const file of files)
+    for (const sym of file.symbols)
+      index.set(sym.name, { file: file.path, sym })
+
+  // a type is shared if another file imports it
+  const shared = new Map<string, { type: TypeDoc; file: string }>()
+  for (const file of files) {
+    for (const imp of file.imports) {
+      for (const name of imp.symbols) {
+        const entry = index.get(name)
+        if (!entry || entry.file === file.path) continue
+        if (!isType(entry.sym)) continue
+        shared.set(name, { type: entry.sym, file: entry.file })
+      }
+    }
+  }
+  const sharedNames = new Set(shared.keys())
+
+  const groups = new Map<string, TypeDoc[]>()
+  for (const { type, file } of shared.values()) {
+    const arr = groups.get(file) ?? []
+    arr.push(type)
+    groups.set(file, arr)
+  }
+  const sharedGroups: SharedGroup[] = [...groups].map(([source, types]) => ({
+    source,
+    importPath: toImportPath(source),
+    types,
+  }))
+
+  const reshapedFiles: ReshapedFile[] = []
+  for (const file of files) {
+    const functions = file.symbols.filter(
+      (s): s is FunctionDoc => s.kind === "function" && s.exported,
+    )
+    const classes = file.symbols.filter(
+      (s): s is ClassDoc => s.kind === "class" && s.exported,
+    )
+
+    // collect non-exported types referenced by exported functions/classes
+    const typeByName = new Map<string, TypeDoc>(
+      file.symbols.filter(isType).map(s => [s.name, s]),
+    )
+    const referencedNames = collectReferencedTypeNames(functions, classes, typeByName)
+
+    // include exported non-shared types, plus non-exported types that are
+    // referenced by included functions/classes (e.g. `Config` used as a param)
+    const types = file.symbols.filter(
+      (s): s is TypeDoc =>
+        isType(s) && !sharedNames.has(s.name) && (s.exported || referencedNames.has(s.name)),
+    )
+    if (!functions.length && !classes.length && !types.length) continue
+
+    reshapedFiles.push({
+      path: file.path,
+      importPath: toImportPath(file.path),
+      functions,
+      classes,
+      types,
+      exports: [...functions, ...classes, ...types.filter(t => t.exported)].map(s => s.name),
+    })
+  }
+
+  return { shared: sharedGroups, files: reshapedFiles }
+}
+
+// ---------- signatures ----------
 
 function params(p: Param[]): string {
   if (!p.length) return "()"
@@ -43,9 +212,7 @@ function formatClass(c: ClassDoc): string {
   for (const p of c.properties) {
     lines.push(`  .${p.name}${p.optional ? "?" : ""}: ${p.type}`)
   }
-  for (const m of c.methods) {
-    lines.push(formatMethod(m))
-  }
+  for (const m of c.methods) lines.push(formatMethod(m))
   return lines.join("\n")
 }
 
@@ -63,163 +230,35 @@ function formatType(t: TypeDoc): string {
   return `${t.kind} ${t.name} { ${props} }${desc(t.description)}`
 }
 
-function isCallable(s: SymbolDoc): s is FunctionDoc | ClassDoc {
-  return s.kind === "function" || s.kind === "class"
+// ---------- format ----------
+
+function isReshaped(x: FileDoc | FileDoc[] | Reshaped): x is Reshaped {
+  return !Array.isArray(x)
+    && Array.isArray((x as Reshaped).files)
+    && Array.isArray((x as Reshaped).shared)
 }
 
-function collectReferenced(doc: DirectoryDoc): Map<string, SymbolDoc> {
-  const referenced = new Set<string>()
-  for (const file of doc.files) {
-    for (const imp of file.imports) {
-      if (!imp.resolved) continue
-      for (const sym of imp.symbols) {
-        if (doc.index[sym]) referenced.add(sym)
-      }
-    }
+export function format(input: FileDoc | FileDoc[] | Reshaped): string {
+  const data = isReshaped(input) ? input : reshapeData(input)
+  const blocks: string[] = []
+
+  for (const g of data.shared) {
+    const header = `import type { ${g.types.map(t => t.name).join(", ")} } from "${g.importPath}"`
+    blocks.push(header + "\n\n" + g.types.map(formatType).join("\n"))
   }
 
-  const result = new Map<string, SymbolDoc>()
-  for (const name of referenced) {
-    const ref = doc.index[name]
-    const file = doc.files.find(f => f.path === ref.file)
-    const sym = file?.symbols.find(s => s.name === name)
-    if (sym && !isCallable(sym)) result.set(name, sym)
-  }
-  return result
-}
-
-function paramsTable(p: Param[]): string {
-  if (!p.length) return ""
-  const rows = p.map(x =>
-    `| \`${x.name}${x.optional ? "?" : ""}\` | \`${x.type}\` |`
-  ).join("\n")
-  return "\n| Param | Type |\n|-------|------|\n" + rows
-}
-
-function humanFunction(f: FunctionDoc): string {
-  const mods = [f.async ? "async" : "", "function"].filter(Boolean).join(" ")
-  const sig = `\`\`\`ts\n${mods} ${f.name}${params(f.params)}: ${f.returns}\n\`\`\``
-  const lines = [`### \`${f.name}\``, ""]
-  if (f.description) lines.push(f.description, "")
-  lines.push(sig)
-  const table = paramsTable(f.params)
-  if (table) lines.push(table)
-  return lines.join("\n")
-}
-
-function humanMethod(m: MethodDoc): string {
-  const mods = [
-    m.visibility !== "public" ? m.visibility : "",
-    m.static ? "static" : "",
-    m.getter ? "get" : "",
-    m.setter ? "set" : "",
-    m.async ? "async" : "",
-  ].filter(Boolean).join(" ")
-  const sig = `${mods ? mods + " " : ""}${m.name}${params(m.params)}: ${m.returns}`
-  const lines = [`#### \`${m.name}\``]
-  if (m.description) lines.push("", m.description)
-  lines.push("", `\`\`\`ts\n${sig}\n\`\`\``)
-  const table = paramsTable(m.params)
-  if (table) lines.push(table)
-  return lines.join("\n")
-}
-
-function humanClass(c: ClassDoc): string {
-  const lines = [`### \`${c.name}\``, ""]
-  if (c.description) lines.push(c.description, "")
-  if (c.properties.length) {
-    lines.push("**Properties**", "")
-    lines.push("| Name | Type |", "|------|------|")
-    for (const p of c.properties) {
-      lines.push(`| \`${p.name}${p.optional ? "?" : ""}\` | \`${p.type}\` |`)
-    }
-    lines.push("")
-  }
-  if (c.methods.length) {
-    lines.push("**Methods**", "")
-    for (const m of c.methods) lines.push(humanMethod(m), "")
-  }
-  return lines.join("\n")
-}
-
-function humanType(t: TypeDoc): string {
-  const lines = [`### \`${t.name}\``]
-  if (t.description) lines.push("", t.description)
-  if (t.kind === "enum") {
-    lines.push("", "**Members**", "")
-    for (const p of t.properties) lines.push(`- \`${p.name}\``)
-  } else if (t.properties.length) {
-    lines.push("", "| Field | Type | Required |", "|-------|------|----------|")
-    for (const p of t.properties) {
-      lines.push(`| \`${p.name}\` | \`${p.type}\` | ${p.optional ? "No" : "Yes"} |`)
-    }
-  } else if (t.signature) {
-    lines.push("", `\`\`\`ts\n${t.signature}\n\`\`\``)
-  }
-  return lines.join("\n")
-}
-
-/**
- * Format a DirectoryDoc into human-readable markdown documentation.
- */
-export function formatHuman(doc: DirectoryDoc): string {
-  const lines: string[] = [`# ${doc.root}`, ""]
-  const shared = collectReferenced(doc)
-
-  if (shared.size) {
-    lines.push("## Types", "")
-    for (const [, sym] of shared) {
-      if (sym.kind === "type" || sym.kind === "interface" || sym.kind === "enum") {
-        lines.push(humanType(sym as TypeDoc), "")
-      }
-    }
+  for (const file of data.files) {
+    const onlyTypes = !file.functions.length && !file.classes.length
+    const kw = onlyTypes ? "import type" : "import"
+    const header = `${kw} { ${file.exports.join(", ")} } from "${file.importPath}"`
+    const body: string[] = []
+    // types first so referenced types (e.g. Config) appear before the
+    // functions/classes that use them
+    for (const t of file.types) body.push(formatType(t))
+    for (const f of file.functions) body.push(formatFunction(f))
+    for (const c of file.classes) body.push(formatClass(c))
+    blocks.push(header + "\n\n" + body.join("\n"))
   }
 
-  for (const file of doc.files) {
-    const exported = file.symbols.filter(s => s.exported)
-    if (!exported.length) continue
-    lines.push(`## ${file.path}`, "")
-    for (const sym of exported) {
-      if (sym.kind === "function") lines.push(humanFunction(sym as FunctionDoc), "")
-      else if (sym.kind === "class") lines.push(humanClass(sym as ClassDoc), "")
-      else if (sym.kind === "type" || sym.kind === "interface" || sym.kind === "enum") {
-        if (!shared.has(sym.name)) lines.push(humanType(sym as TypeDoc), "")
-      }
-    }
-  }
-
-  return lines.join("\n")
-}
-
-/**
- * Format a DirectoryDoc into a concise spec string for agents.
- * Only functions and classes are shown per file.
- * Referenced types/interfaces/enums are hoisted to a Shared section.
- */
-export function format(doc: DirectoryDoc): string {
-  const lines: string[] = []
-  const shared = collectReferenced(doc)
-
-  lines.push(`# ${doc.root}`)
-
-  if (shared.size) {
-    lines.push("", "## Shared")
-    for (const [, sym] of shared) {
-      if (sym.kind === "type" || sym.kind === "interface" || sym.kind === "enum") {
-        lines.push(formatType(sym as TypeDoc))
-      }
-    }
-  }
-
-  for (const file of doc.files) {
-    const callable = file.symbols.filter(s => isCallable(s) && s.exported)
-    if (!callable.length) continue
-    lines.push("", `## ${file.path}`)
-    for (const sym of callable) {
-      if (sym.kind === "function") lines.push(formatFunction(sym))
-      else if (sym.kind === "class") lines.push(formatClass(sym))
-    }
-  }
-
-  return lines.join("\n") + "\n"
+  return blocks.join("\n\n") + "\n"
 }

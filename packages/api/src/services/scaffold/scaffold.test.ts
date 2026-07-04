@@ -10,7 +10,7 @@ beforeAll(() => {
   if (existsSync(FOOBAR_DIR)) {
     rmSync(FOOBAR_DIR, { recursive: true, force: true })
   }
-  setOptions({ git: { initLocalRepo: true, initRemoteRepository: false } })
+  setOptions({ git: { initLocalRepo: false, initRemoteRepository: false } })
 })
 
 test('scaffolds foobar project from zip', async () => {

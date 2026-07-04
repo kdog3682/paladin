@@ -13,7 +13,9 @@
     "react": "^18",
     "react-dom": "^18",
     "zustand": "^5",
-    "shiki": "^4.3.0"
+    "shiki": "^4.3.0",
+    "@paladin/utils": "workspace:*",
+    "@paladin/ui": "workspace:*"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.0.10",

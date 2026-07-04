@@ -1,5 +1,2 @@
 [install]
 linker = "hoisted" # this is the default
-
-[test]
-preload = ["./test-setup.ts"]
