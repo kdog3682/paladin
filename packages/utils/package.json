@@ -1,0 +1,10 @@
+{
+  "name": "@paladin/utils",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {},
+  "dependencies": {}
+}

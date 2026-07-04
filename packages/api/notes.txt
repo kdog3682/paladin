@@ -1,0 +1,109 @@
+---
+title: postmortem of cme2
+https://claude.ai/chat/a82311b5-5d59-49ca-a06d-7ca12eba3854
+source: 
+---
+
+my initial prompt:
+
+// the doc state and various persist fields like from fold or from other plugins
+await api.call('doc.save', docId, persistState) // saves the codemirror state and folds
+await api.call('doc.load', docId)
+await api.call('doc.rename', docId, name)
+await api.call('doc.delete', docId)
+// used by autocompletion trigger and perhaps should be cached to the current project
+// invalidate the cache when the project changes
+await api.call('fzf.symbols.types')
+await api.call('fzf.symbols')
+await api.call('fzf.files')
+// load a document
+await api.call('user.documents', queryOptions)
+------------------------------------------------------------
+ctx.project      -> app.getState().project {name, dir}
+ctx.editorView       -> services.editorView
+ctx.api          -> services.api
+ctx.mode         -> modeStore (or another zustand store)
+this ctx passed around to various places.
+but i'm not sure if mode and project go on it.
+------------------------------------------------------------
+keybindings
+------------------------------------------------------------
+➤ when editor is focused
+ctrl + n : new doc with same parent. if no parent, enter normal mode, and cmdline is entered with 'parent: ' user continues typing and then presses enter.
+ctrl + s : save doc
+ctrl + o : browse docs 
+esc      : lose focus -> normal mode
+➤ normal mode bindings:
+i: refocus the doc 
+e: compile and export 
+ctrl + n: new doc with no parent  
+':': enter cmdline. escape exits the cmdline.
+ctrl + p: print the doc
+example 'p': print
+needs to call the api
+ for now do a simple sketch of what this might look like. how to create the commands et cetera and pass around the appContext. we are using zustand. don't need to include everything I'm just looking for a sketch
+
+
+ the resulting cme2 barely worked.
+ and i guess for good reason.
+
+ 'ctx.mode: modestore or another zustand store'
+
+ this is what i requested and so that is what claude gave me.
+
+ code smells
+   function assemble -> assembled
+   persistFields
+   normalModeStore
+   EditorView.domEventHandlers
+
+   useSyncExternalStore
+
+ given a large piece.
+
+ writing a postmortem.
+ i dont need to google time ferriss image
+
+i dislike the external modeStore.
+i dislike the codemirror assembly. (rigid)
+i dislike the ctx as a dict in useEffect. cwd and activeDir belong on state.
+
+interesting: api.socket.send(popup) ... communication between 2 
+webs.  
+
+
+an auto complete input where can define a schema. the schema can
+
+   {
+      key: 'fruity-example',
+      args: [
+        { options: ['apple', 'banana', 'orange'] },
+        { options: ['pears', 'strawberries'] }, <-- or a function
+      ],
+      run: (ctx, a: string, b: string) => ctx.setPopup(`${a} + ${b}`),
+    },
+
+    kind of like a command palette but with the option that if something has multiple args, the completion keeps opening.
+    until all args are satisfied
+
+         key: 'git commit',
+      args: [
+        {
+         type: input
+        },
+      ],
+      in this example, there would be 2 items in the autocomplete.
+      fruity-exampel and git commit.
+      pressing 'g' would bring git commit to the front.
+      press enter and it selects git commit.
+      since it has an arg
+      the sequence doesnt finish.
+      finish the sequence by presing enter.
+
+       {
+      key: 'prettier',
+      desc: 'format the current document',
+      run: (ctx) => formatDoc(ctx.editor), // <- reaches into the editor
+    },
+
+    this one would just run the moment prettier is selected.
