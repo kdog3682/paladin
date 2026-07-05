@@ -32,6 +32,7 @@
       "dependencies": {
         "@biomejs/js-api": "^4.0.0",
         "@biomejs/wasm-nodejs": "^2.4.12",
+        "@paladin/utils": "workspace:*",
         "es-module-lexer": "^2.0.0",
         "fast-glob": "^3.3.3",
         "fflate": "^0.8.2",
@@ -52,6 +53,7 @@
         "@codemirror/state": "^6",
         "@codemirror/view": "^6",
         "@happy-dom/global-registrator": "^20.7.0",
+        "@paladin/utils": "workspace:*",
         "@tailwindcss/vite": "^4.3.2",
         "codemirror": "^6.0.2",
         "happy-dom": "^20.8.4",
@@ -91,9 +93,12 @@
         "vite-tsconfig-paths": "^6.0.5",
       },
     },
-    "packages/codeform": {
-      "name": "@paladin/codeform",
+    "packages/commands": {
+      "name": "@paladin/commands",
       "version": "0.1.0",
+      "dependencies": {
+        "react-dom": "^18.3.1",
+      },
     },
     "packages/docgen": {
       "name": "@paladin/docgen",
@@ -505,7 +510,7 @@
 
     "@paladin/cme2": ["@paladin/cme2@workspace:packages/cme2"],
 
-    "@paladin/codeform": ["@paladin/codeform@workspace:packages/codeform"],
+    "@paladin/commands": ["@paladin/commands@workspace:packages/commands"],
 
     "@paladin/docgen": ["@paladin/docgen@workspace:packages/docgen"],
 
