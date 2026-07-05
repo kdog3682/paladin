@@ -70,6 +70,7 @@ function createExtensions(
     syntaxHighlighter,
     dashRule(),
     swapKeys(),
+    sectionFold(),
   ]
 }
 

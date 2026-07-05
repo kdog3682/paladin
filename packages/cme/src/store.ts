@@ -1,167 +1,188 @@
 import { create } from 'zustand'
-import type { EditorView } from '@codemirror/view'
-import type { CommandSpec } from './commands/types'
 
-type Mode = 'normal' | 'insert' | 'cmdline' // 'cmdline' = writing-mode (past abbr + space)
+const uuid = () => crypto.randomUUID()
+const MAX = 10
 
-interface ModeSlice {
-  mode: Mode
-  setMode: (m: Mode) => void
-}
-
-interface Project {
-  name: string
-  dir: string
-}
-
-interface ProjectSlice {
-  project: Project
-  setProject: (p: Project) => void // called by `cd` cmdline command
-}
-
-interface ViewSlice {
-  view: EditorView | null
-  setView: (v: EditorView | null) => void
-}
-
-// the doc open in the editor. docId assigned by the backend on doc.create — never generated client-side.
-interface DocMetaSlice {
-  docId: string
-  docProject: string
-  docTitle: string
-  setDocMeta: (m: Partial<{ docId: string; docProject: string; docTitle: string }>) => void
-}
-
-interface CmdlineSlice {
-  cmdBuffer: string
-  cmdCommand: CommandSpec | null
-  cmdArgs: string[] // args already collected for the current command
-  cmdArgIndex: number // which arg is currently being written
-  cmdArg: string // in-progress text for the current arg
-  cmdSuggestions: string[]
-  cmdError: string | null
-  setCmdline: (
-    patch: Partial<
-      Pick<
-        CmdlineSlice,
-        'cmdBuffer' | 'cmdCommand' | 'cmdArgs' | 'cmdArgIndex' | 'cmdArg' | 'cmdSuggestions' | 'cmdError'
-      >
-    >
-  ) => void
-  resetCmdline: () => void
-}
-
-export interface LogEntry {
+export interface Tab {
   id: string
-  type: string
-  payload: unknown
-  at: number
+  title: string
+  used: number
 }
 
-interface LogSlice {
-  logs: LogEntry[]
-  postLog: (entry: { type: string; payload: unknown }) => void
+/** Serialized CodeMirror EditorState (doc + selection + foldState) plus scroll. */
+export interface CmSnapshot {
+  json: unknown
+  scrollTop: number
 }
 
-type OmniView = 'recent' | 'notes' | 'logs' | 'help'
-
-interface OmniSlice {
-  omniOpen: boolean
-  omniView: OmniView
-  omniPinned: boolean
-  omniItems: unknown[]
-  openOmni: (view: OmniView, opts?: { pinned?: boolean }) => void
-  closeOmni: () => void
-  setOmniItems: (items: unknown[]) => void
+export interface HydratePayload {
+  docs: { id: string; title: string; cm: unknown; scrollTop: number }[]
+  tabs: string[]
+  activeId: string
 }
 
-type ZenMode = 'none' | 'partial' | 'full'
+interface AppState {
+  // current doc mirror (see ctx.doc())
+  docId: string
+  docTitle: string
 
-interface ZenSlice {
-  zenMode: ZenMode
-  setZenMode: (m: ZenMode) => void
+  tabs: Tab[]
+  activeId: string
+  snapshots: Record<string, CmSnapshot>
+  dirty: string[]
+
+  panelOpen: boolean
+  panelFocused: boolean
+  renamingId: string | null
+  hydrated: boolean
+
+  setDocMeta: (m: { docId: string; docTitle: string }) => void
+  hydrate: (p: HydratePayload) => void
+  newTab: () => void
+  closeTab: (id: string) => void
+  activate: (id: string) => void
+  cycleTab: (dir: 1 | -1) => void
+  startRename: (id: string) => void
+  commitRename: (id: string, title: string) => void
+  cancelRename: () => void
+  setSnapshot: (id: string, snap: CmSnapshot) => void
+  clearDirty: (ids: string[]) => void
+  setPanelOpen: (v: boolean) => void
+  setPanelFocused: (v: boolean) => void
 }
 
-type AppState = ModeSlice & ProjectSlice & ViewSlice & DocMetaSlice & CmdlineSlice & LogSlice & OmniSlice & ZenSlice
+const markDirty = (dirty: string[], id: string) =>
+  dirty.includes(id) ? dirty : [...dirty, id]
 
-const createModeSlice = (set: any): ModeSlice => ({
-  mode: 'normal',
-  setMode: (mode) => set({ mode }),
-})
-
-const createProjectSlice = (set: any): ProjectSlice => ({
-  project: { name: '', dir: '' },
-  setProject: (project) => set({ project }),
-})
-
-const createViewSlice = (set: any): ViewSlice => ({
-  view: null,
-  setView: (view) => set({ view }),
-})
-
-const createDocMetaSlice = (set: any): DocMetaSlice => ({
+export const useAppStore = create<AppState>((set, get) => ({
   docId: '',
-  docProject: 'scratchpad',
-  docTitle: 'untitled',
-  setDocMeta: (m) =>
-    set((s: AppState) => ({
-      docId: m.docId ?? s.docId,
-      docProject: m.docProject ?? s.docProject,
-      docTitle: m.docTitle ?? s.docTitle,
-    })),
-})
+  docTitle: '',
+  tabs: [],
+  activeId: '',
+  snapshots: {},
+  dirty: [],
+  panelOpen: false,
+  panelFocused: false,
+  renamingId: null,
+  hydrated: false,
 
-const createCmdlineSlice = (set: any): CmdlineSlice => ({
-  cmdBuffer: '',
-  cmdCommand: null,
-  cmdArgs: [],
-  cmdArgIndex: 0,
-  cmdArg: '',
-  cmdSuggestions: [],
-  cmdError: null,
-  setCmdline: (patch) => set(patch),
-  resetCmdline: () =>
+  setDocMeta: ({ docId, docTitle }) => set({ docId, docTitle }),
+
+  hydrate: (p) => {
+    const byId = new Map(p.docs.map((d) => [d.id, d]))
+    const snapshots: Record<string, CmSnapshot> = {}
+    for (const d of p.docs) snapshots[d.id] = { json: d.cm, scrollTop: d.scrollTop ?? 0 }
+
+    let tabs: Tab[] = p.tabs
+      .filter((id) => byId.has(id))
+      .map((id, i) => ({ id, title: byId.get(id)!.title, used: i }))
+    let activeId = p.activeId && byId.has(p.activeId) ? p.activeId : tabs[0]?.id ?? ''
+
+    if (tabs.length === 0) {
+      const id = uuid()
+      tabs = [{ id, title: 'untitled', used: Date.now() }]
+      snapshots[id] = { json: null, scrollTop: 0 }
+      activeId = id
+    }
+
+    const active = tabs.find((t) => t.id === activeId)!
     set({
-      cmdBuffer: '',
-      cmdCommand: null,
-      cmdArgs: [],
-      cmdArgIndex: 0,
-      cmdArg: '',
-      cmdSuggestions: [],
-      cmdError: null,
+      tabs,
+      activeId,
+      snapshots,
+      hydrated: true,
+      docId: activeId,
+      docTitle: active.title,
+    })
+  },
+
+  newTab: () => {
+    const id = uuid()
+    let tabs: Tab[] = [{ id, title: 'untitled', used: Date.now() }, ...get().tabs]
+    if (tabs.length > MAX) {
+      const victim = tabs.slice(1).reduce((m, t) => (t.used < m.used ? t : m))
+      tabs = tabs.filter((t) => t.id !== victim.id)
+    }
+    set((s) => ({
+      tabs,
+      activeId: id,
+      renamingId: id,
+      panelOpen: true,
+      panelFocused: true,
+      snapshots: { ...s.snapshots, [id]: { json: null, scrollTop: 0 } },
+      dirty: markDirty(s.dirty, id),
+      docId: id,
+      docTitle: 'untitled',
+    }))
+  },
+
+  closeTab: (id) => {
+    const { tabs, activeId, renamingId } = get()
+    const idx = tabs.findIndex((t) => t.id === id)
+    if (idx === -1) return
+    const next = tabs.filter((t) => t.id !== id)
+    if (next.length === 0) {
+      get().newTab()
+      return
+    }
+    let active = activeId
+    if (activeId === id) active = next[Math.max(0, idx - 1)]?.id ?? next[0].id
+    const at = next.find((t) => t.id === active)!
+    set({
+      tabs: next,
+      activeId: active,
+      docId: active,
+      docTitle: at.title,
+      renamingId: renamingId === id ? null : renamingId,
+    })
+  },
+
+  activate: (id) => {
+    const t = get().tabs.find((x) => x.id === id)
+    if (!t) return
+    set((s) => ({
+      activeId: id,
+      docId: id,
+      docTitle: t.title,
+      panelFocused: false,
+      renamingId: null,
+      tabs: s.tabs.map((x) => (x.id === id ? { ...x, used: Date.now() } : x)),
+    }))
+  },
+
+  cycleTab: (dir) => {
+    const { tabs, activeId } = get()
+    if (tabs.length < 2) return
+    const i = tabs.findIndex((t) => t.id === activeId)
+    const n = (i + dir + tabs.length) % tabs.length
+    set({ panelOpen: true })
+    get().activate(tabs[n].id)
+  },
+
+  startRename: (id) => set({ renamingId: id, panelOpen: true, panelFocused: true }),
+
+  commitRename: (id, title) =>
+    set((s) => {
+      const clean = title.trim() || 'untitled'
+      return {
+        tabs: s.tabs.map((t) => (t.id === id ? { ...t, title: clean } : t)),
+        renamingId: null,
+        panelFocused: false,
+        docTitle: s.activeId === id ? clean : s.docTitle,
+        dirty: markDirty(s.dirty, id),
+      }
     }),
-})
 
-const createLogSlice = (set: any): LogSlice => ({
-  logs: [],
-  postLog: (entry) =>
-    set((s: AppState) => ({
-      logs: [{ id: crypto.randomUUID(), at: Date.now(), ...entry }, ...s.logs].slice(0, 200),
+  cancelRename: () => set({ renamingId: null, panelFocused: false }),
+
+  setSnapshot: (id, snap) =>
+    set((s) => ({
+      snapshots: { ...s.snapshots, [id]: snap },
+      dirty: markDirty(s.dirty, id),
     })),
-})
 
-const createOmniSlice = (set: any): OmniSlice => ({
-  omniOpen: false,
-  omniView: 'recent',
-  omniPinned: false,
-  omniItems: [],
-  openOmni: (view, opts) => set({ omniOpen: true, omniView: view, omniPinned: opts?.pinned ?? false }),
-  closeOmni: () => set({ omniOpen: false, omniPinned: false }),
-  setOmniItems: (omniItems) => set({ omniItems }),
-})
+  clearDirty: (ids) => set((s) => ({ dirty: s.dirty.filter((d) => !ids.includes(d)) })),
 
-const createZenSlice = (set: any): ZenSlice => ({
-  zenMode: 'none',
-  setZenMode: (zenMode) => set({ zenMode }),
-})
-
-export const useAppStore = create<AppState>((set) => ({
-  ...createModeSlice(set),
-  ...createProjectSlice(set),
-  ...createViewSlice(set),
-  ...createDocMetaSlice(set),
-  ...createCmdlineSlice(set),
-  ...createLogSlice(set),
-  ...createOmniSlice(set),
-  ...createZenSlice(set),
+  setPanelOpen: (v) => set({ panelOpen: v }),
+  setPanelFocused: (v) => set({ panelFocused: v }),
 }))

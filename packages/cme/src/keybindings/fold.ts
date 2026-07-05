@@ -1,6 +1,15 @@
-import { EditorView, Decoration, DecorationSet, WidgetType } from '@codemirror/view'
-import { Extension, StateField, StateEffect, Facet, Range } from '@codemirror/state'
+// @paladin/editor/section-fold.ts
+import { EditorView, ViewPlugin } from '@codemirror/view'
+import { Extension, StateField, Facet, EditorState } from '@codemirror/state'
 import { invertedEffects } from '@codemirror/commands'
+import {
+  codeFolding,
+  foldService,
+  foldEffect,
+  unfoldEffect,
+  foldedRanges,
+  toggleFold,
+} from '@codemirror/language'
 
 const HEADING_RE = /^## /
 
@@ -14,119 +23,44 @@ export const foldsFacet = Facet.define<string[], string[]>({
   combine: xs => xs.flat(),
 })
 
-// ── effects ──────────────────────────────────────────────────────────────────
+// ── section range ─────────────────────────────────────────────────────────────
 
-interface FoldSpec {
-  from: number
-  to: number
-  title: string
+function sectionRange(state: EditorState, lineStart: number): { from: number; to: number } | null {
+  const line = state.doc.lineAt(lineStart)
+  if (!HEADING_RE.test(line.text)) return null
+
+  const from = line.to
+  let to = state.doc.length
+  for (let n = line.number + 1; n <= state.doc.lines; n++) {
+    const l = state.doc.line(n)
+    if (HEADING_RE.test(l.text)) {
+      to = l.from - 1
+      break
+    }
+  }
+  return from >= to ? null : { from, to }
 }
 
-const foldEffect = StateEffect.define<FoldSpec>()
-const unfoldEffect = StateEffect.define<FoldSpec>()
+// tells codeFolding what's foldable at each line (heading -> its section)
+const sectionFoldService = foldService.of((state, lineStart) => sectionRange(state, lineStart))
 
-// ── widget ───────────────────────────────────────────────────────────────────
+// ── folding (decorations, atomic ranges, placeholder) all handled here ────────
 
-class FoldWidget extends WidgetType {
-  eq(_other: FoldWidget): boolean {
-    return true
-  }
-
-  toDOM(): HTMLElement {
+const folding = codeFolding({
+  placeholderDOM(_view, onclick) {
     const dot = document.createElement('span')
     dot.className = 'cm-section-fold'
     dot.style.cssText =
       'display:inline-block;width:8px;height:8px;background:#f5c518;border-radius:2px;margin-left:6px;vertical-align:middle;cursor:pointer;'
+    dot.onclick = onclick // built-in unfold-on-click (drop this line if unwanted)
     return dot
-  }
-
-  ignoreEvent(): boolean {
-    return true
-  }
-}
-
-function createFoldDecoration(): Decoration {
-  return Decoration.replace({
-    widget: new FoldWidget(),
-    inclusive: true,
-  })
-}
-
-// ── state field ───────────────────────────────────────────────────────────────
-
-interface FoldState {
-  decorations: DecorationSet
-  titles: string[]
-}
-
-function titlesFromDecorations(decorations: DecorationSet, state: { doc: any }): string[] {
-  const titles: string[] = []
-  decorations.between(0, state.doc.length, f => {
-    const line = state.doc.lineAt(f)
-    const title = line.text.replace(/^## /, '')
-    if (title) titles.push(title)
-  })
-  return titles
-}
-
-const foldField = StateField.define<FoldState>({
-  create(state) {
-    const savedTitles = new Set(state.facet(initialFoldsFacet))
-    if (savedTitles.size === 0) return { decorations: Decoration.none, titles: [] }
-
-    const ranges: Range<Decoration>[] = []
-    for (let i = 1; i <= state.doc.lines; i++) {
-      const line = state.doc.line(i)
-      if (!HEADING_RE.test(line.text)) continue
-      const title = line.text.replace(/^## /, '')
-      if (!savedTitles.has(title)) continue
-
-      let to = state.doc.length
-      for (let j = i + 1; j <= state.doc.lines; j++) {
-        if (HEADING_RE.test(state.doc.line(j).text)) {
-          to = state.doc.line(j).from - 1
-          break
-        }
-      }
-      const from = line.to
-      if (from < to) ranges.push(createFoldDecoration().range(from, to))
-    }
-
-    const decorations = ranges.length > 0 ? Decoration.set(ranges) : Decoration.none
-    return { decorations, titles: titlesFromDecorations(decorations, state) }
   },
-
-  update({ decorations, titles }, tr) {
-    decorations = decorations.map(tr.changes)
-    let changed = false
-
-    for (const effect of tr.effects) {
-      if (effect.is(foldEffect)) {
-        decorations = decorations.update({
-          add: [createFoldDecoration().range(effect.value.from, effect.value.to)],
-        })
-        changed = true
-      } else if (effect.is(unfoldEffect)) {
-        const { from, to } = effect.value
-        decorations = decorations.update({ filter: (f, t) => !(f === from && t === to) })
-        changed = true
-      }
-    }
-
-    if (changed) titles = titlesFromDecorations(decorations, tr.state)
-    return { decorations, titles }
-  },
-
-  provide: f => [
-    EditorView.decorations.from(f, s => s.decorations),
-    foldsFacet.from(f, s => s.titles),
-  ],
 })
 
-// ── history ───────────────────────────────────────────────────────────────────
+// ── fold changes participate in undo/redo ─────────────────────────────────────
 
 const foldHistory = invertedEffects.of(tr => {
-  const effects: StateEffect<any>[] = []
+  const effects = []
   for (const e of tr.effects) {
     if (e.is(foldEffect)) effects.push(unfoldEffect.of(e.value))
     else if (e.is(unfoldEffect)) effects.push(foldEffect.of(e.value))
@@ -134,96 +68,57 @@ const foldHistory = invertedEffects.of(tr => {
   return effects
 })
 
-// ── atomic ranges ─────────────────────────────────────────────────────────────
+// ── expose folded titles via foldsFacet ───────────────────────────────────────
 
-const foldAtomic = EditorView.atomicRanges.of(view =>
-  view.state.field(foldField, false)?.decorations ?? Decoration.none
-)
+function foldedTitles(state: EditorState): string[] {
+  const titles: string[] = []
+  const cur = foldedRanges(state).iter()
+  while (cur.value) {
+    const title = state.doc.lineAt(cur.from).text.replace(/^## /, '')
+    if (title) titles.push(title)
+    cur.next()
+  }
+  return titles
+}
 
-// ── click to unfold ───────────────────────────────────────────────────────────
-
-const foldClickHandler = EditorView.domEventHandlers({
-  mousedown(event, view) {
-    const target = event.target as HTMLElement
-    if (!target.classList.contains('cm-section-fold')) return false
-
-    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }, false)
-    const { decorations } = view.state.field(foldField)
-    let found: FoldSpec | null = null
-
-    decorations.between(0, view.state.doc.length, (f, t) => {
-      if (found) return false
-      if (pos >= f && pos <= t) {
-        found = { from: f, to: t, title: view.state.doc.lineAt(f).text.replace(/^## /, '') }
-        return false
-      }
-    })
-
-    if (found) {
-      view.dispatch({ effects: unfoldEffect.of(found) })
-      event.preventDefault()
-      return true
-    }
-    return false
+const foldTitles = StateField.define<string[]>({
+  create: foldedTitles,
+  update(value, tr) {
+    const touched = tr.effects.some(e => e.is(foldEffect) || e.is(unfoldEffect))
+    return tr.docChanged || touched ? foldedTitles(tr.state) : value
   },
+  provide: f => foldsFacet.from(f),
 })
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// ── apply initial folds from titles ───────────────────────────────────────────
 
-function getFoldAtCursor(view: EditorView): FoldSpec | null {
-  const { state } = view
-  const currentLineNo = state.doc.lineAt(state.selection.main.head).number
-  const { decorations } = state.field(foldField)
-  let found: FoldSpec | null = null
+const applyInitialFolds = ViewPlugin.fromClass(
+  class {
+    constructor(view: EditorView) {
+      const titles = new Set(view.state.facet(initialFoldsFacet))
+      if (titles.size === 0) return
 
-  decorations.between(0, state.doc.length, (f, t) => {
-    const line = state.doc.lineAt(f)
-    if (line.number === currentLineNo) {
-      found = { from: f, to: t, title: line.text.replace(/^## /, '') }
-      return false
-    }
-  })
-
-  return found
-}
-
-function getSectionRange(view: EditorView): FoldSpec | null {
-  const { state } = view
-  const currentLine = state.doc.lineAt(state.selection.main.head)
-
-  if (!HEADING_RE.test(currentLine.text)) return null
-
-  const title = currentLine.text.replace(/^## /, '')
-  const from = currentLine.to
-
-  let to = state.doc.length
-  for (let n = currentLine.number + 1; n <= state.doc.lines; n++) {
-    const line = state.doc.line(n)
-    if (HEADING_RE.test(line.text)) {
-      to = line.from - 1
-      break
+      const effects = []
+      for (let n = 1; n <= view.state.doc.lines; n++) {
+        const line = view.state.doc.line(n)
+        if (!HEADING_RE.test(line.text)) continue
+        if (!titles.has(line.text.replace(/^## /, ''))) continue
+        const range = sectionRange(view.state, line.from)
+        if (range) effects.push(foldEffect.of(range))
+      }
+      if (effects.length) queueMicrotask(() => view.dispatch({ effects }))
     }
   }
-
-  if (from >= to) return null
-  return { from, to, title }
-}
+)
 
 // ── command ───────────────────────────────────────────────────────────────────
 
 export function toggleSectionFold(view: EditorView): void {
-  const existing = getFoldAtCursor(view)
-  if (existing) {
-    view.dispatch({ effects: unfoldEffect.of(existing) })
-    return
-  }
-
-  const spec = getSectionRange(view)
-  if (spec) view.dispatch({ effects: foldEffect.of(spec) })
+  toggleFold(view)
 }
 
 // ── extension ─────────────────────────────────────────────────────────────────
 
 export function sectionFold(): Extension {
-  return [foldField, foldHistory, foldAtomic, foldClickHandler]
+  return [folding, sectionFoldService, foldHistory, foldTitles, applyInitialFolds]
 }
