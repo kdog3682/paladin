@@ -6,7 +6,8 @@
     "./CodeBlock": "./src/components/CodeBlock.tsx",
     "./CodeBlock.tsx": "./src/components/CodeBlock.tsx",
     "./TreeView": "./src/components/TreeView.tsx",
-    "./TreeView.tsx": "./src/components/TreeView.tsx"
+    "./TreeView.tsx": "./src/components/TreeView.tsx",
+        "./styles": "./index.css"
   },
   "scripts": {
     "dev": "vite --open",

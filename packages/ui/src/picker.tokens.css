@@ -1,0 +1,78 @@
+:root {
+  --picker: 0 0% 100%;
+  --picker-fg: 240 10% 4%;
+  --picker-muted: 240 5% 96%;
+  --picker-subtle: 240 4% 46%;
+  --picker-placeholder: 240 4% 60%;
+  --picker-border: 240 6% 90%;
+  --picker-ring: 240 5% 65%;
+  --picker-accent: 240 5% 34%;
+  --picker-option-active: 240 5% 96%;
+  --picker-option-active-fg: 240 10% 4%;
+  --picker-option-hover: 240 5% 98%;
+  --picker-chip: 240 5% 96%;
+  --picker-chip-fg: 240 10% 4%;
+  --picker-chip-ring: 240 6% 90%;
+  --picker-chip-value: 240 5% 92%;
+  --picker-chip-value-fg: 240 10% 4%;
+  --picker-keycap: 0 0% 100%;
+  --picker-keycap-fg: 240 4% 46%;
+  --picker-keycap-border: 240 6% 88%;
+  --picker-caret: 240 5% 34%;
+}
+
+.dark {
+  --picker: 240 10% 8%;
+  --picker-fg: 0 0% 98%;
+  --picker-muted: 240 6% 14%;
+  --picker-subtle: 240 4% 64%;
+  --picker-placeholder: 240 4% 46%;
+  --picker-border: 240 6% 20%;
+  --picker-ring: 240 5% 40%;
+  --picker-accent: 240 5% 70%;
+  --picker-option-active: 240 6% 18%;
+  --picker-option-active-fg: 0 0% 98%;
+  --picker-option-hover: 240 6% 16%;
+  --picker-chip: 240 6% 16%;
+  --picker-chip-fg: 0 0% 98%;
+  --picker-chip-ring: 240 6% 22%;
+  --picker-chip-value: 240 6% 20%;
+  --picker-chip-value-fg: 0 0% 98%;
+  --picker-keycap: 240 6% 14%;
+  --picker-keycap-fg: 240 4% 64%;
+  --picker-keycap-border: 240 6% 22%;
+  --picker-caret: 240 5% 70%;
+}
+
+@theme inline {
+  --color-picker: hsl(var(--picker));
+  --color-picker-fg: hsl(var(--picker-fg));
+  --color-picker-muted: hsl(var(--picker-muted));
+  --color-picker-subtle: hsl(var(--picker-subtle));
+  --color-picker-placeholder: hsl(var(--picker-placeholder));
+  --color-picker-border: hsl(var(--picker-border));
+  --color-picker-ring: hsl(var(--picker-ring));
+  --color-picker-accent: hsl(var(--picker-accent));
+  --color-picker-option-active: hsl(var(--picker-option-active));
+  --color-picker-option-active-fg: hsl(var(--picker-option-active-fg));
+  --color-picker-option-hover: hsl(var(--picker-option-hover));
+  --color-picker-chip: hsl(var(--picker-chip));
+  --color-picker-chip-fg: hsl(var(--picker-chip-fg));
+  --color-picker-chip-ring: hsl(var(--picker-chip-ring));
+  --color-picker-chip-value: hsl(var(--picker-chip-value));
+  --color-picker-chip-value-fg: hsl(var(--picker-chip-value-fg));
+  --color-picker-keycap: hsl(var(--picker-keycap));
+  --color-picker-keycap-fg: hsl(var(--picker-keycap-fg));
+  --color-picker-keycap-border: hsl(var(--picker-keycap-border));
+  --color-picker-caret: hsl(var(--picker-caret));
+
+  --animate-picker-shake: picker-shake 0.4s ease-in-out;
+
+  @keyframes picker-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+}

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@bklearn/shadcn": "^0.1.2",
+    "@paladin/ui": "workspace:*",
 "lucide-react": "^0.577.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
