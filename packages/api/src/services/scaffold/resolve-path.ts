@@ -16,6 +16,10 @@ function firstSeg(p: string): string {
 function injectComponents(pkgName: string, tail: string): string {
   if (!tail || !COMPONENT_PKGS.includes(pkgName)) return tail
   if (tail.split('/').includes('components')) return tail
+  if (tail.includes('App')) {
+    // we dont return when it is natively something like App.tsx
+    return tail
+  }
   return join('components', tail)
 }
 
