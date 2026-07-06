@@ -1,7 +1,7 @@
 import type { ApiClient } from '@paladin/utils/api'
 import type { useAppStore } from './store'
 
-export interface DocMeta {
+interface DocMeta {
   id: string
   title: string
 }

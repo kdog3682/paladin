@@ -97,7 +97,7 @@ const PATTERNS: Pattern[] = [
   },
 ]
 
-export function matchLine(line: string): { next: string, markerOnly: boolean } | null {
+function matchLine(line: string): { next: string, markerOnly: boolean } | null {
   for (const pattern of PATTERNS) {
     const match = line.match(pattern.regex)
     if (match) {

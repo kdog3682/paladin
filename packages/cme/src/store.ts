@@ -3,7 +3,7 @@ import { create } from 'zustand'
 const uuid = () => crypto.randomUUID()
 const MAX = 10
 
-export interface Tab {
+interface Tab {
   id: string
   title: string
   used: number
