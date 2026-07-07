@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "@bklearn/shadcn/globals.css";
+@source "../../simple-project-viewer/src";
+
+/*@import "tailwindcss";*/
 
 * {
   box-sizing: border-box;
