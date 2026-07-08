@@ -113,7 +113,7 @@ class DependencyResolver {
         if (declared.has(root) || root in deps || root in devDeps) continue
 
         const workspace = workspaceName(root)
-        if (workspace && this.workspaceNames.has(workspace)) {
+        if (workspace && (this.workspaceNames.has(workspace) || workspace == 'paladin')) {
           if (workspace !== target.name) bucket[root] = 'workspace:*'
         } else {
           bucket[root] = await this.version(root)
