@@ -14,6 +14,7 @@ function firstSeg(p: string): string {
 // for web/ui packages, insert a 'components' segment into the tail
 // unless one is already present somewhere in the path
 function injectComponents(pkgName: string, tail: string): string {
+  return tail
   if (!tail || !COMPONENT_PKGS.includes(pkgName)) return tail
   if (tail.split('/').includes('components')) return tail
   if (tail.includes('App')) {
@@ -51,6 +52,9 @@ export function resolvePath(
   // scripts always live in a fixed location, regardless of where they were "written"
   if (raw.includes('/scripts/') || raw.includes('.script.')) {
     return join(baseDir, 'paladin', 'scripts', basename(raw))
+  }
+  if (raw.startsWith('@web')) {
+    raw = '@paladin' + raw.slice(1)
   }
 
   // already-absolute or home-relative paths pass through untouched
