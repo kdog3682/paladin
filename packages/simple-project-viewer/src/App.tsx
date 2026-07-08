@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { createApiClient } from '@paladin/utils/api'
-import { TreeView, buildTree, flattenFiles, flattenVisible } from '@paladin/ui/TreeView'
+import { TreeView, TreeNode, buildTree, flattenFiles, flattenVisible } from '@paladin/ui/TreeView'
 import { CodeBlock } from '@paladin/ui/CodeBlock'
 
 const apiClient = createApiClient('simple-project-viewer')
@@ -26,9 +26,14 @@ export default function App() {
   const [fileContent, setFileContent] = useState<{ content: string; ext: string } | null>(null)
   const [marks, setMarks] = useState<Set<string>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [notes, setNotes] = useState<Map<string, string>>(new Map())
+  const [editingNote, setEditingNote] = useState(false)
+  const [noteInput, setNoteInput] = useState('')
+  const [noteTarget, setNoteTarget] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const noteRef = useRef<HTMLTextAreaElement>(null)
 
   const [project, pkg] = pkgPath.split('/')
 
@@ -62,6 +67,10 @@ export default function App() {
   }, [editingPkg])
 
   useEffect(() => {
+    if (editingNote) noteRef.current?.focus()
+  }, [editingNote])
+
+  useEffect(() => {
     if (pkgPath) {
       localStorage.setItem(PKG_STORAGE_KEY, pkgPath)
       loadTree(pkgPath)
@@ -87,6 +96,27 @@ export default function App() {
     })()
   }, [selected, project, pkg])
 
+  const toggleMarkDir = useCallback(
+    async (node: TreeNode & { type: 'dir' }) => {
+      if (!project || !pkg) return
+      const filePaths = flattenFiles([node])
+      if (!filePaths.length) return
+      const allMarked = filePaths.every((p) => marks.has(p))
+      const newMarks = new Set(marks)
+      const toToggle = filePaths.filter((p) => (allMarked ? marks.has(p) : !marks.has(p)))
+      for (const p of filePaths) allMarked ? newMarks.delete(p) : newMarks.add(p)
+      setMarks(newMarks)
+      try {
+        await Promise.all(
+          toToggle.map((p) => apiClient.call('simple-project-viewer.marks.toggle', { project, pkg, path: p })),
+        )
+      } catch (err) {
+        setError((err as Error).message)
+      }
+    },
+    [project, pkg, marks],
+  )
+
   const toggleMark = useCallback(
     async (path: string) => {
       if (!project || !pkg) return
@@ -103,14 +133,18 @@ export default function App() {
   const exportMarked = useCallback(async () => {
     if (!project || !pkg || marks.size === 0) return
     try {
-      const data = await apiClient.call('simple-project-viewer.export', { project, pkg, paths: [...marks] })
+      const notesRecord: Record<string, string> = {}
+      for (const [path, note] of notes) {
+        if (marks.has(path) && note.trim()) notesRecord[path] = note
+      }
+      const data = await apiClient.call('simple-project-viewer.export', { project, pkg, paths: [...marks], notes: notesRecord })
       setStatus(`opened ${data.count} file(s) → ${data.path}`)
       setMarks(new Set())
       setError(null)
     } catch (err) {
       setError((err as Error).message)
     }
-  }, [project, pkg, marks])
+  }, [project, pkg, marks, notes])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -122,6 +156,22 @@ export default function App() {
         if (e.key === 'Escape') setEditingPkg(false)
         return
       }
+      if (editingNote) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          if (noteTarget) {
+            setNotes((prev) => {
+              const next = new Map(prev)
+              if (noteInput.trim()) next.set(noteTarget, noteInput)
+              else next.delete(noteTarget)
+              return next
+            })
+          }
+          setEditingNote(false)
+          setNoteTarget(null)
+        }
+        return
+      }
       if (e.key === 'p') {
         e.preventDefault()
         setPkgInput(pkgPath)
@@ -131,6 +181,16 @@ export default function App() {
       if (e.key === 'e') {
         e.preventDefault()
         exportMarked()
+        return
+      }
+      if (e.key === 'i') {
+        e.preventDefault()
+        const path = focused && fileSet.has(focused) ? focused : null
+        if (path) {
+          setNoteTarget(path)
+          setNoteInput(notes.get(path) ?? '')
+          setEditingNote(true)
+        }
         return
       }
       if (!visible.length || !focused) return
@@ -160,11 +220,12 @@ export default function App() {
       } else if (e.key === 'm') {
         e.preventDefault()
         if (node.type === 'file') toggleMark(node.path)
+        else if (node.type === 'dir') toggleMarkDir(node)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [editingPkg, pkgInput, pkgPath, visible, focused, collapsed, loadTree, toggleMark, exportMarked])
+  }, [editingPkg, pkgInput, pkgPath, editingNote, noteInput, noteTarget, notes, visible, focused, fileSet, collapsed, loadTree, toggleMark, toggleMarkDir, exportMarked])
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: BG, color: FG }}>
@@ -197,6 +258,20 @@ export default function App() {
             colors={treeColors}
           />
         </div>
+        {editingNote && noteTarget && (
+          <div className="p-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+            <div className="text-[10px] mb-1 truncate" style={{ color: MUTED }}>{noteTarget}</div>
+            <textarea
+              ref={noteRef}
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              placeholder="notes… (esc to save)"
+              rows={4}
+              style={{ borderColor: BORDER, color: FG, backgroundColor: BG }}
+              className="w-full text-xs border rounded p-1 outline-none resize-none"
+            />
+          </div>
+        )}
         {(error || status) && (
           <div
             className="p-2 text-[10px] break-words"
@@ -206,7 +281,7 @@ export default function App() {
           </div>
         )}
         <div className="p-2 text-[10px]" style={{ borderTop: `1px solid ${BORDER}`, color: MUTED }}>
-          p: set pkg · ↑↓: move · ←→: collapse/expand · m: mark · e: export marked
+          p: set pkg · ↑↓: move · ←→: collapse/expand · m: mark · i: note · e: export
         </div>
       </div>
       <div className="flex-1 overflow-auto" style={{ backgroundColor: BG }}>

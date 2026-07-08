@@ -41,7 +41,7 @@ export const handlers = {
     return { marks: [...set] }
   },
 
-  'simple-project-viewer.export': async ({ project, pkg, paths }: { project: string; pkg: string; paths: string[] }) => {
+  'simple-project-viewer.export': async ({ project, pkg, paths, notes }: { project: string; pkg: string; paths: string[]; notes?: Record<string, string> }) => {
     const root = pkgRoot(project, pkg)
     const parts: string[] = []
     for (const p of paths) {
@@ -57,7 +57,17 @@ export const handlers = {
         // skip unreadable files
       }
     }
-    const joined = parts.join('\n\n')
+    const noteParts: string[] = []
+    if (notes) {
+      for (const p of paths) {
+        const note = notes[p]?.trim()
+        if (note) noteParts.push(`// ${p}\n${note}`)
+      }
+    }
+    let joined = parts.join('\n\n')
+    if (noteParts.length > 0) {
+      joined += '\n\n---\n\n' + noteParts.join('\n\n')
+    }
     const outPath = await clip(joined)
     marks.delete(`${project}/${pkg}`)
     return { path: outPath, count: parts.length }

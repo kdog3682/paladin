@@ -66,6 +66,11 @@ export interface TreeViewColors {
   markColor: string
 }
 
+function hasAnyMark(node: TreeNode, marks: Set<string>): boolean {
+  if (node.type === 'file') return marks.has(node.path)
+  return node.children.some((c) => hasAnyMark(c, marks))
+}
+
 /** Renders a file/dir tree with click-to-focus, collapse state, focus highlight, and marked-file coloring. */
 export function TreeView({
   nodes,
@@ -90,19 +95,20 @@ export function TreeView({
         const isFocused = n.path === focused
         if (n.type === 'dir') {
           const isCollapsed = collapsed.has(n.path)
+          const dirMarked = hasAnyMark(n, marks)
           return (
             <div key={n.path}>
               <div
                 onClick={() => onFocus(n.path)}
                 style={{
                   paddingLeft: 8 + depth * 12,
-                  color: colors.muted,
+                  color: dirMarked ? colors.markColor : colors.muted,
                   backgroundColor: isFocused ? colors.accentBg : 'transparent',
                 }}
                 className="px-2 py-1 text-sm cursor-pointer select-none flex items-center gap-1.5 hover:opacity-80"
               >
                 <span className="w-4 inline-block text-base leading-none">{isCollapsed ? '▸' : '▾'}</span>
-                <Folder size={14} style={{ color: colors.muted }} />
+                <Folder size={14} style={{ color: dirMarked ? colors.markColor : colors.muted }} />
                 <span className="truncate font-medium">{n.name}</span>
               </div>
               {!isCollapsed && (
