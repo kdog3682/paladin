@@ -21,9 +21,9 @@ export async function addApp(dir: string, name: string): Promise<void> {
       mainFile,
       `// main.${name}.tsx
 import { createRoot } from 'react-dom/client'
-import { ${Name}App } from './src/${Name}App'
+import App from './src/${name}/App'
 
-createRoot(document.getElementById('root')!).render(<${Name}App />)
+createRoot(document.getElementById('root')!).render(<App />)
 `,
     )
   }

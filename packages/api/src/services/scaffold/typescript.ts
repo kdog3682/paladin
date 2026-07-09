@@ -21,6 +21,7 @@ import { prepare } from './prepare'
 import { collectImports } from './imports'
 import { hydrate } from './hydrate'
 import { syncFiles } from './shared'
+import { addApp } from '@paladin/commands/addApp'
 import type { ScaffoldOptions, FileEntry, PreparedProject } from './types'
 
 const NPM_DEPS_CACHE = expandHome('~/projects/paladin/npm-dependencies.json')
@@ -208,6 +209,13 @@ export async function prepareTypescript(
   for (const pkg of project.packages) pkg.files = await syncFiles(pkg.files)
 
   await hydrateNew(project, targets)
+
+  const webAppRe = /^src\/([^/]+)\/App\.tsx$/
+  const appNames = new Set(project.files.flatMap((f) => {
+    const m = webAppRe.exec(f.path)
+    return m ? [m[1]] : []
+  }))
+  for (const name of appNames) await addApp(project.dir, name)
 
   const resolver = new DependencyResolver(new Set(project.packages.map((p) => p.name)))
 
