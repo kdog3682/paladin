@@ -53,7 +53,10 @@ export function resolvePath(
   if (raw.includes('/scripts/') || raw.includes('.script.')) {
     return join(baseDir, 'paladin', 'scripts', basename(raw))
   }
-  if (raw.startsWith('@web')) {
+    if (raw.startsWith('@ui')) {
+    raw = '@paladin/web/ui' + raw.slice(3)
+  }
+  else if (raw.startsWith('@web')) {
     raw = '@paladin' + raw.slice(1)
   }
 
