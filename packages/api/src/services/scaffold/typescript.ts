@@ -210,12 +210,17 @@ export async function prepareTypescript(
 
   await hydrateNew(project, targets)
 
-  const webAppRe = /^src\/([^/]+)\/App\.tsx$/
-  const appNames = new Set(project.files.flatMap((f) => {
-    const m = webAppRe.exec(f.path)
-    return m ? [m[1]] : []
-  }))
-  for (const name of appNames) await addApp(project.dir, name)
+  // const webAppRe = /^src\/([^/]+)\/App\.tsx$/
+  // for (const file of project.files) {
+  //   const m = webAppRe.exec(file.relpath)
+  //   if (m) await addApp(project.dir, m[1])
+  // }
+  // for (const pkg of project.packages) {
+  //   for (const file of pkg.files) {
+  //     const m = webAppRe.exec(file.relpath)
+  //     if (m) await addApp(pkg.dir, m[1])
+  //   }
+  // }
 
   const resolver = new DependencyResolver(new Set(project.packages.map((p) => p.name)))
 
