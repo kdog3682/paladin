@@ -14,6 +14,8 @@ export async function addApp(dir: string, name: string): Promise<void> {
   const mainFile = join(dir, `main.${name}.tsx`)
   const htmlFile = join(dir, `${name}.html`)
 
+  if (existsSync(htmlFile)) return
+
   let touched = false
   if (!existsSync(mainFile)) {
     touched = true
@@ -21,6 +23,7 @@ export async function addApp(dir: string, name: string): Promise<void> {
       mainFile,
       `// main.${name}.tsx
 import { createRoot } from 'react-dom/client'
+import './src/index.css'
 import App from './src/${name}/App'
 
 createRoot(document.getElementById('root')!).render(<App />)
