@@ -176,10 +176,14 @@ export async function processFile(file: string): Promise<ProcessFileResult | nul
 
   const contents = await readInputs(file)
 
-  if (contents.some((content) => content.includes('@sublime'))) {
+
+  const hasSublime = (s) => /^.*?@sublime\//.test(s)
+  if (contents.some(hasSublime)) {
+    console.log('sublimating')
     await handleSublime(contents)
     return null
   }
+
 
   const opts = await resolveOptions()
   const lang = detectLanguage(contents)
