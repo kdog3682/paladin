@@ -61,8 +61,8 @@ function extractCommands(body: string): string[] {
   return commands
 }
 
-// merges keybinding entries into a keymap file, replacing any existing
-// binding for the same command
+// merges keybinding entries into a .sublime-keymap file, replacing any
+// existing binding for the same command
 async function mergeKeymap(dest: string, entries: KeymapBinding[]): Promise<void> {
   const raw = existsSync(dest) ? await Bun.file(dest).text() : '[]'
   const bindings: KeymapBinding[] = JSON.parse(raw || '[]')
@@ -93,7 +93,8 @@ async function mergeCommandPalette(dest: string, entries: PaletteEntry[]): Promi
   await Bun.write(dest, JSON.stringify(existing, null, 4) + '\n')
 }
 
-// shallow-merges settings into a .sublime-settings file
+// shallow-merges a .sublime-settings file (covers both plugin settings like
+// 'Side Bar.sublime-settings' and user preferences, 'Preferences.sublime-settings')
 async function mergeSettings(dest: string, settings: Record<string, unknown>): Promise<void> {
   const raw = existsSync(dest) ? await Bun.file(dest).text() : '{}'
   const existing: Record<string, unknown> = JSON.parse(raw || '{}')
@@ -123,18 +124,17 @@ function normalizeSublimeHeader(content: string): string {
 }
 
 /**
- * Handles files whose header points at '@sublime/...'. Behavior depends on
- * the target filename:
- *  - '.sublime-keymap' files: parsed as a JSON array of keybindings and
- *    merged into that keymap file.
- *  - '.sublime-settings' files (e.g. 'Side Bar.sublime-settings'): parsed as
- *    a JSON object and shallow-merged into that settings file.
- *  - '.py' plugins: written as-is to the sublime User packages dir. The
- *    source is scanned for sublime_plugin command classes (command name is
- *    derived from the class, not the filename) and each one is registered
- *    in the command palette automatically. If a 'keys:' line follows the
- *    header, that binding is merged into the default keymap against the
- *    first command class found in the file.
+ * Handles files whose header points at '@sublime/...'. Merge strategy is
+ * dispatched per file suffix:
+ *  - '.sublime-keymap': JSON array of keybindings, merged by command.
+ *  - '.sublime-commands': JSON array of palette entries, merged by command.
+ *  - '.sublime-settings': JSON object (plugin settings or user
+ *    preferences), shallow-merged.
+ *  - everything else (including '.py', '.html', '.json', '.txt', ...):
+ *    written as-is, no merge. '.py' plugins additionally get scanned for
+ *    sublime_plugin command classes, auto-registered in the command
+ *    palette, and bound to a keymap entry if a 'keys:' line follows the
+ *    header.
  */
 export async function handleSublime(contents: string[]): Promise<boolean> {
   let handled = false
@@ -148,17 +148,25 @@ export async function handleSublime(contents: string[]): Promise<boolean> {
     handled = true
     const filename = headerMatch[1]
     const dest = join(SUBLIME_DIR, filename)
+    const body = stripHeader(lines, 1)
 
-    if (filename.includes('.sublime-')) {
-      const entries: KeymapBinding[] = JSON.parse(stripHeader(lines, 1) || '[]')
-      await mergeKeymap(dest, entries)
+    if (filename.endsWith('.sublime-keymap')) {
+      await mergeKeymap(dest, JSON.parse(body || '[]'))
       continue
     }
 
-    const body = stripHeader(lines, 1)
+    if (filename.endsWith('.sublime-commands')) {
+      await mergeCommandPalette(dest, JSON.parse(body || '[]'))
+      continue
+    }
+
+    if (filename.endsWith('.sublime-settings')) {
+      await mergeSettings(dest, JSON.parse(body || '{}'))
+      continue
+    }
+
     mkdirSync(dirname(dest), { recursive: true })
     await Bun.write(dest, body)
-    console.log(`[handleSublime] wrote ${dest}`)
 
     if (!filename.endsWith('.py')) continue
 
@@ -169,13 +177,11 @@ export async function handleSublime(contents: string[]): Promise<boolean> {
       SUBLIME_COMMANDS_FILE,
       commands.map((command) => ({ caption: `User: ${commandToCaption(command)}`, command })),
     )
-    console.log(`[handleSublime] command palette <- ${commands.join(', ')}`)
 
     const keysLine = lines.slice(1).find((l) => SUBLIME_KEYS_RE.test(l))
     if (keysLine) {
       const keys = keysLine.match(SUBLIME_KEYS_RE)![1].split(/\s*,\s*/)
       await mergeKeymap(SUBLIME_KEYMAP_FILE, [{ keys, command: commands[0] }])
-      console.log(`[handleSublime] keymap <- ${keys.join('+')} -> ${commands[0]}`)
     }
   }
 
