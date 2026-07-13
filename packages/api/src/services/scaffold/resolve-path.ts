@@ -50,7 +50,9 @@ export function resolvePath(
   const baseDir = expandHome(base)
 
   // scripts always live in a fixed location, regardless of where they were "written"
-  if (raw.includes('/scripts/') || raw.includes('.script.')) {
+  if (raw.includes('scripts/') || raw.includes('.script.')) {
+    // now account for // @scripts/setup-path.ts
+ 
     return join(baseDir, 'paladin', 'scripts', basename(raw))
   }
     if (raw.startsWith('@ui')) {
