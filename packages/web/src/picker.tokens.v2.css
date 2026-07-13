@@ -1,0 +1,62 @@
+// @app/ui/command-deck-tokens.css
+
+:root {
+  /* surfaces */
+  --deck-overlay: 0 0% 0% / 0.5;      /* backdrop scrim */
+  --deck-surface: 0 0% 100%;          /* panel bg */
+  --deck-surface-raised: 0 0% 98%;    /* input row bg */
+  --deck-border: 240 6% 90%;
+
+  /* text */
+  --deck-fg: 240 10% 4%;
+  --deck-fg-muted: 240 4% 46%;
+  --deck-fg-placeholder: 240 4% 64%;
+
+  /* item states */
+  --deck-item-hover: 240 5% 96%;
+  --deck-item-selected: 240 5% 92%;
+  --deck-item-selected-fg: 240 10% 4%;
+  --deck-item-active: var(--deck-accent);
+
+  /* accent / brand */
+  --deck-accent: 250 84% 60%;
+  --deck-accent-fg: 0 0% 100%;
+
+  /* structure */
+  --deck-group-label: 240 4% 46%;     /* section headers e.g. "Recent" */
+  --deck-kbd-bg: 240 5% 94%;          /* keyboard shortcut chip */
+  --deck-kbd-fg: 240 4% 40%;
+  --deck-divider: 240 6% 90%;
+
+  /* feedback */
+  --deck-empty-fg: 240 4% 46%;
+  --deck-loading: var(--deck-fg-muted);
+  --deck-danger: 0 72% 51%;
+  --deck-danger-fg: 0 0% 100%;
+
+  /* elevation */
+  --deck-shadow: 240 10% 4% / 0.1;
+}
+
+.dark {
+  --deck-overlay: 0 0% 0% / 0.7;
+  --deck-surface: 240 10% 8%;
+  --deck-surface-raised: 240 8% 11%;
+  --deck-border: 240 6% 18%;
+
+  --deck-fg: 0 0% 98%;
+  --deck-fg-muted: 240 5% 65%;
+  --deck-fg-placeholder: 240 5% 45%;
+
+  --deck-item-hover: 240 6% 14%;
+  --deck-item-selected: 240 6% 18%;
+  --deck-item-selected-fg: 0 0% 98%;
+
+  --deck-group-label: 240 5% 55%;
+  --deck-kbd-bg: 240 6% 16%;
+  --deck-kbd-fg: 240 5% 65%;
+  --deck-divider: 240 6% 18%;
+
+  --deck-empty-fg: 240 5% 55%;
+  --deck-shadow: 0 0% 0% / 0.4;
+}
