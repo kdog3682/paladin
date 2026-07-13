@@ -21,6 +21,9 @@
       "bun-types"
     ],
     "paths": {
+      "@paladin/ui/*": [
+        "./packages/web/src/ui/*"
+      ],
       "@paladin/*": [
         "./packages/*/src"
       ]
