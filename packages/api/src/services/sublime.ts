@@ -127,7 +127,8 @@ function normalizeSublimeHeader(content: string): string {
  * Handles files whose header points at '@sublime/...'. Merge strategy is
  * dispatched per file suffix:
  *  - '.sublime-keymap': JSON array of keybindings, merged by command.
- *  - '.sublime-commands': JSON array of palette entries, merged by command.
+ *  - '.sublime-commands' / '.sublime-menu': JSON array of {caption, command}
+ *    entries, merged by command.
  *  - '.sublime-settings': JSON object (plugin settings or user
  *    preferences), shallow-merged.
  *  - everything else (including '.py', '.html', '.json', '.txt', ...):
@@ -155,7 +156,7 @@ export async function handleSublime(contents: string[]): Promise<boolean> {
       continue
     }
 
-    if (filename.endsWith('.sublime-commands')) {
+    if (filename.endsWith('.sublime-commands') || filename.endsWith('.sublime-menu')) {
       await mergeCommandPalette(dest, JSON.parse(body || '[]'))
       continue
     }
