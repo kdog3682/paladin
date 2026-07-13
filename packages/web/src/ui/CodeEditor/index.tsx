@@ -56,7 +56,58 @@ function createDebounce(fn: () => void, wait: number): Debounced {
   }
 }
 
-export default function CodeEditor(props: CodeEditorProps) {
+interface EditorSnapshot {
+  doc: string
+  selection?: unknown
+  folds?: unknown
+}
+
+interface LocalStorageEditorState {
+  schemaVersion: 1
+  fileId: string
+  language: string
+  savedAt: number
+  editor: EditorSnapshot
+}
+
+const LS_KEY = 'codeeditor:emergency'
+
+function retrieveLocalStorageEditorState(): LocalStorageEditorState | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as LocalStorageEditorState
+    if (parsed.schemaVersion !== 1) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function setLocalStorageEditorState(state: LocalStorageEditorState): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state))
+  } catch {
+    // quota exceeded or serialization failure — nothing we can do here
+  }
+}
+
+function buildLocalStorageEditorState(
+  view: EditorView,
+  fileId: string,
+  language: string
+): LocalStorageEditorState {
+  const { doc, selection, folds } = view.state.toJSON(stateFields) as EditorSnapshot
+  return {
+    schemaVersion: 1,
+    fileId,
+    language,
+    savedAt: Date.now(),
+    editor: { doc, selection, folds },
+  }
+}
+
+function CodeEditor(props: CodeEditorProps) {
   const {
     fileId,
     state,
@@ -74,6 +125,7 @@ export default function CodeEditor(props: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const fileIdRef = useRef(fileId) // so a debounced save targets the right file
+  const languageRef = useRef(language) // so the emergency save uses the current language
 
   const langCompartment = useRef(new Compartment()).current
   const wrapCompartment = useRef(new Compartment()).current
@@ -146,6 +198,7 @@ export default function CodeEditor(props: CodeEditorProps) {
 
   // language: just reconfigure the compartment (also re-applied after a file load)
   useEffect(() => {
+    languageRef.current = language
     viewRef.current?.dispatch({
       effects: langCompartment.reconfigure(languageConf(language)),
     })
@@ -165,5 +218,21 @@ export default function CodeEditor(props: CodeEditorProps) {
     })
   }, [theme])
 
+  // emergency backup: tab close / refresh. localStorage is synchronous,
+  // so this is the one save path that's safe to run from beforeunload.
+  useEffect(() => {
+    const handler = () => {
+      const view = viewRef.current
+      if (!view) return
+      setLocalStorageEditorState(
+        buildLocalStorageEditorState(view, fileIdRef.current, languageRef.current)
+      )
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
+
   return <div ref={containerRef} className={className} />
 }
+
+export { CodeEditor, retrieveLocalStorageEditorState }
