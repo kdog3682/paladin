@@ -109,8 +109,8 @@ export async function processFile(file: string): Promise<ProcessFileResult | nul
   const [codeExecutionResults, gitData] = await Promise.all([
     codeRunner(prepared.files),
     handleGit(prepared.dir, prepared.name, prepared.isNew, {
-      initLocal: opts.git?.initLocalRepo ?? true,
-      initRemote: opts.git?.initRemoteRepository ?? true,
+      initLocal: opts.git?.initLocalRepo ?? false,
+      initRemote: opts.git?.initRemoteRepository ?? false,
     }),
   ])
 
