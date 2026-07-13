@@ -55,11 +55,16 @@ export function resolvePath(
  
     return join(baseDir, 'paladin', 'scripts', basename(raw))
   }
-    if (raw.startsWith('@ui')) {
+  raw = raw.replace('internal-commands', 'api/services')
+if (raw.startsWith('@ui')) {
     raw = '@paladin/web/ui' + raw.slice(3)
   }
   else if (raw.startsWith('@web')) {
     raw = '@paladin' + raw.slice(1)
+  }
+
+  if (raw.includes('ui/components')) {
+    raw = raw.replace('ui/components', 'web/ui')
   }
 
   // already-absolute or home-relative paths pass through untouched
