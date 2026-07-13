@@ -14,7 +14,8 @@
     "fflate": "^0.8.2",
     "recast": "^0.23.11",
     "@paladin/utils": "workspace:*",
-    "@paladin/commands": "workspace:*"
+    "@paladin/commands": "workspace:*",
+    "puppeteer": "^24.37.5"
   },
   "exports": {
     ".": "./src/index.ts"
