@@ -62,6 +62,9 @@ if (raw.startsWith('@ui')) {
   else if (raw.startsWith('@web')) {
     raw = '@paladin' + raw.slice(1)
   }
+  else if (raw.includes('@services')) {
+    raw = raw.replace('@services', '@paladin/api/services')
+  }
 
   if (raw.includes('ui/components')) {
     raw = raw.replace('ui/components', 'web/ui')
