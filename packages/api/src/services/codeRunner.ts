@@ -1,72 +1,85 @@
-import { existsSync } from 'fs'
-import { basename, dirname, extname } from 'path'
-import { bash, type BashResult } from '../utils/bash'
+import { dirname, extname } from 'path'
+import { bash } from '@paladin/utils/bash'
+import { fastDependencyList } from '@paladin/utils/fastDependencyList'
+import { webrun } from './webrun'
+import { demonstrater } from './demonstrater'
 import type { FileEntry } from './scaffold/types'
 
-async function runTypst(file: string): Promise<BashResult> {
-  const pdfPath = '/home/kdog3682/scratch/typst.svg'
-  const result = await bash(['typst', 'compile', '--format=svg', file, pdfPath], { cwd: dirname(file) })
-  if (result.exitCode === 0) {
-    await bash(['python3', '-c', `import webbrowser; webbrowser.open('file://${pdfPath}')`])
-  }
-  return result
+type Kind = 'demo' | 'example' | 'script'
+type RunType = Kind | 'web-demo'
+
+export interface RunResult {
+  type: RunType
+  sourceFile: string
+  result: Record<string, unknown>
 }
 
-const PAIR_INFIXES = ['demo', 'test', 'e2e', 'script']
+// living cache: runnable file -> its dependency files
+const depCache = new Map<string, Set<string>>()
 
-function classify(path: string): 'demo' | 'test' | 'script' | null {
+function classify(path: string): RunType | null {
   const p = path.replace(/\\/g, '/')
-  const ext = extname(p)
-  if (ext == 'mjs') {
-    return 'script'
+  const match = p.match(/\.(demo|example|script)\.|\/(demos|examples|scripts)\//)
+  if (!match) return null
+  const kind = (match[1] ?? match[2]!.slice(0, -1)) as Kind
+  return kind === 'demo' && extname(p) === '.tsx' ? 'web-demo' : kind
+}
+
+async function index(file: string): Promise<void> {
+  const deps = await fastDependencyList(file)
+  depCache.set(file, new Set(deps))
+}
+
+function dependents(file: string): string[] {
+  const out: string[] = []
+  for (const [runnable, deps] of depCache) {
+    if (deps.has(file)) out.push(runnable)
   }
-  const stem = basename(p, ext).toLowerCase()
-  if (['demo', 'example', 'sample', 'playground', 'scratch'].includes(stem)) return 'demo'
-  if (/\.demo\./.test(p) || p.includes('/demos/')) return 'demo'
-  if (/\.test\./.test(p) || /\.e2e\./.test(p) || p.includes('/tests/') || p.includes('/test/') || p.includes('/__tests__/')) return 'test'
-  if (/\.script\./.test(p) || p.includes('/scripts/')) return 'script'
-  return null
+  return out
 }
 
-function findPair(path: string): string | null {
-  const ext = extname(path)
-  const stem = path.slice(0, -ext.length)
-  for (const infix of PAIR_INFIXES) {
-    const candidate = `${stem}.${infix}${ext}`
-    if (existsSync(candidate)) return candidate
+async function run(file: string, type: RunType): Promise<RunResult> {
+  let result: unknown
+  if (type === 'web-demo') {
+    result = await webrun(file)
+  } else if (type === 'example') {
+    result = await demonstrater(file)
+  } else {
+    result = await bash(['bun', file], { cwd: dirname(file) })
   }
-  return null
+  return { type, sourceFile: file, result: result as Record<string, unknown> }
 }
 
-async function run(file: string, type: 'demo' | 'test' | 'script'): Promise<BashResult> {
-  if (extname(file) === '.typ') return runTypst(file)
-  const args = type === 'test' ? ['bun', 'test', file] : ['bun', file]
-  return bash(args, { cwd: dirname(file) })
-}
+export async function codeRunner(files: FileEntry[]): Promise<RunResult[]> {
+  const paths = files.map((f) => f.path)
+  const pending = new Map<string, RunType>()
 
-export async function codeRunner(files: FileEntry[]): Promise<BashResult[]> {
-  const results: BashResult[] = []
-  const seen = new Set<string>()
+  for (const path of paths) {
+    const type = classify(path)
 
-  for (const f of files) {
-    const direct = classify(f.path)
-    if (direct) {
-      if (!seen.has(f.path)) {
-        seen.add(f.path)
-        results.push(await run(f.path, direct))
-      }
+    // scripts never index — they just run when they appear
+    if (type === 'script') {
+      pending.set(path, 'script')
       continue
     }
 
-    const pair = findPair(f.path)
-    if (pair && !seen.has(pair)) {
-      const type = classify(pair)
-      if (type) {
-        seen.add(pair)
-        results.push(await run(pair, type))
-      }
+    // a runnable appearing means created/changed -> reindex + run
+    if (type) {
+      await index(path)
+      pending.set(path, type)
+      continue
+    }
+
+    // plain file: rerun any runnable that depends on it (batched by the map)
+    for (const runnable of dependents(path)) {
+      const runnableType = classify(runnable)
+      if (runnableType) pending.set(runnable, runnableType)
     }
   }
 
+  const results: RunResult[] = []
+  for (const [file, type] of pending) {
+    results.push(await run(file, type))
+  }
   return results
 }
