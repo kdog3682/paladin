@@ -179,7 +179,7 @@ async function reportDemo(exportName: string, demo: Demo): Promise<DemoReport> {
 }
 
 /** Dynamically imports `file`, runs every exported demo's examples, returns JSON for the frontend. */
-export async function demonstrate(file: string): Promise<DemonstraterResult> {
+export async function demonstrater(file: string): Promise<DemonstraterResult> {
   const absolute = resolve(file)
 
   try {
@@ -198,4 +198,4 @@ export async function demonstrate(file: string): Promise<DemonstraterResult> {
   }
 }
 
-export default demonstrate
+export default demonstrater
