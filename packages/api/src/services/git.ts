@@ -1,3 +1,5 @@
+import { existsSync } from 'fs'
+import { join } from 'path'
 import { bash } from '../utils/bash'
 
 export type GitFileStatus = 'modified' | 'created'
@@ -8,9 +10,15 @@ export interface GitFile {
   staged: boolean
 }
 
+export interface GitDataOptions {
+  branch?: boolean
+  diff?: boolean
+}
+
 export interface GitData {
   dir: string
-  branch: string
+  branch?: string
+  diff?: string
   files: GitFile[]
 }
 
@@ -32,14 +40,24 @@ function run(cmds: string[]) {
   return bash(cmds, { cwd })
 }
 
-export async function getData(): Promise<GitData> {
-  const [branchResult, statusResult] = await Promise.all([
-    run(['git', 'branch', '--show-current']),
+export async function getData(opts: GitDataOptions = {}): Promise<GitData> {
+  const includeBranch = opts.branch ?? true
+  const includeDiff = opts.diff ?? true
+
+  const [branchResult, statusResult, diffResult] = await Promise.all([
+    includeBranch ? run(['git', 'branch', '--show-current']) : Promise.resolve(null),
     run(['git', 'status', '--porcelain']),
+    includeDiff ? run(['git', 'diff', '-U5']) : Promise.resolve(null),
   ])
-  const branch = branchResult.stdout.trim()
+
   const files = await parseStatus(statusResult.stdout.trim())
-  return { dir: cwd!, branch, files }
+
+  return {
+    dir: cwd!,
+    branch: branchResult ? branchResult.stdout.trim() : undefined,
+    diff: diffResult ? diffResult.stdout : undefined,
+    files,
+  }
 }
 
 async function parseStatus(raw: string): Promise<GitFile[]> {
@@ -151,11 +169,12 @@ export async function diffStaged(): Promise<string> {
 export async function init(): Promise<void> {
   if (await isRepo()) return
   await run(['git', 'init'])
+  await run(['git', 'checkout', '-b', 'dev'])
 }
 
 export async function isRepo(): Promise<boolean> {
-  const result = await run(['git', 'rev-parse', '--is-inside-work-tree'])
-  return result.exitCode === 0
+  if (!cwd) throw new Error('git: no repo set. call setRepo() first')
+  return existsSync(join(cwd, '.git'))
 }
 
 export async function hasRemote(name = 'origin'): Promise<boolean> {
