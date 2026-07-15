@@ -69,20 +69,7 @@ const stopWatching = createWatcher({
 
     if (event) {
       broadcast(event.event, event.data)
-      // console.log(Bun.inspect(event.data, { depth: Infinity, colors: true }))
-      if (Array.isArray(event.data.codeExecutionResults)) {
-  console.log("\n=== Code Execution Results ===")
-
-  event.data.codeExecutionResults.forEach((result, i) => {
-    console.log(`\n--- Result ${i + 1} ---`)
-    console.log("Args:", result.args)
-    console.log("Stdout:")
-    console.log(result.stdout)
-    console.log("Stderr:")
-    console.log(result.stderr)
-    console.log("Exit Code:", result.exitCode)
-  })
-}
+      console.log(Bun.inspect(event.data.codeExecutionResults, { depth: Infinity, colors: true }))
     }
   },
 })

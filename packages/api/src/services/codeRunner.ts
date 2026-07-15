@@ -19,7 +19,7 @@ const depCache = new Map<string, Set<string>>()
 
 function classify(path: string): RunType | null {
   const p = path.replace(/\\/g, '/')
-  const match = p.match(/\.(demo|example|script)\.|\/(demos|examples|scripts)\//)
+  const match = p.match(/\.(demo|example|script|test)\.|\/(demos|examples|scripts|tests)\//)
   if (!match) return null
   const kind = (match[1] ?? match[2]!.slice(0, -1)) as Kind
   return kind === 'demo' && extname(p) === '.tsx' ? 'web-demo' : kind
@@ -44,7 +44,12 @@ async function run(file: string, type: RunType): Promise<RunResult> {
     result = await webrun(file)
   } else if (type === 'example') {
     result = await demonstrater(file)
-  } else {
+    }
+    else if (type == 'test') {
+
+    result = await bash(['bun', 'test', file], { cwd: dirname(file) })
+    }
+  else {
     result = await bash(['bun', file], { cwd: dirname(file) })
   }
   return { type, sourceFile: file, result: result as Record<string, unknown> }
@@ -53,10 +58,8 @@ async function run(file: string, type: RunType): Promise<RunResult> {
 export async function codeRunner(files: FileEntry[]): Promise<RunResult[]> {
   const paths = files.map((f) => f.path)
   const pending = new Map<string, RunType>()
-
   for (const path of paths) {
     const type = classify(path)
-
     // scripts never index — they just run when they appear
     if (type === 'script') {
       pending.set(path, 'script')
