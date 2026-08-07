@@ -19,9 +19,11 @@ const depCache = new Map<string, Set<string>>()
 
 function classify(path: string): RunType | null {
   const p = path.replace(/\\/g, '/')
-  const match = p.match(/\.(demo|example|script|test)\.|\/(demos|examples|scripts|tests)\//)
+  const match = p.match(
+    /\.(demo|example|script|test)\.|\/(demos|examples|scripts|tests)\/|(?:^|\/)(demo|example|script|test)\.[^/]+$/,
+  )
   if (!match) return null
-  const kind = (match[1] ?? match[2]!.slice(0, -1)) as Kind
+  const kind = (match[1] ?? match[3] ?? match[2]!.slice(0, -1)) as Kind
   return kind === 'demo' && extname(p) === '.tsx' ? 'web-demo' : kind
 }
 
@@ -80,8 +82,10 @@ export async function codeRunner(files: FileEntry[]): Promise<RunResult[]> {
     }
   }
 
+  const entries = [...pending].sort(([, a], [, b]) => (a === 'script' ? -1 : b === 'script' ? 1 : 0))
+
   const results: RunResult[] = []
-  for (const [file, type] of pending) {
+  for (const [file, type] of entries) {
     results.push(await run(file, type))
   }
   return results
