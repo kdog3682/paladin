@@ -1,5 +1,3 @@
-// @paladin/packages/codeform/documenter.ts
-
 import Parser from "tree-sitter"
 import TypeScript from "tree-sitter-typescript"
 import { readFile } from "fs/promises"
@@ -20,7 +18,6 @@ import type {
 } from "./documenter.types"
 
 const parser = new Parser()
-parser.setLanguage(TypeScript.typescript)
 
 function getText(node: Parser.SyntaxNode, source: string): string {
   return source.slice(node.startIndex, node.endIndex)
@@ -229,6 +226,7 @@ function resolveImports(file: FileDoc, allPaths: string[]) {
 }
 
 function parseFile(source: string, path: string): FileDoc {
+  parser.setLanguage(path.endsWith(".tsx") ? TypeScript.tsx : TypeScript.typescript)
   const tree = parser.parse(source)
   const root = tree.rootNode
   const symbols: SymbolDoc[] = []

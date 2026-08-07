@@ -267,7 +267,7 @@ async function parseImports(
   return imports
 }
 
-async function parseSource(
+export async function parseSource(
   source: string,
   path: string,
 ): Promise<FileDoc> {

@@ -1,5 +1,3 @@
-// @paladin/codeform/formatter.ts
-
 import type {
   FileDoc,
   SymbolDoc,
@@ -107,8 +105,14 @@ function collectReferencedTypeNames(
 
 // ---------- reshape ----------
 
-export function reshapeData(input: FileDoc | FileDoc[]): Reshaped {
+export interface ReshapeOptions {
+  /** absolute directory the FileDoc paths are relative to, used to resolve `@project/pkg/...` import paths */
+  root?: string
+}
+
+export function reshapeData(input: FileDoc | FileDoc[], options: ReshapeOptions = {}): Reshaped {
   const files = Array.isArray(input) ? input : [input]
+  const resolvePath = (p: string) => (options.root ? `${options.root}/${p}` : p)
 
   const index = new Map<string, { file: string; sym: SymbolDoc }>()
   for (const file of files)
@@ -137,7 +141,7 @@ export function reshapeData(input: FileDoc | FileDoc[]): Reshaped {
   }
   const sharedGroups: SharedGroup[] = [...groups].map(([source, types]) => ({
     source,
-    importPath: toImportPath(source),
+    importPath: toImportPath(resolvePath(source)),
     types,
   }))
 
@@ -166,11 +170,11 @@ export function reshapeData(input: FileDoc | FileDoc[]): Reshaped {
 
     reshapedFiles.push({
       path: file.path,
-      importPath: toImportPath(file.path),
+      importPath: toImportPath(resolvePath(file.path)),
       functions,
       classes,
       types,
-      exports: [...functions, ...classes, ...types.filter(t => t.exported)].map(s => s.name),
+      exports: [...functions, ...classes].map(s => s.name),
     })
   }
 
@@ -238,8 +242,8 @@ function isReshaped(x: FileDoc | FileDoc[] | Reshaped): x is Reshaped {
     && Array.isArray((x as Reshaped).shared)
 }
 
-export function format(input: FileDoc | FileDoc[] | Reshaped): string {
-  const data = isReshaped(input) ? input : reshapeData(input)
+export function format(input: FileDoc | FileDoc[] | Reshaped, options: ReshapeOptions = {}): string {
+  const data = isReshaped(input) ? input : reshapeData(input, options)
   const blocks: string[] = []
 
   for (const g of data.shared) {
@@ -250,7 +254,8 @@ export function format(input: FileDoc | FileDoc[] | Reshaped): string {
   for (const file of data.files) {
     const onlyTypes = !file.functions.length && !file.classes.length
     const kw = onlyTypes ? "import type" : "import"
-    const header = `${kw} { ${file.exports.join(", ")} } from "${file.importPath}"`
+    const names = onlyTypes ? file.types.filter(t => t.exported).map(t => t.name) : file.exports
+    const header = `${kw} { ${names.join(", ")} } from "${file.importPath}"`
     const body: string[] = []
     // types first so referenced types (e.g. Config) appear before the
     // functions/classes that use them
