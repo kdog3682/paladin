@@ -47,9 +47,13 @@ function isImportable(path: string): boolean {
   return IMPORT_EXTS.has(extname(path))
 }
 
+function stripJsonComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+}
+
 async function readManifest(dir: string): Promise<Manifest> {
   const path = join(dir, 'package.json')
-  return existsSync(path) ? JSON.parse(await Bun.file(path).text()) : {}
+  return existsSync(path) ? JSON.parse(stripJsonComments(await Bun.file(path).text())) : {}
 }
 
 export class DependencyResolver {
