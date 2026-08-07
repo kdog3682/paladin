@@ -50,11 +50,20 @@ export function resolvePath(
   const baseDir = expandHome(base)
 
   // scripts always live in a fixed location, regardless of where they were "written"
-  if (raw.includes('scripts/') || raw.includes('.script.')) {
-    // now account for // @scripts/setup-path.ts
- 
-    return join(baseDir, 'paladin', 'scripts', basename(raw))
+  if (raw.startsWith('src')) {
+
+
+    
+    raw = '@mathpen/txflow/' + raw 
   }
+  // if (raw.startsWith('@') && !raw.startsWith('@paladin')) {
+  //   raw = raw.replace('@', '@paladin/')
+  // }
+  // if (raw.includes('scripts/') || raw.includes('.script.')) {
+  //   // now account for // @scripts/setup-path.ts
+ 
+  //   return join(baseDir, 'paladin', 'scripts', basename(raw))
+  // }
   raw = raw.replace('internal-commands', 'api/services')
 if (raw.startsWith('@ui')) {
     raw = '@paladin/web/ui' + raw.slice(3)
