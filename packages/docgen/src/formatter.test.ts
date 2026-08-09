@@ -1,7 +1,5 @@
-// @paladin/codeform/formatter.test.ts
-
 import { test, expect } from "bun:test"
-import { parseSource } from "./parseFile"
+import { parseSource } from "./parse"
 import { format } from "./formatter"
 
 const ROOT = "/home/kdog3682/projects/paladin/packages/utils/src"
@@ -102,6 +100,14 @@ export function draw(shapes: Shape[]): Point[] {
   return shapes.map((s) => (s.kind === "circle" ? s.center : s.bounds.origin))
 }
 `
+test("format snapshot", () => {
+  const files = [
+    parseSource(geometry, `${ROOT}/geometry.ts`),
+    parseSource(render, `${ROOT}/render.ts`),
+  ]
+  expect(format(files)).toMatchSnapshot()
+})
+
 
 test("format snapshot", () => {
   const files = [
@@ -118,6 +124,6 @@ test("format snapshot (one at a time)", () => {
     parseSource(geometry, `${ROOT}/geometry.ts`),
     parseSource(render, `${ROOT}/render.ts`),
   ]
-  const out = files.map((f) => format(f)).join("\n")
+  const out = files.map((f) => format(f)).join("\n\n---\n\n")
   expect(out).toMatchSnapshot()
 })
