@@ -19,13 +19,16 @@ import { bash } from '../../utils/bash'
 import { prepare } from './prepare'
 import { hydrate } from './hydrate'
 import { syncFiles } from './shared'
-import { addApp } from '@paladin/commands/addApp'
+import {postProcessPackageFiles} from "./postProcessPackageFiles.ts"
 import { DependencyResolver } from './deps'
 import type { ScaffoldTarget } from './deps'
 import type { ScaffoldOptions, FileEntry, PreparedProject } from './types'
 
 type PkgType = 'astro' | 'react' | 'typescript'
 type Project = NonNullable<ReturnType<typeof prepare>>
+
+  const resolver = new DependencyResolver()
+
 
 function detectPackageType(files: FileEntry[]): PkgType {
   const exts = new Set(files.map((f) => extname(f.path)))
@@ -86,27 +89,19 @@ export async function prepareTypescript(
   const targets = collectTargets(project)
 
   project.files = await syncFiles(project.files)
-  for (const pkg of project.packages) pkg.files = await syncFiles(pkg.files)
+  for (const pkg of project.packages) {
+    pkg.files = await syncFiles(pkg.files)
+    await postProcessPackageFiles(pkg)
+  }
+
+  
 
   await hydrateNew(project, targets)
 
-  // const webAppRe = /^src\/([^/]+)\/App\.tsx$/
-  // for (const file of project.files) {
-  //   const m = webAppRe.exec(file.relpath)
-  //   if (m) await addApp(project.dir, m[1])
-  // }
-  // for (const pkg of project.packages) {
-  //   for (const file of pkg.files) {
-  //     const m = webAppRe.exec(file.relpath)
-  //     if (m) await addApp(pkg.dir, m[1])
-  //   }
-  // }
-
-  const resolver = new DependencyResolver(project.name)
 
   let installNeeded = false
   for (const target of targets) {
-    const resolved = await resolver.resolve(target)
+    const resolved = await resolver.resolve(project.name, target)
     if (resolved) installNeeded = true
 
     const pkg = project.packages.find((p) => p.name === target.name)
@@ -120,6 +115,7 @@ export async function prepareTypescript(
 
   if (installNeeded) {
     const res = await bash(['bun', 'install'], { cwd: project.dir })
+    console.log('install', res)
     if (res.exitCode !== 0) {
       throw new Error(`scaffold: bun install failed in ${project.dir}:\n${res.stderr}`)
     }

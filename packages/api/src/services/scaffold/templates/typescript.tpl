@@ -14,8 +14,7 @@ package.json
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./*": ["./src/*/index.ts", "./src/*.ts"]
+    ".": "./src/index.ts"
   },
   "scripts": {},
   "dependencies": {}

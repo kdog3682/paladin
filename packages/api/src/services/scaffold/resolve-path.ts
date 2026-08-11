@@ -94,6 +94,9 @@ if (raw.startsWith('@ui')) {
     const segs = raw.slice(1).split('/')
     const scope = segs[0]
     const rest = segs.slice(1)
+    if (SRC_DIRS.includes(rest[0])) {
+      join(baseDir, ...rest)
+    }
 
     // allow both '@scope/packages/pkg/...' and '@scope/pkg/...'
     const isPackagesPrefixed = rest[0] === 'packages'

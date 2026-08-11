@@ -17,7 +17,8 @@ import { collectImports } from '@paladin/utils/collectImports'
 import { expandHome } from '../../utils/path'
 import type { FileEntry } from './types'
 
-const NPM_DEPS_CACHE = expandHome('~/projects/paladin/npm-dependencies.json')
+const PALADIN_DIR = expandHome('~/projects/paladin')
+const NPM_DEPS_CACHE = join(PALADIN_DIR, 'npm-dependencies.json')
 const IMPORT_EXTS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'])
 
 /** A directory that owns its own package.json — the project root or a package. */
@@ -58,25 +59,26 @@ async function readManifest(dir: string): Promise<Manifest> {
 
 export class DependencyResolver {
   private readonly cache: Record<string, string>
-  private readonly scope: string
+  private scope: string
   private dirty = false
 
   constructor(
-    projectName: string,
     private readonly cachePath = NPM_DEPS_CACHE,
   ) {
-    this.scope = projectName.startsWith('@') ? projectName : `@${projectName}`
     this.cache = existsSync(cachePath) ? JSON.parse(readFileSync(cachePath, 'utf8')) : {}
   }
 
   /** Returns the deps added to `target`, or null when nothing was new. */
-  async resolve(target: ScaffoldTarget): Promise<DepSets | null> {
+  async resolve(projectName, target: ScaffoldTarget): Promise<DepSets | null> {
+        const scope = projectName.startsWith('@') ? projectName : `@${projectName}`
+        this.scope = scope
+
     const manifest = await readManifest(target.dir)
     const declared = new Set([
       ...Object.keys(manifest.dependencies ?? {}),
       ...Object.keys(manifest.devDependencies ?? {}),
     ])
-    const self = `${this.scope}/${target.name}`
+    const self = `${scope}/${target.name}`
 
     const deps: Record<string, string> = {}
     const devDeps: Record<string, string> = {}
@@ -90,7 +92,9 @@ export class DependencyResolver {
         const root = ref.source
         if (declared.has(root) || root in deps || root in devDeps) continue
 
-        if (this.isWorkspace(root)) {
+        if (root.startsWith('@paladin')) {
+          bucket[root] = 'workspace:*'
+        } else if (this.isWorkspace(root)) {
           if (root !== self) bucket[root] = 'workspace:*'
         } else {
           bucket[root] = await this.version(root)
@@ -116,7 +120,7 @@ export class DependencyResolver {
 
   /** A scoped import under the project's own scope is a sibling workspace package. */
   private isWorkspace(root: string): boolean {
-    return root === this.scope || root.startsWith(`${this.scope}/`)
+    return root === this.scope || root.startsWith(`${this.scope}/`) || root == 'paladin'
   }
 
   private async version(name: string): Promise<string> {

@@ -60,6 +60,9 @@ function extractPackageEntry(
 ): Located | null {
   if (segs[pkgIdx] !== 'packages' || segs.length <= pkgIdx + 1) return null
   const pkgName = segs[pkgIdx + 1]
+  if (pkgName == "scripts") {
+    return null
+  }
   return {
     projectName,
     projectDir,
