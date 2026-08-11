@@ -2,7 +2,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { homedir } from 'os'
 
-const SCRATCH_PATH = join(homedir(), 'scratch', 'temp-content.txt')
+const SCRATCH_PATH = join(homedir(), 'trash', 'scratch.temp.content.txt')
 
 function open(url: string) {
   Bun.spawn(['python3', '-c', `import webbrowser; webbrowser.open('${url}')`])
