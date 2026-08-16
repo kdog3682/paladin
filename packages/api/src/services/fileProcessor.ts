@@ -5,6 +5,7 @@ import { prepareTypescript, prepareTypst } from './scaffold'
 import { extractHeader } from './scaffold/prepare'
 import { codeRunner } from './codeRunner'
 import { handleGit, logProject } from './scaffold/shared'
+import {clip} from "@paladin/utils"
 import { handleSublime, hasSublime } from './sublime'
 import type { ScaffoldOptions, ScaffoldConfig } from './scaffold/types'
 import type { GitData } from './git'
@@ -113,6 +114,21 @@ export async function processFile(file: string): Promise<ProcessFileResult | nul
       initRemote: opts.git?.initRemoteRepository ?? false,
     }),
   ])
+
+  let s = ''
+  const log = (a, b) => {
+    s += `===\n${a}\n===\n\n${b}\n\n`
+  }
+  for (const res of codeExecutionResults) {
+     if (res.type == 'test') {
+      log('file:', res.sourceFile)
+      if (res.result.stderr) log('error:', res.result.stderr)
+      if (res.result.stdout) log('stdout:', res.result.stdout)
+     }
+  }
+  if (s) {
+    clip(s)
+  }
 
   return { event: 'fileProcessor:scaffold', data: { gitData, codeExecutionResults } }
 }

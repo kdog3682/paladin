@@ -5,7 +5,7 @@ import { webrun } from './webrun'
 import { demonstrater } from './demonstrater'
 import type { FileEntry } from './scaffold/types'
 
-type Kind = 'demo' | 'example' | 'script'
+type Kind = 'demo' | 'example' | 'script' | 'test'
 type RunType = Kind | 'web-demo'
 
 export interface RunResult {

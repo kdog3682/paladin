@@ -69,7 +69,6 @@ const stopWatching = createWatcher({
 
     if (event) {
       broadcast(event.event, event.data)
-      console.log(Bun.inspect(event.data.codeExecutionResults, { depth: Infinity, colors: true }))
     }
   },
 })
