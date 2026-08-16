@@ -49,7 +49,10 @@ export function resolvePath(
 ): string | null {
   const baseDir = expandHome(base)
 
-  // scripts always live in a fixed location, regardless of where they were "written"
+  if (raw.startsWith('package.json')) {
+    // this should be part of the params
+    return
+  }
   if (raw.startsWith('src')) {
 
 
