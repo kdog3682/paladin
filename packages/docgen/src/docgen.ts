@@ -241,7 +241,7 @@ export async function analyze(
     files.map((file) => [file, (byFile.get(file) ?? []).map((entry) => entry.exposedAs)]),
   )
 
-  const fence = options.fence !== false
+  const fence = false
   const sections = files.map((file) => {
     const blocks = (byFile.get(file) ?? []).map((entry) => {
       const parts: string[] = []
@@ -252,7 +252,7 @@ export async function analyze(
       return parts.join("\n")
     })
     const body = blocks.join("\n\n")
-    return `## ${file}\n\n${fence ? `\`\`\`ts\n${body}\n\`\`\`` : body}`
+    return `# ${file}\n\n${fence ? `\`\`\`ts\n${body}\n\`\`\`` : body}`
   })
 
   const unresolved = [...store.unresolved].sort((a, b) => a.localeCompare(b))
