@@ -160,6 +160,23 @@ export async function test(names: string[]) {
   }
 }
 
+export function printReport(summary: Awaited<ReturnType<typeof test>>) {
+  const lines: string[] = []
+  const status = summary.pass ? 'PASS' : 'FAIL'
+  lines.push(`${status} ${summary.corpus} (${summary.passed}/${summary.passed + summary.failed})`)
+
+  for (const file of summary.files) {
+    if (file.status === 'pass') {
+      lines.push(`  pass      ${file.path}`)
+      continue
+    }
+    lines.push(`  ${file.status.padEnd(9)} ${file.path}`)
+    for (const line of file.diff ?? []) lines.push(`    ${line}`)
+  }
+
+  return lines.join('\n')
+}
+
 if (import.meta.main) {
   const names = process.argv.slice(2).filter(arg => !arg.startsWith('-'))
 
@@ -170,5 +187,5 @@ if (import.meta.main) {
 
   const summary = await test(names)
   process.exitCode = summary.pass ? 0 : 1
-  console.log(JSON.stringify(summary, null, 2))
+  console.log(printReport(summary))
 }

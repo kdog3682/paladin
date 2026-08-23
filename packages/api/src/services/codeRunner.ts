@@ -51,9 +51,14 @@ async function run(file: string, type: RunType): Promise<RunResult> {
     result = await webrun(file)
   } else if (type === 'codemod') {
     const name = file.replace(/\\/g, '/').match(TRANSFORM_FILE)![1]
+    try {
+
     const summary = await testCodemod([name])
     await clip(summary)
     result = summary
+    } catch(e) {
+      await clip(e.toString())
+    }
   } else if (type === 'example') {
     result = await demonstrater(file)
     }
