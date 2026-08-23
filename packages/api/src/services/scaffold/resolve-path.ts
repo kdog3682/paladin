@@ -2,7 +2,7 @@ import { join, basename } from 'path'
 import { expandHome } from '../../utils/path'
 
 // dirs that are already "src-like" and shouldn't get 'src' prepended again
-const SRC_DIRS = ['src', 'docs', 'scripts']
+const SRC_DIRS = ['src', 'docs', 'scripts', 'corpus']
 // package names that should have their files nested under 'components'
 const COMPONENT_PKGS = ['web', 'ui']
 
