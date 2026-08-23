@@ -3,10 +3,14 @@ import { bash } from '@paladin/utils/bash'
 import { fastDependencyList } from '@paladin/utils/fastDependencyList'
 import { webrun } from './webrun'
 import { demonstrater } from './demonstrater'
+import {clip} from "@paladin/utils"
+import { test as testCodemod } from '@paladin/codemod/test'
 import type { FileEntry } from './scaffold/types'
 
 type Kind = 'demo' | 'example' | 'script' | 'test'
-type RunType = Kind | 'web-demo'
+type RunType = Kind | 'web-demo' | 'codemod'
+
+const TRANSFORM_FILE = /\/codemod\/src\/transforms\/([^/]+)\.ts$/
 
 export interface RunResult {
   type: RunType
@@ -19,6 +23,7 @@ const depCache = new Map<string, Set<string>>()
 
 function classify(path: string): RunType | null {
   const p = path.replace(/\\/g, '/')
+  if (TRANSFORM_FILE.test(p)) return 'codemod'
   const match = p.match(
     /\.(demo|example|script|test)\.|\/(demos|examples|scripts|tests)\/|(?:^|\/)(demo|example|script|test)\.[^/]+$/,
   )
@@ -44,6 +49,11 @@ async function run(file: string, type: RunType): Promise<RunResult> {
   let result: unknown
   if (type === 'web-demo') {
     result = await webrun(file)
+  } else if (type === 'codemod') {
+    const name = file.replace(/\\/g, '/').match(TRANSFORM_FILE)![1]
+    const summary = await testCodemod([name])
+    await clip(summary)
+    result = summary
   } else if (type === 'example') {
     result = await demonstrater(file)
     }
@@ -90,3 +100,5 @@ export async function codeRunner(files: FileEntry[]): Promise<RunResult[]> {
   }
   return results
 }
+
+
