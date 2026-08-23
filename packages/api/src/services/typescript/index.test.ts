@@ -192,6 +192,7 @@ describe('deleteSymbol', () => {
     expect(ts.text('/src/source.ts')).not.toContain('drop')
     expect(ts.text('/src/consumer.ts')).toContain('import { keep }')
     expect(ts.text('/src/consumer.ts')).not.toContain('drop')
+    
   })
 
   test('drops imports that only the deleted symbol used', () => {

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { dirname, join, relative } from "node:path"
 import { analyze, docgen } from "./docgen"
 import type { DocEntry } from "./docgen.types"
-
+import {clip} from "@paladin/utils"
 /**
  * A miniature package written to a temp dir so the demo exercises the real
  * parser rather than a stub. It is shaped to hit every branch that matters:
@@ -169,4 +169,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.main) await main()
+// if (import.meta.main) await main()
+
+
+clip(await docgen('/home/kdog3682/projects/mathpen/packages/manim/sr'))
