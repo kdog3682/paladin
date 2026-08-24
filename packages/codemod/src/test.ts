@@ -1,8 +1,11 @@
+import { readdir } from 'node:fs/promises'
+import yaml from 'js-yaml'
 import { IndentationText, Project, QuoteKind, ts } from 'ts-morph'
-import { run } from './run'
+import { type CommandInvocation, run, runCommands } from './run'
 
 const CORPUS = new URL('../corpus/', import.meta.url)
 const FILE_HEADER = /^[ \t]*\/\*+[ \t]*([^\s*]+?\.[a-zA-Z]+)[ \t]*\*+\/[ \t]*$/gm
+const PREAMBLE = /^\s*\/\*([\s\S]*?)\*\/\s*\n?/
 
 async function readCorpus(file: string) {
   const handle = Bun.file(Bun.fileURLToPath(new URL(file, CORPUS)))
@@ -17,6 +20,41 @@ function parseCorpus(source: string) {
     const end = index + 1 < headers.length ? headers[index + 1].index : source.length
     return { path: header[1].replace(/^\.?\//, ''), code: source.slice(start, end).trim() }
   })
+}
+
+function isCommandInvocation(value: unknown): value is CommandInvocation {
+  return !!value && typeof value === 'object' && typeof (value as { command?: unknown }).command === 'string'
+}
+
+// Preamble commands are written as YAML but omit the `{ }` around each flow
+// mapping (`- command: x, args: [...]`), so brace list-item bodies before parsing.
+function bracePreambleEntries(body: string) {
+  return body
+    .split('\n')
+    .map(line => {
+      const match = line.match(/^(\s*-\s+)(command\s*:.*)$/)
+      return match && !match[2].startsWith('{') ? `${match[1]}{ ${match[2]} }` : line
+    })
+    .join('\n')
+}
+
+function parsePreamble(source: string): { commands: CommandInvocation[]; rest: string } {
+  const match = source.match(PREAMBLE)
+  if (!match) return { commands: [], rest: source }
+
+  let parsed: unknown
+  try {
+    parsed = yaml.load(bracePreambleEntries(match[1]))
+  } catch {
+    return { commands: [], rest: source }
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(isCommandInvocation)) {
+    return { commands: [], rest: source }
+  }
+
+  const commands = parsed.map(entry => ({ command: entry.command, args: entry.args ?? [] }))
+  return { commands, rest: source.slice(match[0].length) }
 }
 
 function stripAnnotations(source: string) {
@@ -36,13 +74,15 @@ function stripAnnotations(source: string) {
   return kept.join('\n')
 }
 
+// Blank-line placement is not significant: a codemod's exact number of blank lines around
+// an edit (or the fixture's) is incidental, not part of what's being tested.
 function normalize(code: string) {
   return code
     .replace(/\r\n/g, '\n')
     .split('\n')
     .map(line => line.replace(/[ \t]+$/, ''))
+    .filter(line => line !== '')
     .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 
@@ -96,7 +136,8 @@ function diff(received: string, expected: string) {
 
 export async function test(names: string[]) {
   const name = names.join('.')
-  const inputFiles = parseCorpus(await readCorpus(`${name}/input.ts`))
+  const { commands, rest: inputSource } = parsePreamble(await readCorpus(`${name}/input.ts`))
+  const inputFiles = parseCorpus(inputSource)
   const expectedFiles = parseCorpus(stripAnnotations(await readCorpus(`${name}/output.ts`)))
 
   if (inputFiles.length === 0) throw new Error(`corpus/${name}/input.ts has no /* path.ts */ headers`)
@@ -104,7 +145,7 @@ export async function test(names: string[]) {
   const project = new Project({
     useInMemoryFileSystem: true,
     manipulationSettings: {
-      quoteKind: QuoteKind.Single,
+      quoteKind: QuoteKind.Double,
       indentationText: IndentationText.TwoSpaces,
       useTrailingCommas: false
     },
@@ -121,7 +162,8 @@ export async function test(names: string[]) {
 
   for (const file of inputFiles) project.createSourceFile(`/${file.path}`, file.code, { overwrite: true })
 
-  await run(names, project)
+  if (commands.length > 0) await runCommands(commands, project)
+  else await run(names, project)
   await project.save()
 
   const received = new Map(
@@ -177,15 +219,57 @@ export function printReport(summary: Awaited<ReturnType<typeof test>>) {
   return lines.join('\n')
 }
 
+async function listCorpusNames() {
+  const entries = await readdir(Bun.fileURLToPath(CORPUS), { withFileTypes: true })
+  return entries
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .sort()
+}
+
+// Each corpus fixture is self-describing: `input.ts` either carries a preamble of commands
+// to run, or the directory name is itself a codemod (transform). `test()` already picks
+// between the two, so testAll just needs to run every fixture through it.
+export async function testAll() {
+  const names = await listCorpusNames()
+  const summaries = await Promise.all(
+    names.map(async name => {
+      try {
+        return await test([name])
+      } catch (error) {
+        return {
+          corpus: name,
+          codemods: [name],
+          pass: false,
+          passed: 0,
+          failed: 1,
+          legend: '- received, + expected',
+          files: [{ path: '', status: `error: ${String(error)}`, diff: [] as string[] }]
+        }
+      }
+    })
+  )
+
+  return {
+    pass: summaries.every(summary => summary.pass),
+    passed: summaries.filter(summary => summary.pass).length,
+    failed: summaries.filter(summary => !summary.pass).length,
+    summaries
+  }
+}
+
 if (import.meta.main) {
-  const names = process.argv.slice(2).filter(arg => !arg.startsWith('-'))
+  const args = process.argv.slice(2)
+  const names = args.filter(arg => !arg.startsWith('-'))
 
   if (names.length === 0) {
-    console.error('usage: bun src/test.ts <codemod> [...codemods]')
-    process.exit(1)
+    const { pass, passed, failed, summaries } = await testAll()
+    for (const summary of summaries) console.log(printReport(summary))
+    console.log(`\n${passed}/${passed + failed} corpora passed`)
+    process.exitCode = pass ? 0 : 1
+  } else {
+    const summary = await test(names)
+    process.exitCode = summary.pass ? 0 : 1
+    console.log(printReport(summary))
   }
-
-  const summary = await test(names)
-  process.exitCode = summary.pass ? 0 : 1
-  console.log(printReport(summary))
 }

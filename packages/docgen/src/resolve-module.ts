@@ -86,3 +86,8 @@ function isInside(dir: string, path: string): boolean {
 function posix(path: string): string {
   return path.split(sep).join("/")
 }
+
+
+
+
+

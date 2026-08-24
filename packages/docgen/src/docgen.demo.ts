@@ -7,6 +7,8 @@ import {collectFiles, clip} from "@paladin/utils"
 
 // clip(
 
-const files = collectFiles('/home/kdog3682/projects/paladin/packages/codemod/src/utils')
+// const files = collectFiles('/home/kdog3682/projects/paladin/packages/codemod/src/utils')
+const files = ['/home/kdog3682/projects/mathpen/packages/manim/src/math/expr/index.ts']
+const files = ['/home/kdog3682/projects/paladin/packages/docgen/src/parse.ts']
 
-clip(await docgen(files))
+console.log(await docgen(files))

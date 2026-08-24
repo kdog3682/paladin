@@ -1,10 +1,11 @@
 // @paladin/codemod/src/transforms/inlineInfrequentConstants.ts
 
 import { ExportSpecifier, Identifier, ImportSpecifier, Node, Project, SyntaxKind, VariableDeclaration } from "ts-morph"
+import { isExported } from "../utils/declarations"
 import { removeImportSpecifier } from "../utils/imports"
 import { groupByFile, isMemberName, isSimpleLiteral } from "../utils/nodes"
 import { deleteFile, hasExports, hasOnlyImports, insertAfterImports } from "../utils/source-files"
-import { isConstDeclaration, isExportedDeclaration, removeDeclaration } from "../utils/variables"
+import { isConstDeclaration, removeDeclaration } from "../utils/variables"
 
 export type InlineInfrequentConstantsOptions = {
   maxUses?: number
@@ -80,7 +81,7 @@ function relocateSingleConsumerConstants(project: Project, stripped: Set<string>
     const declarations = file.getVariableDeclarations().filter(isConstDeclaration)
     for (const declaration of declarations) {
       if (declaration.wasForgotten()) continue
-      if (!isExportedDeclaration(declaration)) continue
+      if (!isExported(declaration)) continue
       if (!relocateConstant(declaration)) continue
 
       stripped.add(file.getFilePath())

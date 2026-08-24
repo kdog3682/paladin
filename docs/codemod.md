@@ -26,6 +26,25 @@ files into one, delimited by `/* path.ts */` headers. `test.ts` seeds an in-memo
 runs the codemod(s), and diffs each result against `output.ts` (whitespace-normalized). Lines starting with
 `///` in `output.ts` are annotations, stripped before comparison.
 
+### Preamble commands
+
+`input.ts` may start with a `/* ... */` preamble listing commands to play instead of the codemod(s) passed to
+`test.ts`:
+
+```
+/*
+
+- command: renameSymbol, args: ['foo', 'bar']
+- command: renameSymbol, args: ['bar', 'foo']
+
+*/
+```
+
+Each entry's `command` names a module in `src/commands/<command>.ts` (exporting a function named `<command>`,
+its camelCase form, or `default`), called as `command(project, ...args)`. Commands run in order against the
+same project. When `input.ts` has no such preamble, `test.ts` falls back to running the codemod(s) named on
+the CLI, as before.
+
 Output is a human-readable report — per-file status, and for failures a `-`/`+` diff:
 
 ```

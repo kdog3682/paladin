@@ -5,11 +5,6 @@ export function isConstDeclaration(declaration: VariableDeclaration): boolean {
   return declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const
 }
 
-/** Tells whether a declaration is exported from its module. */
-export function isExportedDeclaration(declaration: VariableDeclaration): boolean {
-  return declaration.getVariableStatement()?.isExported() ?? false
-}
-
 function hasBlankLineBefore(node: Node): boolean {
   const before = node.getSourceFile().getFullText().slice(0, node.getStart(true))
   return /\n[ \t]*\r?\n[ \t]*$/.test(before)
