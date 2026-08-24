@@ -24,6 +24,7 @@ const depCache = new Map<string, Set<string>>()
 function classify(path: string): RunType | null {
   const p = path.replace(/\\/g, '/')
   if (TRANSFORM_FILE.test(p)) return 'codemod'
+  // if (CORPUS_FILE.test(p)) return 'corpus'
   const match = p.match(
     /\.(demo|example|script|test)\.|\/(demos|examples|scripts|tests)\/|(?:^|\/)(demo|example|script|test)\.[^/]+$/,
   )

@@ -97,7 +97,7 @@ export const DOC_NAMES = [
 export const PRESETS: Record<FilePreset, PresetRule> = {
     // foobar.demo.ts, demos/foobar.ts, examples/foobar.ts
     demo: {
-        patterns: [/\.(?:demo|example)s?\.[^./\\]+$/i, dirRe(['demos?', 'examples?'])],
+        patterns: [/\.(?:demo|example|sample)s?\.[^./\\]+$/i, dirRe(['demos?', 'examples?', 'samples?'])],
     },
     // build.sh, scripts/foobar.ts, bin/foobar, foobar.script.ts
     script: {

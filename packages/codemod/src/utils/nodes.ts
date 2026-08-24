@@ -2,10 +2,7 @@
 
 import { Node, SourceFile, SyntaxKind } from "ts-morph"
 
-/**
- * Tells whether a node is a string, number, signed number, or untagged template literal.
- * Codemods that move, compare, or duplicate values need to know when a node is a self-contained constant.
- */
+/** Tells whether a node is a string, number, signed number, or untagged template literal. */
 export function isSimpleLiteral(node: Node | undefined): boolean {
   if (!node) return false
   if (Node.isStringLiteral(node)) return true
@@ -19,10 +16,7 @@ export function isSimpleLiteral(node: Node | undefined): boolean {
   return false
 }
 
-/**
- * Tells whether an identifier is the member half of `a.b` or `A.B` rather than a standalone reference.
- * Reference scans return these alongside real bindings, and rewriting one silently breaks unrelated code.
- */
+/** Tells whether an identifier is the member half of `a.b` or `A.B` rather than a standalone reference. */
 export function isMemberName(node: Node): boolean {
   const parent = node.getParent()
   if (!parent) return false
@@ -31,10 +25,7 @@ export function isMemberName(node: Node): boolean {
   return false
 }
 
-/**
- * Buckets nodes by the source file they live in.
- * Nearly every cross-file codemod decides what to do based on how many files touch a symbol.
- */
+/** Buckets nodes by the source file they live in. */
 export function groupByFile<T extends Node>(nodes: T[]): Map<SourceFile, T[]> {
   const grouped = new Map<SourceFile, T[]>()
   for (const node of nodes) {

@@ -12,17 +12,17 @@ import { join } from 'path'
 const app = new Hono()
 app.use("*", cors())
 
-const featuresDir = join(import.meta.dir, 'features')
-for (const pkg of readdirSync(featuresDir)) {
-  const pkgDir = join(featuresDir, pkg)
-  const files = readdirSync(pkgDir).filter(f => f.endsWith('.handlers.ts'))
-  const allHandlers: Record<string, (kwargs: any) => unknown> = {}
-  for (const file of files) {
-    const mod = await import(join(pkgDir, file))
-    Object.assign(allHandlers, mod.handlers)
-  }
-  app.route(`/${pkg}`, createHandlerRouter(allHandlers))
-}
+// const featuresDir = join(import.meta.dir, 'features')
+// for (const pkg of readdirSync(featuresDir)) {
+//   const pkgDir = join(featuresDir, pkg)
+//   const files = readdirSync(pkgDir).filter(f => f.endsWith('.handlers.ts'))
+//   const allHandlers: Record<string, (kwargs: any) => unknown> = {}
+//   for (const file of files) {
+//     const mod = await import(join(pkgDir, file))
+//     Object.assign(allHandlers, mod.handlers)
+//   }
+//   app.route(`/${pkg}`, createHandlerRouter(allHandlers))
+// }
 
 
 const { upgradeWebSocket, websocket } =

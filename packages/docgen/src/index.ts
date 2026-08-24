@@ -1,5 +1,0 @@
-export { analyze, docgen } from "./docgen"
-export { createStore, exportsOf, prime, resolveSpecifier } from "./resolve"
-export { renderDeclaration, renderSymbol } from "./render"
-export { typeNames, typeRefs } from "./typerefs"
-export type * from "./docgen.types"

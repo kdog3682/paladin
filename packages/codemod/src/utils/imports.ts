@@ -1,9 +1,6 @@
 import { ImportDeclaration, ImportSpecifier, SourceFile } from "ts-morph"
 
-/**
- * Drops a named import, removing the whole import declaration once it has no bindings left.
- * Any codemod that deletes or relocates a symbol has to unwind its imports without leaving `import {} from "x"`.
- */
+/** Drops a named import, removing the whole import declaration once it has no bindings left. */
 export function removeImportSpecifier(specifier: ImportSpecifier): void {
   const declaration = specifier.getImportDeclaration()
   const isOnlyBinding =
@@ -15,10 +12,7 @@ export function removeImportSpecifier(specifier: ImportSpecifier): void {
   else specifier.remove()
 }
 
-/**
- * Finds the import declarations in a file that resolve to a given source file.
- * Resolving module specifiers by hand is error prone, and rewiring or deleting modules always starts here.
- */
+/** Finds the import declarations in a file that resolve to a given source file. */
 export function getImportsOf(file: SourceFile, target: SourceFile): ImportDeclaration[] {
   const targetPath = target.getFilePath()
   return file

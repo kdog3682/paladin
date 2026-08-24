@@ -1,273 +1,250 @@
-import { dirname, relative, resolve as resolvePath, sep } from "node:path"
-import { collectFiles } from "@paladin/utils"
-import { fancyFileTree } from "./fancyFileTree"
-import { createStore, DEFAULT_EXTENSIONS, exportsOf, isDirectory, isFile, prime } from "./resolve"
-import { createIndex, resolveRef, typeRefs, unique } from "./typerefs"
-import { docComment, renderDeclaration } from "./render"
-import type { DocEntry, DocgenOptions, DocgenResult, ExcludePreset, Store } from "./docgen.types"
-import type { SymbolDoc } from "./parse.types"
+import { resolve as resolvePath } from "node:path"
+import { parse } from "./parse"
+import type { ClassDoc, FileDoc, FunctionDoc, MethodDoc, Param, SymbolDoc, TypeDoc } from "./parse.types"
+import { createLabeler, deriveRoot } from "./resolve-module"
+import { resolveTypes, type ExternalRef, type TypeRequest } from "./resolve-types"
+import { refsFromSymbol } from "./type-refs"
 
-const DEFAULT_PRESETS: ExcludePreset[] = ["demo", "script", "test"]
-const SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx"]
-
-const KIND_ORDER: Record<SymbolDoc["kind"], number> = {
-  enum: 0,
-  interface: 1,
-  type: 2,
-  class: 3,
-  function: 4,
-  const: 5,
-  variable: 6,
+export type DocgenOptions = {
+  /** Include non-public class members. Defaults to false. */
+  includePrivate?: boolean
+  /** Emit doc comments for type members. Defaults to true. */
+  includeMemberDocs?: boolean
 }
 
-function isSource(path: string): boolean {
-  if (path.endsWith(".d.ts")) return false
-  return SOURCE_EXTENSIONS.some((ext) => path.endsWith(ext))
+export type DocumentedSymbol = FunctionDoc | ClassDoc
+export type TypeSection = { path: string, types: TypeDoc[] }
+export type SymbolSection = { path: string, symbols: DocumentedSymbol[] }
+export type DocgenResult = {
+  /** Package name derived from the nearest package.json, when there is one. */
+  package: string | null
+  externals: ExternalRef[]
+  types: TypeSection[]
+  files: SymbolSection[]
+  unresolved: TypeRequest[]
 }
 
-function expandInputs(input: string | string[], presets: ExcludePreset[]): string[] {
-  const inputs = Array.isArray(input) ? input : [input]
-  const files: string[] = []
-  for (const raw of inputs) {
-    const abs = resolvePath(raw)
-    if (isDirectory(abs)) {
-      const found = collectFiles(abs, { exclude: { presets } })
-      for (const file of found) {
-        const path = resolvePath(abs, file)
-        if (isSource(path)) files.push(path)
-      }
-      continue
+export async function docgen(files: string[], options: DocgenOptions = {}): Promise<string> {
+  return render(await collect(files), options)
+}
+
+export async function collect(files: string[]): Promise<DocgenResult> {
+  const root = await deriveRoot(files)
+  const label = createLabeler(root)
+  const cache = new Map<string, Promise<FileDoc>>()
+  const load = (path: string): Promise<FileDoc> => {
+    let pending = cache.get(path)
+    if (!pending) {
+      pending = parse(path)
+      cache.set(path, pending)
     }
-    if (isFile(abs)) files.push(abs)
-  }
-  return unique(files)
-}
-
-function commonRoot(files: string[]): string {
-  const first = files[0]
-  if (!first) return process.cwd()
-  let parts = dirname(first).split(sep)
-  for (const file of files.slice(1)) {
-    const other = dirname(file).split(sep)
-    let i = 0
-    while (i < parts.length && i < other.length && parts[i] === other[i]) i++
-    parts = parts.slice(0, i)
-  }
-  return parts.join(sep) || sep
-}
-
-function display(file: string, root: string): string {
-  const rel = relative(root, file)
-  return (rel || file).split(sep).join("/")
-}
-
-function keyOf(file: string, symbol: SymbolDoc): string {
-  return `${file}#${symbol.name}#${symbol.loc.line}`
-}
-
-function addEntry(entries: Map<string, DocEntry>, next: DocEntry): DocEntry {
-  const key = keyOf(next.file, next.symbol)
-  const existing = entries.get(key)
-  if (!existing) {
-    entries.set(key, next)
-    return next
-  }
-  // Same declaration reached a second way: keep one record, remember the extra name.
-  if (next.exposedAs !== existing.exposedAs && !existing.aliases.includes(next.exposedAs)) {
-    existing.aliases.push(next.exposedAs)
-  }
-  if (existing.reason === "type-ref" && next.reason === "export") existing.reason = "export"
-  return existing
-}
-
-/** Walk params/returns (and, when transitive, their types too) pulling in declarations. */
-function expandTypes(store: Store, entries: Map<string, DocEntry>, options: DocgenOptions): void {
-  const index = createIndex(store)
-  const limit = options.transitive === false ? 1 : options.maxDepth ?? 8
-  const queue: Array<{ entry: DocEntry; depth: number }> = [...entries.values()].map((entry) => ({
-    entry,
-    depth: 0,
-  }))
-
-  let cursor = 0
-  while (cursor < queue.length) {
-    const item = queue[cursor]
-    cursor += 1
-    if (!item || item.depth >= limit) continue
-    for (const name of typeRefs(item.entry.symbol)) {
-      const decl = resolveRef(store, index, item.entry.file, name)
-      if (!decl) continue
-      const key = keyOf(decl.file, decl.symbol)
-      const known = entries.get(key)
-      if (known) {
-        if (known !== item.entry) known.references += 1
-        continue
-      }
-      const entry = addEntry(entries, {
-        file: decl.file,
-        symbol: decl.symbol,
-        exposedAs: decl.symbol.exportedAs ?? decl.symbol.name,
-        aliases: [],
-        duplicates: [],
-        references: 1,
-        reason: "type-ref",
-      })
-      queue.push({ entry, depth: item.depth + 1 })
-    }
-  }
-}
-
-function preferenceOf(file: string): [number, number, string] {
-  const base = file.split(sep).pop() ?? file
-  const isIndex = /^index\.[cm]?[jt]sx?$/.test(base) ? 1 : 0
-  return [isIndex, file.split(sep).length, file]
-}
-
-/** Fold byte-identical declarations of the same name that live in several files. */
-function dedupe(entries: DocEntry[], bodies: Map<DocEntry, string>): DocEntry[] {
-  const groups = new Map<string, DocEntry[]>()
-  for (const entry of entries) {
-    const key = `${entry.exposedAs}\u0000${bodies.get(entry) ?? ""}`
-    const bucket = groups.get(key)
-    if (bucket) bucket.push(entry)
-    else groups.set(key, [entry])
+    return pending
   }
 
-  const kept: DocEntry[] = []
-  for (const bucket of groups.values()) {
-    // Most-referenced wins: that is the copy the rest of the tree actually imports.
-    const sorted = [...bucket].sort((a, b) => {
-      const [ai, al, ap] = preferenceOf(a.file)
-      const [bi, bl, bp] = preferenceOf(b.file)
-      return b.references - a.references || ai - bi || al - bl || ap.localeCompare(bp)
-    })
-    const winner = sorted[0]
-    if (!winner) continue
-    for (const loser of sorted.slice(1)) {
-      winner.duplicates.push(loser.file)
-      winner.references += loser.references
-      for (const alias of loser.aliases) {
-        if (!winner.aliases.includes(alias)) winner.aliases.push(alias)
-      }
-    }
-    kept.push(winner)
-  }
-  return kept
-}
-
-function notesFor(entry: DocEntry, root: string): string[] {
-  const notes: string[] = []
-  if (entry.symbol.exportKind === "default") notes.push("default export")
-  if (entry.exposedAs !== entry.symbol.name) notes.push(`exported as \`${entry.exposedAs}\``)
-  if (entry.aliases.length > 0) notes.push(`also exported as: ${entry.aliases.join(", ")}`)
-  if (entry.duplicates.length > 0) {
-    const where = entry.duplicates.map((file) => display(file, root)).join(", ")
-    notes.push(`identical declaration also in: ${where}`)
-  }
-  return notes
-}
-
-/**
- * Document the public surface of a file, a directory, or a list of either.
- *
- * Directories are walked with `collectFiles`, skipping demo/script/test files.
- * Re-exports are followed to the declaring file, so a symbol surfaced by an
- * index barrel is documented once, under the file that actually declares it.
- */
-export async function docgen(
-  input: string | string[],
-  options: DocgenOptions = {},
-): Promise<string> {
-  const result = await analyze(input, options)
-  return result.text
-}
-
-/** `docgen` with the intermediate model kept around. */
-export async function analyze(
-  input: string | string[],
-  options: DocgenOptions = {},
-): Promise<DocgenResult> {
-  const store = createStore(options.extensions ?? DEFAULT_EXTENSIONS)
-  const roots = expandInputs(input, options.exclude ?? DEFAULT_PRESETS)
-  // Everything downstream is synchronous and reads only from the parse cache.
-  await prime(store, roots)
-  const kinds = options.kinds ? new Set<SymbolDoc["kind"]>(options.kinds) : null
-  const entries = new Map<string, DocEntry>()
-
-  for (const file of roots) {
-    for (const hit of exportsOf(store, file).values()) {
-      if (kinds && !kinds.has(hit.symbol.kind)) continue
-      addEntry(entries, {
-        file: hit.file,
-        symbol: hit.symbol,
-        exposedAs: hit.exposedAs,
-        aliases: [],
-        duplicates: [],
-        references: 0,
-        reason: "export",
-      })
-    }
-  }
-
-  expandTypes(store, entries, options)
-
-  const bodies = new Map<DocEntry, string>()
-  for (const entry of entries.values()) {
-    bodies.set(entry, renderDeclaration(entry.symbol, { includeNonPublic: options.includeNonPublic }))
-  }
-
-  const kept = dedupe([...entries.values()], bodies)
-  const root = options.root ? resolvePath(options.root) : commonRoot(kept.map((entry) => entry.file))
-
-  const byFile = new Map<string, DocEntry[]>()
-  for (const entry of kept) {
-    const path = display(entry.file, root)
-    const bucket = byFile.get(path)
-    if (bucket) bucket.push(entry)
-    else byFile.set(path, [entry])
-  }
-
-  const files = [...byFile.keys()].sort((a, b) => a.localeCompare(b))
+  const seeds: TypeRequest[] = []
+  const sections: SymbolSection[] = []
+  const seen = new Set<string>()
   for (const file of files) {
-    byFile.get(file)?.sort(
-      (a, b) =>
-        KIND_ORDER[a.symbol.kind] - KIND_ORDER[b.symbol.kind] ||
-        a.symbol.loc.line - b.symbol.loc.line ||
-        a.exposedAs.localeCompare(b.exposedAs),
-    )
+    const path = resolvePath(file)
+    if (seen.has(path)) continue
+    seen.add(path)
+    const doc = await load(path)
+    const symbols = doc.symbols.filter(isDocumented)
+    if (symbols.length === 0) continue
+    sections.push({ path: await label(path), symbols })
+    for (const symbol of symbols) {
+      for (const name of refsFromSymbol(symbol)) seeds.push({ name, from: path })
+    }
   }
 
-  const tree = fancyFileTree(
-    files.map((file) => [file, (byFile.get(file) ?? []).map((entry) => entry.exposedAs)]),
-  )
-
-  const fence = false
-  const sections = files.map((file) => {
-    const blocks = (byFile.get(file) ?? []).map((entry) => {
-      const parts: string[] = []
-      const comment = docComment(entry.symbol.description)
-      if (comment) parts.push(comment)
-      for (const note of notesFor(entry, root)) parts.push(`// ${note}`)
-      parts.push(bodies.get(entry) ?? "")
-      return parts.join("\n")
-    })
-    const body = blocks.join("\n\n")
-    return `# ${file}\n\n${fence ? `\`\`\`ts\n${body}\n\`\`\`` : body}`
-  })
-
-  const unresolved = [...store.unresolved].sort((a, b) => a.localeCompare(b))
-  const footer: string[] = []
-  if (unresolved.length > 0) footer.push(`> unresolved re-exports: ${unresolved.join(", ")}`)
-  for (const [file, message] of store.failed) {
-    footer.push(`> failed to parse ${display(file, root)}: ${message}`)
+  const resolved = await resolveTypes(seeds, { load })
+  const grouped = new Map<string, TypeDoc[]>()
+  for (const type of resolved.types) {
+    const path = await label(type.path)
+    const bucket = grouped.get(path)
+    if (bucket) bucket.push(type.doc)
+    else grouped.set(path, [type.doc])
   }
+  const types = [...grouped.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([path, docs]) => ({ path, types: docs.sort((a, b) => a.loc.line - b.loc.line) }))
 
   return {
-    text: [tree, ...sections, ...footer].filter(Boolean).join("\n\n"),
-    tree,
-    entries: kept,
-    files,
-    unresolved,
-    failed: [...store.failed.entries()],
+    package: root.name,
+    externals: resolved.externals,
+    types,
+    files: sections,
+    unresolved: resolved.unresolved,
   }
+}
+
+function render(result: DocgenResult, options: DocgenOptions): string {
+  const blocks: string[] = []
+  if (result.package) blocks.push(result.package)
+  if (result.externals.length > 0) blocks.push(renderExternals(result.externals).join("\n"))
+  for (const section of result.types) {
+    const entries = section.types.map((doc) => renderType(doc, options).join("\n\n"))
+    blocks.push([`# ${section.path}`, ...entries].join("\n"))
+  }
+  for (const section of result.files) {
+    const entries = section.symbols.map((symbol) => renderSymbol(symbol, options).join("\n\n"))
+    blocks.push([`# ${section.path}`, ...entries].join("\n"))
+  }
+  return blocks.length === 0 ? "" : `${blocks.join("\n\n")}\n`
+}
+
+function renderExternals(externals: ExternalRef[]): string[] {
+  const grouped = new Map<string, string[]>()
+  for (const external of externals) {
+    const binding = external.local === external.name ? external.name : `${external.name} as ${external.local}`
+    const bucket = grouped.get(external.source)
+    if (bucket) bucket.push(binding)
+    else grouped.set(external.source, [binding])
+  }
+  return [...grouped.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([source, names]) => `import type { ${[...new Set(names)].sort().join(", ")} } from "${source}"`)
+}
+
+function isDocumented(symbol: SymbolDoc): symbol is DocumentedSymbol {
+  if (symbol.kind !== "function" && symbol.kind !== "class") return false
+  return symbol.exportKind !== "none"
+}
+
+function renderSymbol(symbol: DocumentedSymbol, options: DocgenOptions): string[] {
+  const lines = symbol.kind === "function" ? renderFunction(symbol) : renderClass(symbol, options)
+  return [...lines, ...describe(symbol.description)]
+}
+
+function renderFunction(doc: FunctionDoc): string[] {
+  const head = doc.async ? "async function" : "function"
+  const star = doc.generator ? "*" : ""
+  return [`${head}${star} ${name(doc)}${generics(doc.typeParams)}(${params(doc.params)})${returns(doc.returns)}`]
+}
+
+function renderClass(doc: ClassDoc, options: DocgenOptions): string[] {
+  const heritage = [
+    doc.extends ? ` extends ${doc.extends}` : "",
+    doc.implements.length > 0 ? ` implements ${doc.implements.join(", ")}` : "",
+  ].join("")
+  const head = `${doc.abstract ? "abstract " : ""}class ${name(doc)}${generics(doc.typeParams)}${heritage}`
+  const body: string[] = []
+  for (const property of doc.properties) {
+    if (!visible(property.visibility, options)) continue
+    body.push(...member(property.description, propertySignature(property, true), options))
+  }
+  for (const method of doc.methods) {
+    if (!visible(method.visibility, options)) continue
+    body.push(...member(method.description, methodSignature(method, true), options))
+  }
+  return [head, ...body.map((line) => `  ${line}`)]
+}
+
+function renderType(doc: TypeDoc, options: DocgenOptions): string[] {
+  const head = `${name(doc)}${generics(doc.typeParams)}`
+  if (doc.kind === "enum") {
+    const members = doc.properties.map((property) => {
+      const value = property.default === undefined ? "" : ` = ${property.default}`
+      return `  ${property.name}${value},`
+    })
+    return [`enum ${head} {`, ...members, "}"]
+  }
+
+  const body: string[] = []
+  for (const property of doc.properties) {
+    body.push(...member(property.description, propertySignature(property, false), options))
+  }
+  for (const method of doc.methods) {
+    body.push(...member(method.description, methodSignature(method, false), options))
+  }
+  const indented = body.map((line) => `  ${line}`)
+
+  if (doc.kind === "interface") {
+    const heritage = doc.extends.length > 0 ? ` extends ${doc.extends.join(", ")}` : ""
+    if (indented.length === 0) return [`interface ${head}${heritage} {}`]
+    return [`interface ${head}${heritage} {`, ...indented, "}"]
+  }
+
+  const intersect = doc.extends.length > 0 ? `${doc.extends.join(" & ")} & ` : ""
+  if (indented.length > 0) return [`type ${head} = ${intersect}{`, ...indented, "}"]
+  if (doc.value !== undefined) return `type ${head} = ${intersect}${clean(doc.value)}`.split("\n")
+  return [`type ${head} = ${intersect}{}`]
+}
+
+function member(description: string | undefined, signature: string, options: DocgenOptions): string[] {
+  const lines: string[] = []
+  if (options.includeMemberDocs !== false && description) lines.push(`/** ${oneLine(description)} */`)
+  lines.push(signature)
+  return lines
+}
+
+function propertySignature(property: Param, includeValue: boolean): string {
+  const prefix = [
+    property.visibility && property.visibility !== "public" ? property.visibility : "",
+    property.static ? "static" : "",
+    property.abstract ? "abstract" : "",
+    property.readonly ? "readonly" : "",
+  ].filter(Boolean).join(" ")
+  const value = includeValue && property.default !== undefined ? ` = ${property.default}` : ""
+  const head = prefix ? `${prefix} ` : ""
+  return `${head}${property.name}${property.optional ? "?" : ""}${returns(property.type)}${value}`
+}
+
+function methodSignature(method: MethodDoc, includeVisibility: boolean): string {
+  const prefix = [
+    includeVisibility && method.visibility !== "public" ? method.visibility : "",
+    method.static ? "static" : "",
+    method.abstract ? "abstract" : "",
+    method.async ? "async" : "",
+    method.getter ? "get" : "",
+    method.setter ? "set" : "",
+  ].filter(Boolean).join(" ")
+  const head = prefix ? `${prefix} ` : ""
+  const optional = method.optional ? "?" : ""
+  return `${head}${method.name}${optional}${generics(method.typeParams)}(${params(method.params)})${returns(method.returns)}`
+}
+
+function params(list: Param[]): string {
+  return list.map(paramSignature).join(", ")
+}
+
+function paramSignature(param: Param): string {
+  const prefix = [
+    param.visibility && param.visibility !== "public" ? param.visibility : "",
+    param.readonly ? "readonly" : "",
+  ].filter(Boolean).join(" ")
+  const head = prefix ? `${prefix} ` : ""
+  const rest = param.rest ? "..." : ""
+  const value = param.default === undefined ? "" : ` = ${param.default}`
+  return `${head}${rest}${param.name}${param.optional ? "?" : ""}${returns(param.type)}${value}`
+}
+
+function generics(typeParams: string[]): string {
+  return typeParams.length === 0 ? "" : `<${typeParams.map(clean).join(", ")}>`
+}
+
+function returns(type: string | undefined): string {
+  return type ? `: ${clean(type)}` : ""
+}
+
+function name(doc: { name: string, exportedAs?: string }): string {
+  return doc.exportedAs && doc.exportedAs !== doc.name ? doc.exportedAs : doc.name
+}
+
+function describe(description: string): string[] {
+  if (!description) return []
+  return description.trim().split("\n").map((line) => line.trim())
+}
+
+function visible(visibility: string | undefined, options: DocgenOptions): boolean {
+  if (options.includePrivate) return true
+  return visibility === undefined || visibility === "public"
+}
+
+function clean(text: string): string {
+  return text.replace(/\s+\n/g, "\n").trim()
+}
+
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim()
 }
