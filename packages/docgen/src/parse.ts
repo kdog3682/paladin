@@ -637,10 +637,13 @@ function parseTypeOrInterface(node: Node, source: string): TypeDoc | null {
     exportKind: "none",
     typeParams,
     typeReferences: mergeTypeReferences(
+      properties.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
       methods.flatMap(m => [
         ...m.params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
         ...extractTypeReferences(m.returns, exclude),
       ]),
+      extendsList.flatMap(t => extractTypeReferences(t, exclude)),
+      extractTypeReferences(valueText, exclude),
     ),
     signature: getText(node, source),
     loc: locOf(node),
