@@ -5,13 +5,9 @@ import { cors } from "hono/cors"
 import { createBunWebSocket } from "hono/bun"
 import { createWatcher } from "./watcher"
 import { processFile } from "./services/fileProcessor"
-
 import { createHandlerRouter } from './createHandlerRouter'
 import { readdirSync } from 'fs'
 import { join } from 'path'
-
-
-
 
 const app = new Hono()
 app.use("*", cors())
@@ -90,3 +86,43 @@ process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 
 console.log("Server listening on http://localhost:3000")
+
+/*
+instead of processFile 
+
+call it services.scaffold.process(path)
+
+no more of the featuresDir
+
+instead do 
+
+const services = registerServices(app, broadcast)
+
+registerServices should read services/<name>/index.ts
+if it exists. for all of them in services/
+and try to get the class <name>Service
+ie services/git/index.ts should have GitService.
+if not, continue.
+
+a cache called services = {}
+and set services['git'] = new GitService(broadcast, ser)
+
+and so forth for all the services.
+
+
+
+
+async function mergeBranchThenCreateNewBranch(ctx, name) {
+  const conflicts = await ctx.git.mergeBranch()
+
+  if (conflicts) {
+    ctx.broadcast('git.mergeBranch.conflicts', conflicts)
+  } else {
+    ctx.git.createBranch(name)
+  }
+}
+
+async function getBranch(ctx) {
+  return ctx.git.getBranch()
+}
+*/
