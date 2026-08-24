@@ -539,11 +539,12 @@ function parseClass(node: Node, source: string): ClassDoc | null {
     exportKind: "none",
     typeParams,
     typeReferences: mergeTypeReferences(
-      properties.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
-      methods.flatMap(m => [
-        ...m.params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
-        ...extractTypeReferences(m.returns, exclude),
-      ]),
+      methods
+        .filter(m => m.visibility === "public")
+        .flatMap(m => [
+          ...m.params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+          ...extractTypeReferences(m.returns, exclude),
+        ]),
       extendsList.flatMap(t => extractTypeReferences(t, exclude)),
       implementsList.flatMap(t => extractTypeReferences(t, exclude)),
     ),
@@ -636,13 +637,10 @@ function parseTypeOrInterface(node: Node, source: string): TypeDoc | null {
     exportKind: "none",
     typeParams,
     typeReferences: mergeTypeReferences(
-      properties.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
       methods.flatMap(m => [
         ...m.params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
         ...extractTypeReferences(m.returns, exclude),
       ]),
-      extendsList.flatMap(t => extractTypeReferences(t, exclude)),
-      extractTypeReferences(valueText, exclude),
     ),
     signature: getText(node, source),
     loc: locOf(node),
@@ -712,7 +710,7 @@ function parseVariables(node: Node, source: string): SymbolDoc[] {
       description,
       exportKind: "none",
       typeParams: [],
-      typeReferences: extractTypeReferences(type, new Set()),
+      typeReferences: [],
       signature: constSignature(
         keyword,
         getText(name, source),

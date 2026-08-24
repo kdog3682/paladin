@@ -180,11 +180,11 @@ function renderClass(doc: ClassDoc, options: DocgenOptions): string[] {
   const body: string[] = []
   for (const property of doc.properties) {
     if (!visible(property.visibility, options)) continue
-    body.push(...member(property.description, propertySignature(property, true), options))
+    body.push(...member(property.description, propertySignature(property, true, false), options))
   }
   for (const method of doc.methods) {
     if (!visible(method.visibility, options)) continue
-    body.push(...member(method.description, methodSignature(method, true), options))
+    body.push(...member(method.description, methodSignature(method, false), options))
   }
   return [head, ...body.map((line) => `  ${line}`)]
 }
@@ -227,12 +227,12 @@ function member(description: string | undefined, signature: string, options: Doc
   return lines
 }
 
-function propertySignature(property: Param, includeValue: boolean): string {
+function propertySignature(property: Param, includeValue: boolean, includeModifiers = true): string {
   const prefix = [
-    property.visibility && property.visibility !== "public" ? property.visibility : "",
+    includeModifiers && property.visibility && property.visibility !== "public" ? property.visibility : "",
     property.static ? "static" : "",
     property.abstract ? "abstract" : "",
-    property.readonly ? "readonly" : "",
+    includeModifiers && property.readonly ? "readonly" : "",
   ].filter(Boolean).join(" ")
   const value = includeValue && property.default !== undefined ? ` = ${property.default}` : ""
   const head = prefix ? `${prefix} ` : ""
