@@ -68,6 +68,49 @@ function typeParamsOf(node: Node, source: string): string[] {
   return params.namedChildren.map(c => oneLine(getText(c, source))).filter(Boolean)
 }
 
+/* ------------------------------------------------------ type references -- */
+
+const TYPE_KEYWORDS = new Set([
+  "void", "any", "unknown", "never", "null", "undefined", "boolean", "number",
+  "string", "object", "symbol", "bigint", "this", "true", "false", "readonly",
+  "keyof", "typeof", "infer", "in", "extends", "implements", "new",
+])
+
+const BUILTIN_TYPES = new Set([
+  "Promise", "Array", "ReadonlyArray", "Record", "Map", "Set", "WeakMap", "WeakSet",
+  "Partial", "Required", "Readonly", "Pick", "Omit", "Exclude", "Extract",
+  "ReturnType", "Parameters", "InstanceType", "Function", "RegExp", "Date",
+  "Error", "Object", "String", "Number", "Boolean", "Symbol", "BigInt",
+  "Iterable", "IterableIterator", "Generator", "AsyncGenerator",
+])
+
+// Named types mentioned in a type-position string, e.g. "Foobar" in "(abc: Foobar) => void".
+function extractTypeReferences(text: string | undefined, exclude: Set<string>): string[] {
+  if (!text) return []
+  const found = new Set<string>()
+  const identifierRegex = /[A-Za-z_$][A-Za-z0-9_$]*/g
+  let match: RegExpExecArray | null
+
+  while ((match = identifierRegex.exec(text))) {
+    const id = match[0]
+    if (TYPE_KEYWORDS.has(id) || BUILTIN_TYPES.has(id) || exclude.has(id)) continue
+    if (text[match.index - 1] === ".") continue // qualified-name segment, e.g. `ns.Foo`
+    // property key in an object-type literal, e.g. `ok` in `{ ok: true }`
+    if (/^\s*\??\s*:/.test(text.slice(match.index + id.length))) continue
+    found.add(id)
+  }
+
+  return [...found]
+}
+
+function typeParamNames(typeParams: string[]): Set<string> {
+  return new Set(typeParams.map(tp => tp.split(/[\s<:]/)[0]))
+}
+
+function mergeTypeReferences(...groups: string[][]): string[] {
+  return [...new Set(groups.flat())].sort()
+}
+
 /* -------------------------------------------------------------- comments */
 
 const DIRECTIVE =
@@ -373,17 +416,25 @@ function parseReturnType(node: Node, source: string): string {
 function parseFunction(node: Node, source: string): FunctionDoc | null {
   const name = node.childForFieldName("name")
   const anchor = docAnchor(node)
+  const typeParams = typeParamsOf(node, source)
+  const exclude = typeParamNames(typeParams)
+  const params = parseParams(node.childForFieldName("parameters"), source, node)
+  const returns = parseReturnType(node, source)
 
   return {
     name: name ? getText(name, source) : "default",
     kind: "function",
     description: collectComments(anchor, source),
     exportKind: "none",
-    typeParams: typeParamsOf(node, source),
+    typeParams,
+    typeReferences: mergeTypeReferences(
+      params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+      extractTypeReferences(returns, exclude),
+    ),
     signature: callableSignature(node, source),
     loc: locOf(node),
-    params: parseParams(node.childForFieldName("parameters"), source, node),
-    returns: parseReturnType(node, source),
+    params,
+    returns,
     async: hasChild(node, "async"),
     generator: hasChild(node, "*") || node.type === "generator_function_declaration",
     overloads: [],
@@ -478,13 +529,24 @@ function parseClass(node: Node, source: string): ClassDoc | null {
 
   const extendsList = heritage(node, source, "extends")
   const implementsList = heritage(node, source, "implements")
+  const typeParams = typeParamsOf(node, source)
+  const exclude = typeParamNames(typeParams)
 
   return {
     name: getText(name, source),
     kind: "class",
     description: collectComments(docAnchor(node), source),
     exportKind: "none",
-    typeParams: typeParamsOf(node, source),
+    typeParams,
+    typeReferences: mergeTypeReferences(
+      properties.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+      methods.flatMap(m => [
+        ...m.params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+        ...extractTypeReferences(m.returns, exclude),
+      ]),
+      extendsList.flatMap(t => extractTypeReferences(t, exclude)),
+      implementsList.flatMap(t => extractTypeReferences(t, exclude)),
+    ),
     signature: callableSignature(node, source),
     loc: locOf(node),
     abstract: node.type === "abstract_class_declaration" || hasChild(node, "abstract"),
@@ -562,18 +624,32 @@ function parseTypeOrInterface(node: Node, source: string): TypeDoc | null {
     }
   }
 
+  const typeParams = typeParamsOf(node, source)
+  const exclude = typeParamNames(typeParams)
+  const extendsList = heritage(node, source, "extends")
+  const valueText = kind === "type" && !body && value ? oneLine(getText(value, source)) : undefined
+
   return {
     name: getText(name, source),
     kind,
     description: collectComments(docAnchor(node), source),
     exportKind: "none",
-    typeParams: typeParamsOf(node, source),
+    typeParams,
+    typeReferences: mergeTypeReferences(
+      properties.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+      methods.flatMap(m => [
+        ...m.params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+        ...extractTypeReferences(m.returns, exclude),
+      ]),
+      extendsList.flatMap(t => extractTypeReferences(t, exclude)),
+      extractTypeReferences(valueText, exclude),
+    ),
     signature: getText(node, source),
     loc: locOf(node),
-    extends: heritage(node, source, "extends"),
+    extends: extendsList,
     properties,
     methods,
-    value: kind === "type" && !body && value ? oneLine(getText(value, source)) : undefined,
+    value: valueText,
   }
 }
 
@@ -602,18 +678,26 @@ function parseVariables(node: Node, source: string): SymbolDoc[] {
     if (value && (value.type === "arrow_function" || value.type === "function_expression")) {
       const body = value.childForFieldName("body")
       const end = body ? body.startIndex : value.endIndex
+      const typeParams = typeParamsOf(value, source)
+      const exclude = typeParamNames(typeParams)
+      const params = parseParams(value.childForFieldName("parameters"), source, value)
+      const returns = parseReturnType(value, source)
       out.push({
         name: getText(name, source),
         kind: "function",
         description,
         exportKind: "none",
-        typeParams: typeParamsOf(value, source),
+        typeParams,
+        typeReferences: mergeTypeReferences(
+          params.map(p => p.type).flatMap(t => extractTypeReferences(t, exclude)),
+          extractTypeReferences(returns, exclude),
+        ),
         signature: trimSignature(
           `${keyword} ${getText(name, source)} = ${source.slice(value.startIndex, end)}`,
         ),
         loc: locOf(decl),
-        params: parseParams(value.childForFieldName("parameters"), source, value),
-        returns: parseReturnType(value, source),
+        params,
+        returns,
         async: hasChild(value, "async"),
         generator: hasChild(value, "*"),
         overloads: [],
@@ -628,6 +712,7 @@ function parseVariables(node: Node, source: string): SymbolDoc[] {
       description,
       exportKind: "none",
       typeParams: [],
+      typeReferences: extractTypeReferences(type, new Set()),
       signature: constSignature(
         keyword,
         getText(name, source),

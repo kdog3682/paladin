@@ -71,6 +71,8 @@ export type BaseDoc = {
   /** Set when exported under a different name, e.g. `export { a as b }`. */
   exportedAs?: string
   typeParams: string[]
+  /** Named types referenced in this symbol's signature, e.g. `Foobar` in `(abc: Foobar) => void`. */
+  typeReferences: string[]
   signature: string
   loc: Loc
 }

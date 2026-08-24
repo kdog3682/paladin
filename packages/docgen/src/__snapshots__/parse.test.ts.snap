@@ -290,6 +290,7 @@ A classic multi-line JSDoc block."
       "returns": "number",
       "signature": "function add(a: number, b: number): number",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -316,6 +317,7 @@ A classic multi-line JSDoc block."
       "returns": "string",
       "signature": "function greet(name: string): string",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -339,6 +341,7 @@ Third line, still part of it."
       "returns": "void",
       "signature": "function stacked(): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -362,6 +365,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "void",
       "signature": "function internalOnly(): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -400,6 +404,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "void",
       "signature": "function withDefaults( retries = 3, label: string = "none", verbose?: boolean, ): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -431,6 +436,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "void",
       "signature": "function withDestructure( { limit = 10, cursor }: { limit?: number; cursor?: string }, ): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -462,6 +468,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "void",
       "signature": "function withBodyDestructure(options: { depth?: number; strict: boolean }): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -494,6 +501,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "string",
       "signature": "function joinAll(sep: string, ...parts: string[]): string",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": true,
@@ -520,6 +528,9 @@ followed by a line comment — both belong to the symbol."
       "returns": "Promise<Row | null>",
       "signature": "async function fetchRow(id: string): Promise<Row | null>",
       "typeParams": [],
+      "typeReferences": [
+        "Row",
+      ],
     },
     {
       "async": false,
@@ -546,6 +557,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "Generator<number>",
       "signature": "function* counter(start = 0): Generator<number>",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -574,6 +586,7 @@ followed by a line comment — both belong to the symbol."
       "typeParams": [
         "T",
       ],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -609,6 +622,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "number",
       "signature": "function coerce(value: string, fallback?: number): number",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": false,
@@ -628,6 +642,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "void",
       "signature": "function looseComment(): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "description": "",
@@ -643,6 +658,7 @@ followed by a line comment — both belong to the symbol."
       "signature": "const INLINE: number = 1",
       "type": "number",
       "typeParams": [],
+      "typeReferences": [],
       "value": "1",
     },
     {
@@ -663,6 +679,7 @@ followed by a line comment — both belong to the symbol."
       "returns": "void",
       "signature": "function withDirective(): void",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "description": "Options for something configurable.",
@@ -717,6 +734,7 @@ comment"
 }"
 ,
       "typeParams": [],
+      "typeReferences": [],
       "value": undefined,
     },
     {
@@ -738,6 +756,7 @@ comment"
         "T",
         "E = string",
       ],
+      "typeReferences": [],
       "value": "{ ok: true; value: T } | { ok: false; error: E }",
     },
     {
@@ -770,6 +789,7 @@ comment"
 }"
 ,
       "typeParams": [],
+      "typeReferences": [],
       "value": undefined,
     },
     {
@@ -811,6 +831,7 @@ comment"
 }"
 ,
       "typeParams": [],
+      "typeReferences": [],
       "value": undefined,
     },
     {
@@ -912,6 +933,9 @@ comment"
       "typeParams": [
         "T extends object = Record<string, unknown>",
       ],
+      "typeReferences": [
+        "Widget",
+      ],
       "value": undefined,
     },
     {
@@ -960,6 +984,7 @@ comment"
 }"
 ,
       "typeParams": [],
+      "typeReferences": [],
       "value": undefined,
     },
     {
@@ -1003,6 +1028,7 @@ comment"
       "properties": [],
       "signature": "abstract class Base",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "description": "Something that can be counted.",
@@ -1033,6 +1059,7 @@ comment"
 }"
 ,
       "typeParams": [],
+      "typeReferences": [],
       "value": undefined,
     },
     {
@@ -1302,6 +1329,11 @@ comment"
       ],
       "signature": "class Registry extends Base implements Countable",
       "typeParams": [],
+      "typeReferences": [
+        "Base",
+        "Countable",
+        "Registry",
+      ],
     },
     {
       "description": "A simple documented constant.",
@@ -1317,6 +1349,7 @@ comment"
       "signature": "const VERSION: string = "1.0.0"",
       "type": "string",
       "typeParams": [],
+      "typeReferences": [],
       "value": ""1.0.0"",
     },
     {
@@ -1333,6 +1366,7 @@ comment"
       "signature": "const RETRIES: number = 3",
       "type": "number",
       "typeParams": [],
+      "typeReferences": [],
       "value": "3",
     },
     {
@@ -1349,6 +1383,7 @@ comment"
       "signature": "const DEBUG: boolean = false",
       "type": "boolean",
       "typeParams": [],
+      "typeReferences": [],
       "value": "false",
     },
     {
@@ -1365,6 +1400,7 @@ comment"
       "signature": "const PATTERN: RegExp = /a+/",
       "type": "RegExp",
       "typeParams": [],
+      "typeReferences": [],
       "value": "/a+/",
     },
     {
@@ -1381,6 +1417,7 @@ comment"
       "signature": "const TAGS: unknown[] = ["alpha", "beta"]",
       "type": "unknown[]",
       "typeParams": [],
+      "typeReferences": [],
       "value": "["alpha", "beta"]",
     },
     {
@@ -1397,6 +1434,7 @@ comment"
       "signature": "const CLIENT: Map<string, number> = new Map<string, number>()",
       "type": "Map<string, number>",
       "typeParams": [],
+      "typeReferences": [],
       "value": "new Map<string, number>()",
     },
     {
@@ -1413,6 +1451,7 @@ comment"
       "signature": "const LEFT: string = "l"",
       "type": "string",
       "typeParams": [],
+      "typeReferences": [],
       "value": ""l"",
     },
     {
@@ -1429,6 +1468,7 @@ comment"
       "signature": "const RIGHT: string = "r"",
       "type": "string",
       "typeParams": [],
+      "typeReferences": [],
       "value": ""r"",
     },
     {
@@ -1445,6 +1485,7 @@ comment"
       "signature": "let hits: number = 0",
       "type": "number",
       "typeParams": [],
+      "typeReferences": [],
       "value": "0",
     },
     {
@@ -1472,6 +1513,7 @@ comment"
       "returns": "number",
       "signature": "const double = (n: number): number",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "async": true,
@@ -1503,6 +1545,7 @@ comment"
       "returns": "Promise<void>",
       "signature": "const load = async ({ id, force = false }: { id: string; force?: boolean }): Promise<void>",
       "typeParams": [],
+      "typeReferences": [],
     },
     {
       "description": "Only reachable through the export clause below.",
@@ -1518,6 +1561,7 @@ comment"
       "signature": "const BUILD_ID: string = "abc123"",
       "type": "string",
       "typeParams": [],
+      "typeReferences": [],
       "value": ""abc123"",
     },
   ],

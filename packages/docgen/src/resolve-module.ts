@@ -22,8 +22,9 @@ export function resolveModule(source: string, fromFile: string): string | null {
 }
 
 export async function deriveRoot(files: string[]): Promise<Root> {
-  const base = commonDir(files.map((file) => dirname(resolvePath(file))))
-  return (await findPackage(base, new Map())) ?? { dir: base, name: null }
+  const dirs = files.map((file) => dirname(resolvePath(file)))
+  const anchor = dirs[0] ?? process.cwd()
+  return (await findPackage(anchor, new Map())) ?? { dir: commonDir(dirs), name: null }
 }
 
 export function createLabeler(root: Root): Labeler {
@@ -31,8 +32,9 @@ export function createLabeler(root: Root): Labeler {
   return async (path) => {
     if (isInside(root.dir, path)) return posix(relative(root.dir, path))
     const owner = await findPackage(dirname(path), cache)
-    if (owner) return posix(`${owner.name}/${relative(owner.dir, path)}`)
-    return posix(path)
+    if (!owner) return posix(path)
+    const rel = posix(relative(owner.dir, path))
+    return owner.name === root.name ? rel : `${owner.name}/${rel}`
   }
 }
 

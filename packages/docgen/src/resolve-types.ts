@@ -1,6 +1,5 @@
 import type { FileDoc, SymbolDoc, TypeDoc } from "./parse.types"
 import { resolveModule } from "./resolve-module"
-import { GLOBAL_TYPES, refsFromType } from "./type-refs"
 
 export type TypeRequest = {
   /** Name as written at the use site, possibly qualified (`ns.Foo`). */
@@ -32,6 +31,22 @@ export type ResolveResult = {
 export type ResolveTypesOptions = {
   load: (path: string) => Promise<FileDoc>
 }
+
+export const GLOBAL_TYPES = new Set([
+  "Array", "ReadonlyArray", "Promise", "PromiseLike", "Record", "Partial", "Required", "Readonly",
+  "Pick", "Omit", "Exclude", "Extract", "NonNullable", "Parameters", "ReturnType", "Awaited",
+  "ConstructorParameters", "InstanceType", "ThisParameterType", "OmitThisParameter", "ThisType",
+  "Uppercase", "Lowercase", "Capitalize", "Uncapitalize", "NoInfer", "Map", "ReadonlyMap", "Set",
+  "ReadonlySet", "WeakMap", "WeakSet", "WeakRef", "Date", "RegExp", "RegExpMatchArray", "Error",
+  "TypeError", "Function", "Object", "String", "Number", "Boolean", "Symbol", "BigInt", "JSON",
+  "Math", "Iterable", "Iterator", "IterableIterator", "AsyncIterable", "AsyncIterator",
+  "AsyncIterableIterator", "Generator", "AsyncGenerator", "ArrayBuffer", "SharedArrayBuffer",
+  "DataView", "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array",
+  "Int32Array", "Uint32Array", "Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array",
+  "Buffer", "Blob", "File", "FormData", "Headers", "Request", "Response", "URL", "URLSearchParams",
+  "AbortController", "AbortSignal", "ReadableStream", "WritableStream", "TransformStream",
+  "Event", "EventTarget", "Intl", "NodeJS", "Console", "globalThis",
+])
 
 type Lookup =
   | { kind: "symbol", path: string, symbol: SymbolDoc }
@@ -133,7 +148,7 @@ export async function resolveTypes(seeds: TypeRequest[], options: ResolveTypesOp
     placed.add(key)
     types.push({ path: found.path, name: found.symbol.name, doc: found.symbol })
 
-    for (const ref of refsFromType(found.symbol)) queue.push({ name: ref, from: found.path })
+    for (const ref of found.symbol.typeReferences) queue.push({ name: ref, from: found.path })
   }
 
   return { types, externals, unresolved }

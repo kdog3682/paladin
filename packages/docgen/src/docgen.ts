@@ -3,9 +3,12 @@ import { parse } from "./parse"
 import type { ClassDoc, FileDoc, FunctionDoc, MethodDoc, Param, SymbolDoc, TypeDoc } from "./parse.types"
 import { createLabeler, deriveRoot } from "./resolve-module"
 import { resolveTypes, type ExternalRef, type TypeRequest } from "./resolve-types"
-import { refsFromSymbol } from "./type-refs"
 
 export type DocgenOptions = {
+  /** Group files sharing a directory under one header. Defaults to true. */
+  collate?: boolean
+  /** Minimum files in a directory before collating it. Defaults to 3. */
+  collateThreshold?: number
   /** Include non-public class members. Defaults to false. */
   includePrivate?: boolean
   /** Emit doc comments for type members. Defaults to true. */
@@ -23,6 +26,8 @@ export type DocgenResult = {
   files: SymbolSection[]
   unresolved: TypeRequest[]
 }
+
+type RenderedSection = { path: string, entries: string[] }
 
 export async function docgen(files: string[], options: DocgenOptions = {}): Promise<string> {
   return render(await collect(files), options)
@@ -53,7 +58,7 @@ export async function collect(files: string[]): Promise<DocgenResult> {
     if (symbols.length === 0) continue
     sections.push({ path: await label(path), symbols })
     for (const symbol of symbols) {
-      for (const name of refsFromSymbol(symbol)) seeds.push({ name, from: path })
+      for (const name of symbol.typeReferences) seeds.push({ name, from: path })
     }
   }
 
@@ -82,15 +87,59 @@ function render(result: DocgenResult, options: DocgenOptions): string {
   const blocks: string[] = []
   if (result.package) blocks.push(result.package)
   if (result.externals.length > 0) blocks.push(renderExternals(result.externals).join("\n"))
-  for (const section of result.types) {
-    const entries = section.types.map((doc) => renderType(doc, options).join("\n\n"))
-    blocks.push([`# ${section.path}`, ...entries].join("\n"))
-  }
-  for (const section of result.files) {
-    const entries = section.symbols.map((symbol) => renderSymbol(symbol, options).join("\n\n"))
-    blocks.push([`# ${section.path}`, ...entries].join("\n"))
-  }
+
+  const typeSections = result.types.map((section) => ({
+    path: section.path,
+    entries: section.types.map((doc) => renderType(doc, options).join("\n")),
+  }))
+  const fileSections = result.files.map((section) => ({
+    path: section.path,
+    entries: section.symbols.map((symbol) => renderSymbol(symbol, options).join("\n")),
+  }))
+
+  blocks.push(...renderSections(typeSections, options))
+  blocks.push(...renderSections(fileSections, options))
   return blocks.length === 0 ? "" : `${blocks.join("\n\n")}\n`
+}
+
+function renderSections(sections: RenderedSection[], options: DocgenOptions): string[] {
+  const threshold = options.collateThreshold ?? 3
+  const groups = new Map<string, RenderedSection[]>()
+  const order: string[] = []
+  for (const section of sections) {
+    const dir = dirOf(section.path)
+    let bucket = groups.get(dir)
+    if (!bucket) {
+      bucket = []
+      groups.set(dir, bucket)
+      order.push(dir)
+    }
+    bucket.push(section)
+  }
+
+  const blocks: string[] = []
+  for (const dir of order) {
+    const group = groups.get(dir)!
+    if (options.collate !== false && dir && group.length >= threshold) {
+      const files = group.map((section) => [`## ./${baseOf(section.path)}`, section.entries.join("\n\n")].join("\n"))
+      blocks.push([`# ${dir}`, ...files].join("\n\n"))
+      continue
+    }
+    for (const section of group) {
+      blocks.push([`# ${section.path}`, section.entries.join("\n\n")].join("\n"))
+    }
+  }
+  return blocks
+}
+
+function dirOf(path: string): string {
+  const cut = path.lastIndexOf("/")
+  return cut === -1 ? "" : path.slice(0, cut + 1)
+}
+
+function baseOf(path: string): string {
+  const cut = path.lastIndexOf("/")
+  return cut === -1 ? path : path.slice(cut + 1)
 }
 
 function renderExternals(externals: ExternalRef[]): string[] {
