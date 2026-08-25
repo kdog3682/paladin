@@ -1,6 +1,8 @@
 /*
 - command: extractSymbol, args: ['src/report.ts', 'buildReport', './report/build.ts']
 - command: extractSymbol, args: ['src/report.ts', 'formatRow', './format-row.ts', 'formatReportRow']
+- command: extractSymbol, args: ['src/multi.ts', 'outer', './multi.moved.ts']
+- command: extractSymbol, args: ['src/multi.ts', 'inner', './multi.moved.ts']
 */
 
 /* src/types.ts */
@@ -49,3 +51,17 @@ import type { Row } from "./types"
 const rows: Row[] = [{ label: "total", value: "12" }]
 
 console.log(buildReport(rows, new Date()))
+
+/* src/multi.ts */
+
+export function outer(x: number) {
+	return inner(x) + 1
+}
+
+export function other(x: number) {
+	return inner(x) * 2
+}
+
+function inner(x: number) {
+	return x + 1
+}

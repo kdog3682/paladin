@@ -67,3 +67,28 @@ import type { Row } from "./types"
 const rows: Row[] = [{ label: "total", value: "12" }]
 
 console.log(buildReport(rows, new Date()))
+
+/* src/multi.ts */
+
+/// inner is only referenced from other now that outer moved out, so the import
+/// that extracting outer added back for it is still needed
+import { inner } from "./multi.moved"
+
+export function other(x: number) {
+	return inner(x) * 2
+}
+
+/* src/multi.moved.ts */
+
+/// regression case: extracting outer first pulls inner in as a shared import
+/// (`import { inner } from "./multi"`) because inner is still referenced elsewhere
+/// in src/multi.ts at that point. Extracting inner next moves its declaration into
+/// this same file - redirectImports must drop that now-self-referential import
+/// instead of leaving it behind or re-pointing it at itself.
+export function outer(x: number) {
+	return inner(x) + 1
+}
+
+export function inner(x: number) {
+	return x + 1
+}

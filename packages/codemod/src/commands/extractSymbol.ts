@@ -77,11 +77,14 @@ function exportSymbol(file: SourceFile, name: string) {
 
 function redirectImports(project: Project, source: SourceFile, target: SourceFile, name: string) {
 	for (const file of project.getSourceFiles()) {
-		if (file === target) continue
-
 		for (const declaration of getImportsOf(file, source)) {
 			for (const specifier of declaration.getNamedImports()) {
 				if (specifier.getName() !== name) continue
+
+				if (file === target) {
+					removeImportSpecifier(specifier)
+					continue
+				}
 
 				const alias = specifier.getAliasNode()?.getText()
 				const isTypeOnly = specifier.isTypeOnly() || declaration.isTypeOnly()
