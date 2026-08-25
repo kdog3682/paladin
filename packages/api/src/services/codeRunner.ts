@@ -10,7 +10,7 @@ import type { FileEntry } from './scaffold/types'
 type Kind = 'demo' | 'example' | 'script' | 'test'
 type RunType = Kind | 'web-demo' | 'codemod'
 
-const TRANSFORM_FILE = /\/codemod\/src\/transforms\/([^/]+)\.ts$/
+const TRANSFORM_FILE = /\/codemod\/src\/(?:transforms|commands)\/([^/]+)\.ts$/
 
 export interface RunResult {
   type: RunType
@@ -108,3 +108,10 @@ export async function codeRunner(files: FileEntry[]): Promise<RunResult[]> {
 }
 
 
+
+/*
+
+classify can be imported from filePartitions
+it should also be modified so that it only returns a string kind.
+
+*/

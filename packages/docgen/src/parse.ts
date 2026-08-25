@@ -663,7 +663,9 @@ function constSignature(keyword: string, name: string, type: string, value?: str
   return `${head} = ${flat.length > 60 ? `${flat.slice(0, 57)}...` : flat}`
 }
 
-function parseVariables(node: Node, source: string): SymbolDoc[] {
+type Wrapped = { doc: ConstDoc; innerName: string }
+
+function parseVariables(node: Node, source: string, wrapped: Wrapped[]): SymbolDoc[] {
   const keyword = hasChild(node, "const") ? "const" : hasChild(node, "let") ? "let" : "var"
   const description = collectComments(docAnchor(node), source)
   const out: SymbolDoc[] = []
@@ -707,7 +709,7 @@ function parseVariables(node: Node, source: string): SymbolDoc[] {
     }
 
     const type = declared ?? inferType(value, source)
-    out.push({
+    const doc: ConstDoc = {
       name: getText(name, source),
       kind: keyword === "const" ? "const" : "variable",
       description,
@@ -723,7 +725,18 @@ function parseVariables(node: Node, source: string): SymbolDoc[] {
       loc: locOf(decl),
       type,
       value: value ? oneLine(getText(value, source)) : undefined,
-    })
+    }
+    out.push(doc)
+
+    // `export const abc = foo(inner)` — if `inner` is a function declared in
+    // this file, it documents `abc` better than the wrapper call does.
+    if (keyword === "const" && value?.type === "call_expression") {
+      const args = value.childForFieldName("arguments")
+      const firstArg = args?.namedChildren[0]
+      if (firstArg?.type === "identifier") {
+        wrapped.push({ doc, innerName: getText(firstArg, source) })
+      }
+    }
   }
 
   return out
@@ -840,6 +853,7 @@ export function parseSource(source: string, path: string): FileDoc {
   const imports: ImportRef[] = []
   const reExports: ReExport[] = []
   const deferred = new Map<string, { exported: string; kind: ExportKind }>()
+  const wrapped: Wrapped[] = []
 
   function push(doc: SymbolDoc): void {
     if (doc.kind === "function") {
@@ -881,7 +895,7 @@ export function parseSource(source: string, path: string): FileDoc {
       }
       case "lexical_declaration":
       case "variable_declaration": {
-        for (const doc of parseVariables(node, source)) push(doc)
+        for (const doc of parseVariables(node, source, wrapped)) push(doc)
         break
       }
       default:
@@ -949,6 +963,24 @@ export function parseSource(source: string, path: string): FileDoc {
     if (!entry) continue
     doc.exportKind = entry.kind
     if (entry.exported !== doc.name) doc.exportedAs = entry.exported
+  }
+
+  for (const { doc, innerName } of wrapped) {
+    const index = symbols.indexOf(doc)
+    if (index === -1) continue
+    const inner = symbols.find(s => s.name === innerName && s.kind === "function") as
+      | FunctionDoc
+      | undefined
+    if (!inner) continue
+    symbols[index] = {
+      ...inner,
+      name: doc.name,
+      description: doc.description || inner.description,
+      exportKind: doc.exportKind,
+      exportedAs: doc.exportedAs,
+      signature: doc.signature,
+      loc: doc.loc,
+    }
   }
 
   return { path, imports, reExports, symbols }

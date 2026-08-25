@@ -112,6 +112,7 @@ and so forth for all the services.
 
 
 
+
 async function mergeBranchThenCreateNewBranch(ctx, name) {
   const conflicts = await ctx.git.mergeBranch()
 

@@ -1,0 +1,156 @@
+{
+  "//": "@paladin/utils/fs/rules.json",
+  "//order": "Array order is precedence. First match wins.",
+  "//fields": "dirs: matches any path segment. files: matches a whole filename, trailing * allowed. exts: matches the end of a filename, dot implied. not: names other kinds — the rule is skipped if any of them match first. All matching is case-insensitive.",
+
+  "rules": [
+    {
+      "kind": "story",
+      "desc": "Storybook / CSF files. Component demos consumed by a docs pipeline rather than run directly.",
+      "exts": ["stories.ts", "stories.tsx"]
+    },
+    {
+      "kind": "corpus",
+      "desc": "Bulk read-only input: datasets, eval sets, generated dumps. Fed to benches and evals, never asserted against. Above fixture so a corpus nested in fixtures/ still reads as corpus.",
+      "dirs": ["corpus", "corpora", "dataset", "datasets", "eval", "evals"],
+      "exts": ["jsonl"]
+    },
+    {
+      "kind": "fixture",
+      "desc": "Small hand-authored inputs, mocks, and snapshots that a test asserts against. Above test so fixtures under __tests__/ don't get counted as tests.",
+      "dirs": ["fixture", "fixtures", "__mocks__", "__snapshots__"],
+      "exts": ["snap", "mock.ts", "mocks.ts"]
+    },
+    {
+      "kind": "bench",
+      "desc": "Performance benchmarks. Runnable like a test but produces numbers, not pass/fail.",
+      "dirs": ["bench", "benches", "benchmark", "benchmarks"],
+      "exts": ["bench.ts"]
+    },
+    {
+      "kind": "test",
+      "desc": "Unit and integration tests.",
+      "dirs": ["test", "tests", "__tests__"],
+      "exts": ["test.ts", "test.tsx", "spec.ts", "spec.tsx"]
+    },
+    {
+      "kind": "demo",
+      "desc": "Example entrypoints meant to be read and run by hand.",
+      "dirs": ["demo", "demos", "example", "examples"],
+      "files": ["demo.ts"],
+      "exts": ["demo.ts", "demo.tsx", "example.ts"]
+    },
+    {
+      "kind": "script",
+      "desc": "Task entrypoints: build steps, codegen, CLIs.",
+      "dirs": ["script", "scripts"],
+      "files": ["run.ts", "cli.ts", "main.ts"],
+      "exts": ["script.ts"]
+    },
+    {
+      "kind": "manifest",
+      "desc": "Project and tool configuration. Above data so package.json doesn't read as data.",
+      "files": ["package.json", "tsconfig*", "bunfig.toml", "Dockerfile", "Makefile"],
+      "exts": ["config.ts", "config.json"]
+    },
+    {
+      "kind": "types",
+      "desc": "Type-only declarations. Above source so .d.ts doesn't get swallowed by the catch-all.",
+      "dirs": ["type", "types"],
+      "files": ["types.ts"],
+      "exts": ["d.ts"]
+    },
+    {
+      "kind": "docs",
+      "desc": "Prose.",
+      "dirs": ["doc", "docs"],
+      "files": ["readme*", "changelog*", "license*", "contributing*", "authors*"],
+      "exts": ["md", "mdx"]
+    },
+    {
+      "kind": "style",
+      "desc": "Stylesheets.",
+      "exts": ["css", "scss", "sass", "less"]
+    },
+    {
+      "kind": "data",
+      "desc": "Structured data that isn't a manifest, fixture, or corpus. Loose config-ish files and tables.",
+      "exts": ["json", "csv", "tsv", "yaml", "yml", "toml", "txt", "xml"]
+    },
+    {
+      "kind": "source",
+      "desc": "Pure implementation code. Every ts/tsx file that isn't one of the kinds listed in `not` — so it stays pure no matter where this entry sits in the array.",
+      "exts": ["ts", "tsx"],
+      "not": [
+        "story",
+        "corpus",
+        "fixture",
+        "bench",
+        "test",
+        "demo",
+        "script",
+        "manifest",
+        "types"
+      ]
+    }
+  ],
+
+  "//groups": "Groups live in filePartitions.ts, not here — they need `as const` literal types to drive the generic return type, which a JSON import can't carry.",
+
+  "ignore": {
+    "//": "Directories are pruned before descent, so their contents are never read.",
+    "//dotdirs": "Every dotdir and dotfile is skipped unconditionally, so .claude, .git, .next, .turbo, .venv, .cache and friends need no entry here. That sweep also drops .github and .env.",
+    "dirs": [
+      "node_modules",
+      "dist",
+      "build",
+      "out",
+      "obj",
+      "target",
+      "vendor",
+      "coverage",
+      "tmp",
+      "temp"
+    ],
+    "exts": [
+      "pdf",
+      "zip",
+      "tar",
+      "gz",
+      "tgz",
+      "7z",
+      "rar",
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp",
+      "svg",
+      "ico",
+      "avif",
+      "bmp",
+      "mp4",
+      "mov",
+      "avi",
+      "mp3",
+      "wav",
+      "flac",
+      "woff",
+      "woff2",
+      "ttf",
+      "otf",
+      "eot",
+      "exe",
+      "dll",
+      "so",
+      "dylib",
+      "wasm",
+      "node",
+      "lock",
+      "db",
+      "sqlite",
+      "bin"
+    ],
+    "files": ["Thumbs.db", "bun.lockb", "bun.lock"]
+  }
+}

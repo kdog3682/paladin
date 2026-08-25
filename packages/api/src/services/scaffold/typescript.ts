@@ -19,7 +19,7 @@ import { bash } from '../../utils/bash'
 import { prepare } from './prepare'
 import { hydrate } from './hydrate'
 import { syncFiles } from './shared'
-import {postProcessPackageFiles} from "./postProcessPackageFiles.ts"
+import {postProcessPackageFiles} from "./postProcessPackageFiles"
 import { DependencyResolver } from './deps'
 import type { ScaffoldTarget } from './deps'
 import type { ScaffoldOptions, FileEntry, PreparedProject } from './types'
@@ -55,6 +55,9 @@ function collectTargets(project: Project): ScaffoldTarget[] {
   }
   return targets
 }
+
+
+
 
 async function hydrateNew(project: Project, targets: ScaffoldTarget[]): Promise<void> {
   const templates = join(import.meta.dir, 'templates')

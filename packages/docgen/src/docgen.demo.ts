@@ -1,14 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { dirname, join, relative } from "node:path"
-import { analyze, docgen } from "./docgen"
-import type { DocEntry } from "./docgen.types"
-import {collectFiles, clip} from "@paladin/utils"
+import { clip, collectFiles } from "@paladin/utils"
+import { docgen } from "./docgen"
+import { collectEntryFiles } from "./entrypoints"
 
-// clip(
+// const dir = "/home/kdog3682/projects/mathpen/packages/manim/src"
+const dir = "/home/kdog3682/projects/paladin/packages/codemod/src/utils"
 
-// const files = collectFiles('/home/kdog3682/projects/paladin/packages/codemod/src/utils')
-const files = ['/home/kdog3682/projects/mathpen/packages/manim/src/math/expr/index.ts']
-const files = ['/home/kdog3682/projects/paladin/packages/docgen/src/parse.ts']
+// const files = await collectEntryFiles(dir)
+const files = collectFiles(dir)
+clip(await docgen(files))
 
-console.log(await docgen(files))
+/* for some reason ... lexer is pulled in
+   and also parse brings in AstNode
+   normalizeStroke isnt needed.
+
+   perhaps, collectEntrySymbols
+   the ones that have been used
+*/
