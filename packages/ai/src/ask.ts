@@ -1,81 +1,23 @@
-// @paladin/ai/ask.ts
 import OpenAI from "openai"
-
-type Effort = "high" | "medium" | "low"
-
-type Provider = {
-  baseURL: string
-  apiKeyEnv: string
-  // one model per effort level
-  models: Record<Effort, string>
-}
-
-/**
- * Provider registry. Each entry is OpenAI-compatible.
- * Model IDs current as of June 2026 — re-check provider docs as they ship new ones.
- */
-const PROVIDERS = {
-  deepseek: {
-    baseURL: "https://api.deepseek.com",
-    apiKeyEnv: "DEEPSEEK_API_KEY",
-    models: {
-      high: "deepseek-v4-pro",
-      medium: "deepseek-v4-pro",
-      low: "deepseek-v4-flash",
-    },
-  },
-  glm: {
-    baseURL: "https://api.z.ai/api/paas/v4",
-    apiKeyEnv: "GLM_API_KEY",
-    models: {
-      high: "glm-5.2",
-      medium: "glm-5",
-      low: "glm-4.5-flash",
-    },
-  },
-  moonshot: {
-    baseURL: "https://api.moonshot.ai/v1",
-    apiKeyEnv: "MOONSHOT_API_KEY",
-    models: {
-      high: "kimi-k2.6",
-      medium: "kimi-k2.5",
-      low: "kimi-k2.7-code",
-    },
-  },
-  openai: {
-    baseURL: "https://api.openai.com/v1",
-    apiKeyEnv: "OPENAI_API_KEY",
-    models: {
-      high: "gpt-5.4",
-      medium: "gpt-5.2",
-      low: "gpt-5-mini",
-    },
-  },
-} satisfies Record<string, Provider>
-
-type ProviderName = keyof typeof PROVIDERS
+import { PROVIDERS } from "./ask.providers"
 
 interface Config {
-  provider?: ProviderName
-  effort?: Effort
+  provider?: "deepseek" | "glm" | "moonshot"
+  effort?: "high" | "medium" | "low"
   system?: string
   temperature?: number
   max_tokens?: number
+  /** Shape shorthand, keys only — `"{foo, bar}"` or `"[{a, b, c}]"` */
+  jsonSchema?: string
 }
 
-/**
- * Send a prompt to an LLM and return the response text.
- *
- * @example
- * const text = await ask("What is TypeScript?")
- *
- * @example
- * const text = await ask("What is TypeScript?", {
- *   provider: "moonshot",
- *   effort: "high",
- * })
- */
-export async function ask(
+type TextConfig = Config & { jsonSchema?: undefined }
+type JsonConfig = Config & { jsonSchema: string }
+
+/** Send a prompt to an LLM — returns text, or parsed JSON when `jsonSchema` is set. */
+export async function ask(prompt: string, config?: TextConfig): Promise<string>
+export async function ask<T = unknown>(prompt: string, config: JsonConfig): Promise<T>
+export async function ask<T = unknown>(
   prompt: string,
   {
     provider = "glm",
@@ -83,75 +25,57 @@ export async function ask(
     system,
     temperature = 0.7,
     max_tokens = 4096,
+    jsonSchema,
   }: Config = {}
-): Promise<string> {
+): Promise<string | T> {
   const { baseURL, apiKeyEnv, models } = PROVIDERS[provider]
-
   const apiKey = process.env[apiKeyEnv]
+
   if (!apiKey) {
     throw new Error(`${apiKeyEnv} not found. Source .env.private.sh`)
   }
+
+  const instruction = jsonSchema
+    ? `Respond with JSON only. No prose, no markdown fences. Use exactly these keys:\n${jsonSchema}`
+    : undefined
+
+  const content = [system, instruction].filter(Boolean).join("\n\n")
 
   const client = new OpenAI({ apiKey, baseURL })
 
   const response = await client.chat.completions.create({
     model: models[effort],
     messages: [
-      ...(system ? [{ role: "system" as const, content: system }] : []),
-      { role: "user", content: prompt },
+      ...(content ? [{ role: "system" as const, content }] : []),
+      { role: "user" as const, content: prompt },
     ],
     temperature,
     max_tokens,
     stream: false,
+    ...(jsonSchema ? { response_format: { type: "json_object" as const } } : {}),
   })
 
-  return response.choices[0]?.message?.content ?? ""
+  const text = response.choices[0]?.message?.content ?? ""
+
+  return jsonSchema ? parseJson<T>(text) : text
 }
 
-const JSON_INSTRUCTION =
-  "Respond ONLY with a single raw JSON code block (```json ... ```)."
-/**
- * Ask for structured JSON and parse it.
- * 
- * The schema is a free-form string using shorthand type notation:
- *   - Primitives: str, int, float, bool, null
- *   - Unions:     int | str
- *   - Arrays:     [type] or [{ key: type, ... }]
- *   - Objects:    { key: type, ... }
- *
- * @example
- * const data = await askData<{ fruits: { name: string }[] }>(
- *   "List 3 fruits",
- *   "{fruits: [{name: str}]}",
- *   { provider: "openai" }
- * )
-
- */
-export async function askData<T>(
-  prompt: string,
-  schema: string,
-  config: Config = {}
-): Promise<T> {
-  const systemInstruction = [
-    config.system,
-    `${JSON_INSTRUCTION}\nThe JSON must conform to this shape: ${schema}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n")
-
-  const text = await ask(prompt, {
-    ...config,
-    system: systemInstruction,
-  })
-
-  const match = text.match(/```json\s*([\s\S]*?)```/)
-  if (!match) {
-    throw new Error(`No JSON code block found in response. Text:\n${text}`)
-  }
+function parseJson<T>(text: string): T {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+  const body = (fenced?.[1] ?? text).trim()
 
   try {
-    return JSON.parse(match[1].trim()) as T
-  } catch (err) {
-    throw new Error(`Failed to parse JSON from response. Text:\n${text}`)
+    return JSON.parse(body) as T
+  } catch {
+    const start = body.search(/[{[]/)
+    const end = Math.max(body.lastIndexOf("}"), body.lastIndexOf("]"))
+
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(body.slice(start, end + 1)) as T
+      } catch {}
+    }
+
+    throw new Error(`Expected JSON, got: ${body.slice(0, 200)}`)
   }
 }

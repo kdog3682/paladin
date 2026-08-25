@@ -14,3 +14,11 @@ test("deepseek answers 1 + 1", async () => {
   })
   expect(text).toContain("2")
 })
+
+test("deepseek returns structured data", async () => {
+  const { sum } = await ask<{ sum: number }>(
+    "Return the sum of 1 and 1 as { sum }.",
+    { provider: "deepseek" }
+  )
+  expect(sum).toBe(2)
+})
