@@ -1,53 +1,51 @@
-import { unlink } from 'fs/promises'
-import { readSources } from './utils/readSources'
-import { parseFileContent } from './utils/parseFileContent'
-import { groupFiles } from './utils/groupFiles'
-import { hydrateBoilerplate } from './utils/hydrateBoilerplate'
-import { resolveDependencies } from './utils/resolveDependencies'
-import { mergeFile } from './utils/mergeFile'
-import { postProcessPackageFiles } from './postProcessPackageFiles'
-import type { File, Project, ScaffoldOptions, Unit } from './types'
+import { createProject } from "./createProject"
+import { persist } from "./persist"
+import { postProcessors } from "./postProcessors"
+import { resolveDependencies } from "./resolveDependencies"
+import { CodeRunner } from "./runner"
+import { hydrateBoilerplate } from "./hydrateBoilerplate"
+import { GitService } from "../git"
+import type { ScaffoldEmit } from "./events"
+import type { Registration } from "./runner"
+import type { Project, ScaffoldOptions } from "./types"
 
-async function persist(unit: Unit): Promise<void> {
-  for (const file of unit.files) {
-    if (file.action === 'skip') continue
+export class ScaffoldService {
+  readonly sessions: Project[] = []
 
-    if (file.action === 'delete') {
-      await unlink(file.path).catch(() => {})
-      continue
-    }
+  private codeRunner = new CodeRunner()
+  private git = new GitService()
+  private emit: ScaffoldEmit
 
-    if (file.action === 'append') {
-      const current = await Bun.file(file.path).text()
-      await Bun.write(file.path, mergeFile(current, file.content))
-      continue
-    }
-
-    await Bun.write(file.path, file.content)
-  }
-}
-
-/**
- * Reads a scaffold input (file or zip), writes the files it describes, hydrates
- * boilerplate for anything new, and installs whatever dependencies that implies.
- */
-export async function scaffold(input: string, opts: ScaffoldOptions): Promise<Project | null> {
-  const contents = await readSources(input)
-
-  const files = contents
-    .map((content) => parseFileContent(content, opts))
-    .filter((f): f is File => f !== null)
-
-  const project = groupFiles(files, opts)
-  if (!project) return null
-
-  for (const unit of project.units) {
-    await persist(unit)
-    await postProcessPackageFiles(unit)
+  constructor(private opts: ScaffoldOptions = {}) {
+    this.emit = opts.emit ?? console.log
   }
 
-  await hydrateBoilerplate(project)
-  await resolveDependencies(project)
+  async process(input: string) {
+    const project = await createProject(input, this.opts.pathResolution)
+    if (!project) return
 
-  return project
+    for (const unit of project.units) {
+      await persist(unit)
+      for (const processor of postProcessors) {
+        const processResult = await processor(unit)
+        this.emit("processResult", processResult)
+      }
+    }
+
+    await hydrateBoilerplate(project)
+    await resolveDependencies(project)
+
+    this.emit("project", project)
+
+    for (const unit of project.units) {
+      const results = await this.codeRunner.run(unit.files, this.opts.codeRunner)
+      this.emit("runResults", results)
+    }
+
+    this.sessions.push(project)
+
+    if (this.opts.git.init) {
+      await this.git.init(project.dir)
+    }
+  }
 }

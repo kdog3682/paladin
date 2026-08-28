@@ -1,15 +1,22 @@
 import { statSync } from "node:fs"
 
-import { join, resolve } from "node:path"
+import { dirname, extname, join, resolve } from "node:path"
 
 const EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]
 
+// `from` may be the importing file itself or its containing directory.
+// treat it as a file (and take its dirname) when it looks like one.
+function baseDir(from: string): string {
+  return extname(from) || isFile(from) ? dirname(from) : from
+}
+
 export function resolveRelativePath(source: string, from: string): string | undefined {
+  const dir = baseDir(from)
   try {
-    const resolved = Bun.resolveSync(source, from)
+    const resolved = Bun.resolveSync(source, dir)
     if (isFile(resolved)) return resolved
   } catch {}
-  return probe(resolve(from, source))
+  return probe(resolve(dir, source))
 }
 
 function isFile(path: string): boolean {

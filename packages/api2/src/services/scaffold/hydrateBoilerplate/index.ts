@@ -1,10 +1,10 @@
 import { join, extname } from 'path'
 import { existsSync } from 'fs'
-import type { File, Project } from '../types'
+import type { File, Project } from '../../types'
 
 type UnitType = 'astro' | 'react' | 'typescript'
 
-const TEMPLATES = join(import.meta.dir, '..', 'templates')
+const TEMPLATES = join(import.meta.dir, 'templates')
 
 // fills {{ KEY }} (with or without surrounding spaces) from kwargs.
 // unknown keys are left untouched.
