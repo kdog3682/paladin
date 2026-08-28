@@ -1,18 +1,16 @@
 import { clip, collectFiles } from "@paladin/utils"
-import { docgen } from "./docgen"
-import { collectEntryFiles } from "./entrypoints"
+import { docgen, docgenPackage, generatePackageIndex } from "./docgen"
 
 // const dir = "/home/kdog3682/projects/mathpen/packages/manim/src"
 const dir = "/home/kdog3682/projects/paladin/packages/codemod/src/utils"
 
 // const files = await collectEntryFiles(dir)
-const files = collectFiles(dir)
-clip(await docgen(files))
+// const files = collectFiles(dir)
+// clip(await docgen(files))
+// let a = await docgenPackage('@mathpen/manim', {exclude: {files: ['lexer.ts', 'layout.ts', 'parser.ts', 'render.ts', 'demo.ts'], symbols: ['renderPdf', 'AstNode']}})
+// // // console.log(a)
+// let a = await docgenPackage('@paladin/utils')
+// clip(a)
 
-/* for some reason ... lexer is pulled in
-   and also parse brings in AstNode
-   normalizeStroke isnt needed.
 
-   perhaps, collectEntrySymbols
-   the ones that have been used
-*/
+generatePackageIndex('@mathpen/manim')

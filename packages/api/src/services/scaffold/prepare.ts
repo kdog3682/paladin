@@ -1,6 +1,6 @@
 import { relative, isAbsolute, basename, dirname, join } from 'path'
 import { expandHome } from '../../utils/path'
-import { resolvePath } from './resolve-path'
+import { resolveScopedPath } from '@paladin/utils'
 import type { ScaffoldOptions, ProjectData, PackageData, FileEntry } from './types'
 
 // matches a leading '// path' or '# path' comment line
@@ -131,9 +131,12 @@ export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData 
   for (const content of contents) {
     const header = extractHeader(content)
     if (!header) continue
+    if (header.rawPath.startsWith('package.json')) continue
 
-    const abs = resolvePath(header.rawPath, opts.baseProjectDir, opts.activeDir ?? null)
-    if (abs === null) continue
+    const abs = resolveScopedPath(header.rawPath, {
+      base: opts.baseProjectDir,
+      relativeTo: opts.activeDir ?? null,
+    })
 
     const loc = locateInProject(abs, opts)
     located.push({ entry: { path: abs, relpath: loc.relpath, content: header.body }, loc })

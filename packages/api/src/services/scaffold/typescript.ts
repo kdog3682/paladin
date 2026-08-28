@@ -1,21 +1,6 @@
-// Scaffolds a TypeScript project (and its workspace packages) from a set of
-// author-provided source files. The flow:
-//
-//   1. `prepare` parses the file contents into a project — a root directory
-//      plus zero or more workspace packages.
-//   2. The root and each package become a "target": a directory that owns its
-//      own package.json. Their author files are snapshotted, then synced to disk.
-//   3. Brand-new targets are hydrated from templates (the monorepo root, plus an
-//      astro/react/typescript template per package based on its file types).
-//   4. Each target's imports are scanned. Any imported module not already
-//      declared in that target's package.json is added — workspace packages as
-//      `workspace:*`, everything else pinned to the latest npm version (cached
-//      on disk across runs). Already-declared deps are left untouched.
-//   5. If any manifest gained a dependency, `bun install` runs once at the root.
-
 import { join, extname } from 'path'
 import { existsSync } from 'fs'
-import { bash } from '../../utils/bash'
+import { bash } from '@paladin/utils'
 import { prepare } from './prepare'
 import { hydrate } from './hydrate'
 import { syncFiles } from './shared'
@@ -88,7 +73,6 @@ export async function prepareTypescript(
   project.isNew = !existsSync(project.dir)
   for (const pkg of project.packages) pkg.isNew = !existsSync(pkg.dir)
 
-  // Snapshot author files before syncFiles persists/rewrites them.
   const targets = collectTargets(project)
 
   project.files = await syncFiles(project.files)
@@ -97,37 +81,18 @@ export async function prepareTypescript(
     await postProcessPackageFiles(pkg)
   }
 
-  
-
   await hydrateNew(project, targets)
 
 
-  let installNeeded = false
   for (const target of targets) {
-    const resolved = await resolver.resolve(project.name, target)
-    if (resolved) installNeeded = true
-
-    const pkg = project.packages.find((p) => p.name === target.name)
-    if (pkg) {
-      pkg.deps = resolved?.deps ?? {}
-      pkg.devDeps = resolved?.devDeps ?? {}
-    }
+    await resolver.resolve(project.name, target)
   }
 
-  await resolver.flush()
+  const installNeeded = await resolver.flush()
 
   if (installNeeded) {
-    const res = await bash(['bun', 'install'], { cwd: project.dir })
-    console.log('install', res)
-    if (res.exitCode !== 0) {
-      throw new Error(`scaffold: bun install failed in ${project.dir}:\n${res.stderr}`)
-    }
+    await bash(['bun', 'install'], { cwd: project.dir, strict: true })
   }
 
-  return {
-    name: project.name,
-    dir: project.dir,
-    isNew: project.isNew ?? false,
-    files: [...project.files, ...project.packages.flatMap((p) => p.files)],
-  }
+  return project
 }

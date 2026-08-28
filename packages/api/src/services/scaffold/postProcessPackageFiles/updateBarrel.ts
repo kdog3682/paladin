@@ -29,6 +29,7 @@ export async function updateBarrel(pkg: PackageData) {
 function barrelEntry(pkg: PackageData, relpath: string) {
 	const ext = SOURCE_EXTENSIONS.find((e) => relpath.endsWith(e))
 	if (!ext) return null
+	// if (/(demo|example|test)\.ts/.test(ext)) return // disallow
 	const segments = relpath.slice(0, -ext.length).split("/")
 	const dirs = segments.slice(0, -1)
 	let start = dirs.findLastIndex((s) => BARREL_NAMES.has(s)) + 1

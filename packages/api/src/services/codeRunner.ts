@@ -56,6 +56,7 @@ async function run(file: string, type: RunType): Promise<RunResult> {
 
     const summary = await testCodemod([name])
     await clip(summary)
+    return
     result = summary
     } catch(e) {
       await clip(e.toString())
@@ -70,6 +71,7 @@ async function run(file: string, type: RunType): Promise<RunResult> {
   else {
     result = await bash(['bun', file], { cwd: dirname(file) })
   }
+  await clip(result)
   return { type, sourceFile: file, result: result as Record<string, unknown> }
 }
 

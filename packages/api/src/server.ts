@@ -1,13 +1,14 @@
 // @paladin/api/src/server.ts
-
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { createBunWebSocket } from "hono/bun"
 import { createWatcher } from "./watcher"
 import { processFile } from "./services/fileProcessor"
-import { createHandlerRouter } from './createHandlerRouter'
-import { readdirSync } from 'fs'
-import { join } from 'path'
+import { createBroadcast } from "./broadcast"
+
+type FileEvent = NonNullable<
+  Awaited<ReturnType<typeof processFile>>
+>
 
 const app = new Hono()
 app.use("*", cors())
@@ -15,54 +16,34 @@ app.use("*", cors())
 const { upgradeWebSocket, websocket } =
   createBunWebSocket<WebSocket>()
 
-const clients = new Set<{ send(data: string): void }>()
 
-function broadcast(event: string, data: unknown) {
-  const payload = JSON.stringify({ event, data })
-
-  for (const client of clients) {
-    try {
-      client.send(payload)
-    } catch {}
-  }
-}
+const broadcast = createBroadcast<FileEvent>()
 
 app.get(
   "/ws",
   upgradeWebSocket(() => ({
     onOpen(_event, ws) {
-      clients.add(ws)
+      broadcast.add(ws)
     },
-
     onClose(_event, ws) {
-      clients.delete(ws)
+      broadcast.remove(ws)
     },
   })),
 )
 
-
-
-
-
-// Watch the downloads directory for newly downloaded files.
-const stopWatching = createWatcher({
-  dir: process.env.DOWNLOAD_DIR!,
-  callback: async (path) => {
-    const event = await processFile(path)
-    if (event) {
-      broadcast(event.event, event.data)
-    }
-  },
+const stopWatching = createWatcher(async (path) => {
+  const event = await processFile(path)
+  if (event) {
+    broadcast.send(event)
+  }
 })
 
-// Start the HTTP and WebSocket server.
 const server = Bun.serve({
-  port: process.env.PORT || 3000,
+  port: Number(process.env.PORT ?? 3000),
   fetch: app.fetch,
   websocket,
 })
 
-// Gracefully shut down background services.
 function shutdown() {
   stopWatching()
   server.stop()
@@ -71,5 +52,7 @@ function shutdown() {
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 
-console.log("Server listening on http://localhost:3000")
+console.log(
+  `Server listening on http://localhost:${server.port}`,
+)
 

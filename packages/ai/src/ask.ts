@@ -21,7 +21,7 @@ export async function ask<T = unknown>(
   prompt: string,
   {
     provider = "glm",
-    effort = "medium",
+    effort = "high",
     system,
     temperature = 0.7,
     max_tokens = 4096,

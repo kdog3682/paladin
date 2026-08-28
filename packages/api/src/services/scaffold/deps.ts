@@ -1,16 +1,3 @@
-// Resolves the npm + workspace dependencies a scaffold target needs.
-//
-// For each import in a target's files:
-//   - relative/local imports are ignored
-//   - imports under the project's own scope (e.g. @paladin/*) are treated as
-//     sibling workspace packages and pinned to `workspace:*` — even when that
-//     package isn't part of the current scaffold batch
-//   - everything else is pinned to the latest npm version, cached on disk so
-//     each package is looked up at most once across runs
-//
-// Imports already declared in the target's package.json are left untouched.
-// Newly-needed deps are written back to the manifest and returned.
-
 import { join, extname } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { collectImports } from '@paladin/utils/collectImports'
@@ -60,7 +47,7 @@ async function readManifest(dir: string): Promise<Manifest> {
 export class DependencyResolver {
   private readonly cache: Record<string, string>
   private scope: string
-  private dirty = false
+  private dirty: boolean = false
 
   constructor(
     private readonly cachePath = NPM_DEPS_CACHE,
@@ -114,8 +101,11 @@ export class DependencyResolver {
   }
 
   /** Persists the version cache to disk if it changed. */
-  async flush(): Promise<void> {
-    if (this.dirty) await Bun.write(this.cachePath, JSON.stringify(this.cache, null, 2) + '\n')
+  async flush(): Promise<bool> {
+    if (this.dirty) {
+      await Bun.write(this.cachePath, JSON.stringify(this.cache, null, 2) + '\n')
+    }
+    return this.dirty
   }
 
   /** A scoped import under the project's own scope is a sibling workspace package. */

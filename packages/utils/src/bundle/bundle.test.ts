@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { createProject, MissingVarError, pack, unpack } from "./bundle"
+import { MissingVarError, pack, unpack } from "./bundle"
 
 let dir: string
 

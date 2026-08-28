@@ -1,28 +1,19 @@
 import { existsSync, readFileSync } from "node:fs"
-import { isAbsolute, relative, resolve } from "node:path"
+import { isAbsolute, relative } from "node:path"
 import { dump, load } from "js-yaml"
+import { commonRoot } from "../path/commonRoot"
+import { resolveScopedPath } from "../path/resolveScopedPath"
 
 export type FileEntry = { path: string; content: string }
-export type FileInput = Record<string, string> | FileEntry[] | string[]
+export type FileMap = Map<string, string>
+export type FileInput = Record<string, string> | FileMap | FileEntry[] | string[]
 export type Vars = Record<string, string | number | boolean>
 export type Meta = Record<string, unknown>
 
 export type Bundle = {
   yaml: Meta
-  files: FileEntry[]
-}
-
-export type CreateProjectOpts = {
-  root?: string
-  vars?: Vars
-  overwrite?: boolean
-  installNodeModules?: boolean
-}
-
-export type CreateProjectResult = {
   root: string
-  yaml: Meta
-  files: string[]
+  files: FileEntry[]
 }
 
 const HEADER = /^\/\*\*[ \t]+(.+?)[ \t]+\*\*\/[ \t]*$/
@@ -51,35 +42,46 @@ export function fill(text: string, vars?: Vars): string {
 
 /**
  * Normalizes any accepted file input into entries, reading from disk for
- * filepaths. Stored paths are relative to `root`, defaulting to the cwd.
+ * filepaths. Paths are kept exactly as given; `bundle` strips the shared root.
  */
-export function toEntries(files: FileInput, root?: string): FileEntry[] {
+export function toEntries(files: FileInput): FileEntry[] {
+  if (files instanceof Map) {
+    return [...files].map(([path, content]) => ({ path, content }))
+  }
   if (!Array.isArray(files)) {
     return Object.entries(files).map(([path, content]) => ({ path, content }))
   }
-  const base = root ?? process.cwd()
   return files.map(file => {
     if (typeof file !== "string") return { path: file.path, content: file.content }
-    return { path: relative(base, resolve(file)), content: readFileSync(file, "utf8") }
+    return { path: file, content: readFileSync(file, "utf8") }
   })
 }
 
 /**
  * Serializes files into a single bundle string, optionally prefixed with a YAML
- * preamble. Accepts a path-to-content record, entry objects, or filepaths to read.
+ * preamble. Accepts a path-to-content record or Map, entry objects, or
+ * filepaths to read. The directory shared by every path is stripped from the
+ * entries and recorded as `root` in the preamble; pass `meta.root` to override.
  */
-export function pack(files: FileInput, vars?: Vars, meta?: Meta): string {
-  const chunks: string[] = []
-  const root = typeof meta?.root === "string" ? meta.root : undefined
+export function bundle(files: FileInput, vars?: Vars, meta?: Meta): string {
+  const entries = toEntries(files).map(entry => ({
+    path: fill(entry.path, vars).trim(),
+    content: fill(entry.content, vars).replace(/\s+$/, ""),
+  }))
 
-  if (meta && Object.keys(meta).length > 0) {
-    chunks.push(`/*\n${dump(meta).trimEnd()}\n*/`)
+  const given = typeof meta?.root === "string" ? meta.root : undefined
+  const root = given ?? commonRoot(entries.map(entry => entry.path))
+
+  const yaml: Meta = { ...meta }
+  if (root !== "") yaml.root = root
+
+  const chunks: string[] = []
+  if (Object.keys(yaml).length > 0) {
+    chunks.push(`/*\n${dump(yaml).trimEnd()}\n*/`)
   }
 
-  for (const entry of toEntries(files, root)) {
-    const path = fill(entry.path, vars).trim()
-    const content = fill(entry.content, vars).replace(/\s+$/, "")
-    chunks.push(`/** ${path} **/\n${content}`)
+  for (const entry of entries) {
+    chunks.push(`/** ${strip(entry.path, root)} **/\n${entry.content}`)
   }
 
   return chunks.join("\n\n") + "\n"
@@ -87,13 +89,15 @@ export function pack(files: FileInput, vars?: Vars, meta?: Meta): string {
 
 /**
  * Parses a bundle back into its YAML preamble and file entries. Takes either the
- * bundle text or a path to a file holding it.
+ * bundle text or a path to a file holding it. Entry paths stay relative to
+ * `root`; join them yourself to land files back where they came from.
  */
-export function unpack(input: string, vars?: Vars): Bundle {
+export function bundleToFiles(input: string, vars?: Vars): Bundle {
   const text = read(input)
   const lines = text.split("\n")
 
   const { yaml, start } = preamble(lines)
+  const root = typeof yaml.root === "string" ? yaml.root : ""
 
   const files: FileEntry[] = []
   let path: string | null = null
@@ -117,47 +121,24 @@ export function unpack(input: string, vars?: Vars): Bundle {
   }
   flush()
 
-  if (!vars) return { yaml, files }
+  if (!vars) return { yaml, root, files }
 
   return {
     yaml,
-    files: files.map(f => ({
-      path: fill(f.path, vars),
-      content: fill(f.content, vars),
+    root,
+    files: files.map(file => ({
+      path: fill(file.path, vars),
+      content: fill(file.content, vars),
     })),
   }
 }
 
-/**
- * Unpacks a bundle and writes it to disk, rooted at `opts.root`, then the YAML
- * `root`, then the cwd. Opts override anything declared in the preamble.
- */
-export async function createProject(
-  input: string,
-  opts: CreateProjectOpts = {},
-): Promise<CreateProjectResult> {
-  const bundle = unpack(input, opts.vars)
-  const declared = typeof bundle.yaml.root === "string" ? bundle.yaml.root : undefined
-  const root = resolve(opts.root ?? declared ?? process.cwd())
-  const overwrite = opts.overwrite ?? true
-
-  const written: string[] = []
-
-  for (const file of bundle.files) {
-    const target = resolve(root, file.path)
-    if (!inside(root, target)) {
-      throw new Error(`bundle: ${file.path} escapes root ${root}`)
-    }
-    if (!overwrite && existsSync(target)) {
-      throw new Error(`bundle: ${target} already exists`)
-    }
-    await Bun.write(target, file.content)
-    written.push(target)
-  }
-
-  if (opts.installNodeModules) await install(root)
-
-  return { root, yaml: bundle.yaml, files: written }
+function strip(path: string, root: string): string {
+  if (root === "") return path
+  if (isAbsolute(path) !== isAbsolute(root)) return path
+  const rel = relative(root, path)
+  if (rel === "" || rel.startsWith("..")) return path
+  return rel
 }
 
 function read(input: string): string {
@@ -183,18 +164,4 @@ function preamble(lines: string[]): { yaml: Meta; start: number } {
   }
 
   return { yaml: {}, start: 0 }
-}
-
-async function install(root: string): Promise<void> {
-  if (!existsSync(resolve(root, "package.json"))) {
-    throw new Error(`bundle: installNodeModules set but no package.json in ${root}`)
-  }
-  const proc = Bun.spawn(["bun", "install"], { cwd: root, stdout: "inherit", stderr: "inherit" })
-  const code = await proc.exited
-  if (code !== 0) throw new Error(`bundle: bun install exited with ${code}`)
-}
-
-function inside(root: string, target: string): boolean {
-  const rel = relative(root, target)
-  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel)
 }

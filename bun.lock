@@ -44,6 +44,14 @@
         "ts-morph": "^28.0.0",
       },
     },
+    "packages/api2": {
+      "name": "@paladin/api2",
+      "version": "0.1.0",
+      "dependencies": {
+        "@paladin/utils": "workspace:*",
+        "fflate": "^0.8.3",
+      },
+    },
     "packages/cme": {
       "name": "@paladin/cme",
       "version": "0.1.0",
@@ -533,6 +541,8 @@
     "@paladin/ai": ["@paladin/ai@workspace:packages/ai"],
 
     "@paladin/api": ["@paladin/api@workspace:packages/api"],
+
+    "@paladin/api2": ["@paladin/api2@workspace:packages/api2"],
 
     "@paladin/cme": ["@paladin/cme@workspace:packages/cme"],
 

@@ -1,9 +1,9 @@
 import {deleteSymbol} from "./commands/deleteSymbol"
+import {renameSymbol} from "./commands/renameSymbol"
 import {initializeProject} from "./initialize"
-// import {clip} from "@paladin/clip"
+import {filesToBundle} from "@paladin/utils"
 
 
-let p = initializeProject('/home/kdog3682/projects/paladin/packages/utils/src/bundle/bundle.ts')
 
 
 import type { Project } from "ts-morph"
@@ -16,7 +16,12 @@ export function changedFiles(project: Project): Map<string, string> {
   return out
 }
 
-deleteSymbol(p, 'createProject')
+// let p = initializeProject('/home/kdog3682/projects/paladin/packages/utils/src/bundle/bundle.ts')
+let p = initializeProject('/home/kdog3682/projects/mathpen/manim')
+
+moveSymbol(p, 'dash')
 const changed = changedFiles(p)
 p.save()
 // console.log(Array.from(changed)[1][1])
+
+// /home/kdog3682/projects/mathpen/packages/manim/src/node/style.ts

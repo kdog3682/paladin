@@ -1,4 +1,5 @@
 import { statSync } from "node:fs"
+
 import { join, resolve } from "node:path"
 
 const EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]
