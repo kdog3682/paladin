@@ -1,40 +1,48 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
+import { append, isWrite } from "../ops"
 import { runnableKind } from "../runner"
-import type { File, PostProcessResult, Unit } from "../types"
+import type { FsOp, Unit, WriteOp } from "../types"
 
 const BARREL = "src/index.ts"
+const SOURCE = "updateBarrel"
 
-function exportable(unit: Unit, barrel: string, file: File): boolean {
-  if (file.status !== "created") return false
-  if (file.path === barrel) return false
-  if (runnableKind(file.path)) return false
-  if (!/\.tsx?$/.test(file.path)) return false
+/**
+ * Only brand new source files get exported. Nothing has been written yet at this
+ * point in the pipeline, so a path that already exists on disk is a file the
+ * barrel has had its chance to pick up.
+ */
+function exportable(unit: Unit, barrel: string, op: FsOp): op is WriteOp {
+  if (!isWrite(op) || op.mode !== "write") return false
+  if (op.path === barrel || existsSync(op.path)) return false
+  if (runnableKind(op.path)) return false
+  if (!/\.tsx?$/.test(op.path)) return false
 
-  const rel = relative(unit.dir, file.path)
+  const rel = relative(unit.dir, op.path)
   if (!rel.startsWith("src/")) return false
   if (rel.startsWith("src/test/")) return false
   return true
 }
 
-function toExport(barrel: string, file: File): string {
-  const rel = relative(dirname(barrel), file.path).replace(/\.tsx?$/, "")
+function toExport(barrel: string, path: string): string {
+  const rel = relative(dirname(barrel), path).replace(/\.tsx?$/, "")
   return `export * from "./${rel}"`
 }
 
-export async function updateBarrel(unit: Unit): Promise<PostProcessResult> {
+export function updateBarrel(unit: Unit): FsOp[] {
   const barrel = join(unit.dir, BARREL)
-  const lines = unit.files
-    .filter((file) => exportable(unit, barrel, file))
-    .map((file) => toExport(barrel, file))
-
-  if (!lines.length) return { name: "updateBarrel", paths: [] }
-
   const existing = existsSync(barrel) ? readFileSync(barrel, "utf8") : ""
-  const separator = existing && !existing.endsWith("\n") ? "\n" : ""
 
-  mkdirSync(dirname(barrel), { recursive: true })
-  writeFileSync(barrel, existing + separator + lines.join("\n") + "\n")
+  // the unit may be authoring the barrel itself in this same pass
+  const authored = unit.ops.find((op) => isWrite(op) && op.path === barrel) as WriteOp | undefined
+  const current = existing + "\n" + (authored?.content ?? "")
 
-  return { name: "updateBarrel", paths: [barrel] }
+  const lines = unit.ops
+    .filter((op): op is WriteOp => exportable(unit, barrel, op))
+    .map((op) => toExport(barrel, op.path))
+    .filter((line) => !current.includes(line))
+
+  if (!lines.length) return []
+
+  return [append(SOURCE, barrel, lines.join("\n") + "\n")]
 }

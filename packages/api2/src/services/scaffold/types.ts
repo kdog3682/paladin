@@ -1,25 +1,53 @@
-import type { ResolveScopedPathOptions } from '@paladin/utils'
+import type { BashResult } from "@paladin/utils"
 
-export type ScaffoldOptions = ResolveScopedPathOptions & {
-  npmCachePath?: string
+export type WriteMode = "write" | "append" | "merge"
+
+export interface OpMeta {
+  /** Who emitted this op — "parseFileContent", "deleteShadowedFiles", "codeRunner", ... */
+  source: string
+  /** Set by apply: whether the op actually happened. */
+  applied?: boolean
+  /** Why it didn't, or why it was a skip in the first place. */
+  reason?: string
 }
 
-export type FileStatus = 'created' | 'modified' | 'unchanged' | 'deprecated'
+export type FsOp =
+  /** `merge` deep-merges JSON on both sides, and falls back to codeMerge for source. */
+  | (OpMeta & { kind: "write"; path: string; content: string; mode: WriteMode })
+  | (OpMeta & {
+      kind: "bash"
+      args: string[]
+      cwd: string
+      /** A non-zero exit stops every command queued behind it. */
+      strict: boolean
+      purpose: "install" | "test" | "demo" | "script" | "build"
+      result?: BashOpResult
+    })
+  /** Directories go through rmDir, which refuses anything holding a git repo. */
+  | (OpMeta & { kind: "delete"; path: string })
+  /** Untouched, but still visible — the runner reruns tests for unchanged files. */
+  | (OpMeta & { kind: "skip"; path: string; content?: string })
+  | (OpMeta & { kind: "deprecated"; path: string })
 
-export type FileAction = 'write' | 'append' | 'delete' | 'skip'
+export type OpKind = FsOp["kind"]
+export type WriteOp = Extract<FsOp, { kind: "write" }>
+export type BashOp = Extract<FsOp, { kind: "bash" }>
+export type DeleteOp = Extract<FsOp, { kind: "delete" }>
+export type SkipOp = Extract<FsOp, { kind: "skip" }>
+export type DeprecatedOp = Extract<FsOp, { kind: "deprecated" }>
 
-export interface File {
-  path: string
-  status: FileStatus
-  action: FileAction
-  content: string
+/** Every op except bash addresses a single path. */
+export type PathOp = Exclude<FsOp, BashOp>
+
+export interface BashOpResult extends BashResult {
+  purpose: BashOp["purpose"]
 }
 
 export interface Unit {
   name: string
   dir: string
   isNew: boolean
-  files: File[]
+  ops: FsOp[]
 }
 
 export interface Project {
@@ -29,7 +57,11 @@ export interface Project {
   units: Unit[]
 }
 
-export interface PostProcessResult {
-  name: string
-  paths: string[]
+export interface PathResolutionOpts {
+  base?: string
+  relativeTo?: string
+  npmCachePath?: string
 }
+
+/** What apply hands back: every op it saw, annotated with what became of it. */
+export type ApplyResult = FsOp[]

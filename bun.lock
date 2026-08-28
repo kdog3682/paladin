@@ -48,6 +48,7 @@
       "name": "@paladin/api2",
       "version": "0.1.0",
       "dependencies": {
+        "@paladin/codegen": "workspace:*",
         "@paladin/utils": "workspace:*",
         "fflate": "^0.8.3",
       },
@@ -102,6 +103,13 @@
         "tailwindcss": "^4",
         "vite": "^5",
         "vite-tsconfig-paths": "^6.0.5",
+      },
+    },
+    "packages/codegen": {
+      "name": "@paladin/codegen",
+      "version": "0.1.0",
+      "dependencies": {
+        "recast": "^0.23.11",
       },
     },
     "packages/codemod": {
@@ -550,6 +558,8 @@
     "@paladin/cme": ["@paladin/cme@workspace:packages/cme"],
 
     "@paladin/cme2": ["@paladin/cme2@workspace:packages/cme2"],
+
+    "@paladin/codegen": ["@paladin/codegen@workspace:packages/codegen"],
 
     "@paladin/codemod": ["@paladin/codemod@workspace:packages/codemod"],
 
@@ -1528,8 +1538,6 @@
     "tslib": ["tslib@2.8.1", "", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
 
     "typed-query-selector": ["typed-query-selector@2.12.1", "", {}, "sha512-uzR+FzI8qrUEIu96oaeBJmd9E7CFEiQ3goA5qCVgc4s5llSubcfGHq9yUstZx/k4s9dXHVKsE35YWoFyvEqEHA=="],
-
-    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "unbash": ["unbash@2.2.0", "", {}, "sha512-X2wH19RAPZE3+ldGicOkoj/SIA83OIxcJ6Cuaw23hf8Xc6fQpvZXY0SftE2JgS0QhYLUG4uwodSI3R53keyh7w=="],
 

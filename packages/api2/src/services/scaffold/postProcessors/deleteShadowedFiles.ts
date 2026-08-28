@@ -1,45 +1,49 @@
-import { existsSync, rmSync, statSync } from "node:fs"
 import { dirname } from "node:path"
-import type { PostProcessResult, Unit } from "../types"
+import { isDir, isFile } from "@paladin/utils"
+import { isSkip, isWrite, remove } from "../ops"
+import type { FsOp, SkipOp, Unit, WriteOp } from "../types"
 
 const EXTS = [".ts", ".tsx"]
-
-function isDir(path: string): boolean {
-  return existsSync(path) && statSync(path).isDirectory()
-}
-
-function isFile(path: string): boolean {
-  return existsSync(path) && statSync(path).isFile()
-}
+const SOURCE = "deleteShadowedFiles"
 
 function stripExt(path: string): string {
   return path.replace(/\.[^./]+$/, "")
 }
 
-export async function deleteShadowedFiles(unit: Unit): Promise<PostProcessResult> {
-  const owned = new Set(unit.files.map((file) => file.path))
+/**
+ * A unit that now owns `foo.ts` shouldn't also keep a `foo/` directory it no
+ * longer writes into, nor a `foo.ts` sitting beside the `foo/` it does write
+ * into. Emits deletes for both; apply decides whether they're safe to carry out.
+ */
+export function deleteShadowedFiles(unit: Unit): FsOp[] {
+  const owned = new Set(
+    unit.ops
+      .filter((op): op is WriteOp | SkipOp => isWrite(op) || isSkip(op))
+      .map((op) => op.path),
+  )
   const ownsUnder = (dir: string) => [...owned].some((path) => path.startsWith(dir + "/"))
-  const paths: string[] = []
 
-  for (const file of unit.files) {
-    const dir = stripExt(file.path)
-    if (dir.startsWith(unit.dir) && isDir(dir) && !ownsUnder(dir)) {
-      rmSync(dir, { recursive: true, force: true })
-      paths.push(dir)
-    }
+  const seen = new Set<string>()
+  const ops: FsOp[] = []
+  const push = (path: string) => {
+    if (seen.has(path)) return
+    seen.add(path)
+    ops.push(remove(SOURCE, path))
+  }
 
-    const parent = dirname(file.path)
+  for (const path of owned) {
+    const dir = stripExt(path)
+    if (dir.startsWith(unit.dir) && isDir(dir) && !ownsUnder(dir)) push(dir)
+
+    const parent = dirname(path)
     if (!parent.startsWith(unit.dir) || parent === unit.dir) continue
+
     for (const ext of EXTS) {
       const shadow = parent + ext
-      if (owned.has(shadow)) continue
-      if (isFile(shadow)) {
-        rmSync(shadow, { force: true })
-        paths.push(shadow)
-      }
+      if (owned.has(shadow) || !isFile(shadow)) continue
+      push(shadow)
     }
   }
 
-  return { name: "deleteShadowedFiles", paths }
+  return ops
 }
-

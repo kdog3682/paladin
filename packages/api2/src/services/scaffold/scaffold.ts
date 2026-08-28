@@ -1,67 +1,95 @@
-import { createProject } from "./createProject"
-import { persist } from "./persist"
-import { postProcessors } from "./postProcessors"
-import { resolveDependencies } from "./utils/resolveDependencies"
-import { CodeRunner } from "./runner"
-import { hydrateBoilerplate } from "./hydrateBoilerplate"
 import { GitService } from "../git"
+import { applyOperations } from "./apply"
 import { dispatch } from "./commands"
-import type { ScaffoldEmit } from "./events"
-import type { RunOptions } from "./runner"
-import type { Project, ScaffoldOptions } from "./types"
+import { resolveDependencies } from "./deps/resolveDependencies"
+import { VersionCache } from "./deps/versions"
+import { defaultEmit } from "./emit"
+import { hydrateBoilerplate } from "./hydrateBoilerplate"
+import { plan } from "./plan/plan"
+import { postProcessors } from "./postProcessors"
+import { CodeRunner } from "./runner"
+import type { ScaffoldEmit } from "./emit"
+import type { Registration, RunOptions } from "./runner"
+import type { ApplyResult, PathResolutionOpts, Project } from "./types"
+
+export interface CodeRunnerOptions extends Omit<RunOptions, "cwd" | "pathResolution"> {
+  registrations: Registration[]
+}
 
 export interface ScaffoldServiceOptions {
-  pathResolution?: ScaffoldOptions
-  emit?: ScaffoldEmit
-  codeRunner?: RunOptions
+  pathResolution: PathResolutionOpts
+  emit: ScaffoldEmit
+  codeRunner: CodeRunnerOptions
   git?: { init?: boolean }
+}
+
+export const DEFAULT_REGISTRATIONS: Registration[] = [
+  { id: "test", matches: { kind: "test" }, command: "bun test <path>" },
+  { id: "script", matches: { kind: "script" }, command: "bun run <path>" },
+  { id: "demo", matches: { kind: "demo" }, command: "bun run <path>" },
+  {
+    id: "story",
+    matches: { kind: "story", ext: "tsx" },
+    command: "bun run @paladin/utils <path> <opts>",
+  },
+]
+
+export const DEFAULT_OPTIONS: ScaffoldServiceOptions = {
+  pathResolution: {},
+  emit: defaultEmit,
+  codeRunner: { registrations: DEFAULT_REGISTRATIONS },
 }
 
 export class ScaffoldService {
   readonly sessions: Project[] = []
 
-  private codeRunner = new CodeRunner()
+  private opts: ScaffoldServiceOptions
+  private codeRunner: CodeRunner
   private git = new GitService()
-  private emit: ScaffoldEmit
 
-  constructor(private opts: ScaffoldServiceOptions = {}) {
-    this.opts = { ...opts, pathResolution: opts.pathResolution ?? {} }
-    this.emit = opts.emit ?? console.log
+  constructor(opts: Partial<ScaffoldServiceOptions> = {}) {
+    this.opts = { ...DEFAULT_OPTIONS, ...opts }
+    this.codeRunner = new CodeRunner(this.opts.codeRunner.registrations)
   }
 
   setOptions(opts: Partial<ScaffoldServiceOptions>) {
     this.opts = { ...this.opts, ...opts }
-    if (opts.emit) this.emit = opts.emit
+    if (opts.codeRunner) this.codeRunner = new CodeRunner(opts.codeRunner.registrations)
   }
 
-  async process(input: string) {
-    const project = await createProject(input, this.opts.pathResolution)
-    if (!project) return
+  /**
+   * Every stage adds ops to the unit and nothing touches disk until the end, so
+   * each stage sees the world as it is plus everything the ones before it intend.
+   */
+  async process(input: string): Promise<ApplyResult | null> {
+    const { pathResolution, codeRunner } = this.opts
+
+    const project = await plan(input, pathResolution)
+    if (!project) return null
+
+    const versions = new VersionCache(pathResolution.npmCachePath)
 
     for (const unit of project.units) {
-      await persist(unit)
-      
-      for (const processor of postProcessors) {
-        const processResult = await processor(unit)
-        this.emit("processResult", processResult)
-      }
+      for (const processor of postProcessors) unit.ops.push(...(await processor(unit)))
+      unit.ops.push(...(await hydrateBoilerplate(project, unit)))
+      unit.ops.push(...(await resolveDependencies(project, unit, pathResolution, versions)))
+      unit.ops.push(
+        ...this.codeRunner.run(unit.ops, {
+          cwd: unit.dir,
+          skip: codeRunner.skip,
+          custom: codeRunner.custom,
+          pathResolution,
+        }),
+      )
     }
 
-    await hydrateBoilerplate(project)
-    await resolveDependencies(project, this.opts.pathResolution)
-
-    this.emit("project", project)
-
-    for (const unit of project.units) {
-      const results = await this.codeRunner.run(unit.files, this.opts.codeRunner)
-      this.emit("runResults", results)
-    }
+    const result = await applyOperations(project.units.flatMap((unit) => unit.ops))
+    this.opts.emit(result)
 
     this.sessions.push(project)
+    if (this.opts.git?.init) await this.git.init(project.dir)
 
-    if (this.opts.git?.init) {
-      await this.git.init(project.dir)
-    }
+    return result
   }
 
   async dispatch(method: string, kwargs?: unknown) {
