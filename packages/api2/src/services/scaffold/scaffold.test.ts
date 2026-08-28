@@ -13,10 +13,10 @@ afterAll(() => rmSync(base, { recursive: true, force: true }))
 
 // two files, one importing the other, so the runner has something to trace
 const source = `
-// @demo/widget/src/add.ts
+// @acme/widget/src/add.ts
 export const add = (a: number, b: number) => a + b
 
-// @demo/widget/src/test/add.test.ts
+// @acme/widget/src/test/add.test.ts
 import { expect, test } from "bun:test"
 import { add } from "../add"
 
