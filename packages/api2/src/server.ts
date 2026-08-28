@@ -9,28 +9,6 @@ import type { ScaffoldMessage } from "./services/scaffold/events"
 const app = new Hono()
 app.use("*", cors())
 
-const html = /* html */ `<!doctype html>
-<html>
-<head><title>api2</title></head>
-<body>
-<div id="out"></div>
-<script>
-const out = document.getElementById("out")
-const ws = new WebSocket("ws://" + location.host + "/ws")
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data)
-  if (message.payload == null) return
-  const pre = document.createElement("pre")
-  if (message.kind === "error") pre.style.color = "red"
-  pre.textContent = JSON.stringify(message, null, 2)
-  out.prepend(pre)
-}
-</script>
-</body>
-</html>`
-
-app.get("/", (c) => c.html(html))
-
 const { upgradeWebSocket, websocket } = createBunWebSocket<WebSocket>()
 
 type ErrorMessage = { kind: "error"; payload: string }

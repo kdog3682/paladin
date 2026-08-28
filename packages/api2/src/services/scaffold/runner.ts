@@ -63,10 +63,10 @@ function toArgs(command: string, path: string): string[] {
 }
 
 export const defaultRegistrations: Registration[] = [
-  { matches: { kind: "test" }, command: "bun test <path>" },
+  { id: 'test', matches: { kind: "test" }, command: "bun test <path>" },
   { matches: { kind: "script" }, command: "bun run <path>" },
   { matches: { kind: "demo" }, command: "bun run <path>" },
-  { matches: { kind: "story", ext: "tsx" }, command: "storybook <path>" },
+  { matches: { kind: "story", ext: "tsx" }, command: "bun run @paladin/utils <path>" },
 ]
 
 export class CodeRunner {
@@ -145,28 +145,15 @@ export class CodeRunner {
         : await bash(toArgs(command ?? "", path), { cwd: opts.cwd })
 
       return {
+        kind: bash
         path,
-        kind,
-        ok: result.exitCode === 0,
-        bash: result,
-        error: result.exitCode === 0 ? undefined : result.stderr.trim(),
-      }
-    } catch (error) {
-      return {
-        path,
-        kind,
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
+        subkind,
       }
     }
   }
 }
 
 
+/*
 
-
-/* TODO
-
-the files return
-
-*/
+no more handler field

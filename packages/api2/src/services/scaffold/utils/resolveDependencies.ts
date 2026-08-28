@@ -167,6 +167,6 @@ export async function resolveDependencies(
 
   if (!changed) return false
 
-  await bash(['bun', 'install'], { cwd: project.dir, strict: true })
+  await bash(['bun', 'install'], { cwd: project.dir })
   return true
 }
