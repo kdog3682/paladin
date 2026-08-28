@@ -1,13 +1,21 @@
 import { createProject } from "./createProject"
 import { persist } from "./persist"
 import { postProcessors } from "./postProcessors"
-import { resolveDependencies } from "./resolveDependencies"
+import { resolveDependencies } from "./utils/resolveDependencies"
 import { CodeRunner } from "./runner"
 import { hydrateBoilerplate } from "./hydrateBoilerplate"
 import { GitService } from "../git"
+import { dispatch } from "./commands"
 import type { ScaffoldEmit } from "./events"
-import type { Registration } from "./runner"
+import type { RunOptions } from "./runner"
 import type { Project, ScaffoldOptions } from "./types"
+
+export interface ScaffoldServiceOptions {
+  pathResolution?: ScaffoldOptions
+  emit?: ScaffoldEmit
+  codeRunner?: RunOptions
+  git?: { init?: boolean }
+}
 
 export class ScaffoldService {
   readonly sessions: Project[] = []
@@ -16,8 +24,14 @@ export class ScaffoldService {
   private git = new GitService()
   private emit: ScaffoldEmit
 
-  constructor(private opts: ScaffoldOptions = {}) {
+  constructor(private opts: ScaffoldServiceOptions = {}) {
+    this.opts = { ...opts, pathResolution: opts.pathResolution ?? {} }
     this.emit = opts.emit ?? console.log
+  }
+
+  setOptions(opts: Partial<ScaffoldServiceOptions>) {
+    this.opts = { ...this.opts, ...opts }
+    if (opts.emit) this.emit = opts.emit
   }
 
   async process(input: string) {
@@ -26,6 +40,7 @@ export class ScaffoldService {
 
     for (const unit of project.units) {
       await persist(unit)
+      
       for (const processor of postProcessors) {
         const processResult = await processor(unit)
         this.emit("processResult", processResult)
@@ -33,7 +48,7 @@ export class ScaffoldService {
     }
 
     await hydrateBoilerplate(project)
-    await resolveDependencies(project)
+    await resolveDependencies(project, this.opts.pathResolution)
 
     this.emit("project", project)
 
@@ -44,8 +59,12 @@ export class ScaffoldService {
 
     this.sessions.push(project)
 
-    if (this.opts.git.init) {
+    if (this.opts.git?.init) {
       await this.git.init(project.dir)
     }
+  }
+
+  async dispatch(method: string, kwargs?: unknown) {
+    return await dispatch(this, method, kwargs)
   }
 }

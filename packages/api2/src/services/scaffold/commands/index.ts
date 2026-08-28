@@ -1,7 +1,7 @@
 import { foobar } from "./foobar"
-import type { ScaffoldService } from "../services/scaffold/scaffold"
+import type { ScaffoldService } from "../scaffold"
 
-export type Command = (ctx: ScaffoldService, ...args: any[]) => unknown
+export type Command = (ctx: ScaffoldService, kwargs?: any) => unknown
 
 export const commands = {
   foobar,
@@ -15,9 +15,9 @@ export class UnknownCommandError extends Error {
   }
 }
 
-export async function dispatch(ctx: ScaffoldService, method: string, args: unknown[] = []) {
+export async function dispatch(ctx: ScaffoldService, method: string, kwargs?: unknown) {
   const commandsByName: Record<string, Command> = commands
   const command = commandsByName[method]
   if (!command) throw new UnknownCommandError(method)
-  return await command(ctx, ...args)
+  return await command(ctx, kwargs)
 }

@@ -1,8 +1,8 @@
 import { deleteShadowedFiles } from "./deleteShadowedFiles"
 import { updateBarrel } from "./updateBarrel"
-import type { Unit } from "../types"
+import type { PostProcessResult, Unit } from "../types"
 
-export type PostProcessor = (unit: Unit) => void | Promise<void>
+export type PostProcessor = (unit: Unit) => PostProcessResult | Promise<PostProcessResult>
 
 export const postProcessors: PostProcessor[] = [deleteShadowedFiles, updateBarrel]
 

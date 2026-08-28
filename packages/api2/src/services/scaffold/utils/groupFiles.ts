@@ -10,7 +10,7 @@ function within(dir: string, abs: string): boolean {
 
 /** The project root an absolute path belongs to: a child of base, the active dir, or its own parent. */
 function projectDirFor(abs: string, opts: ScaffoldOptions): string {
-  const base = expandHome(opts.base)
+  const base = expandHome(opts.base ?? '~/projects')
   if (within(base, abs)) return join(base, relative(base, abs).split('/')[0])
 
   const active = opts.relativeTo ? expandHome(opts.relativeTo) : null

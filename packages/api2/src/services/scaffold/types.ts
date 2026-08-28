@@ -28,3 +28,8 @@ export interface Project {
   isNew: boolean
   units: Unit[]
 }
+
+export interface PostProcessResult {
+  name: string
+  paths: string[]
+}

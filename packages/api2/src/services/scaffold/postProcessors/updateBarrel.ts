@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
 import { runnableKind } from "../runner"
-import type { File, Unit } from "../types"
+import type { File, PostProcessResult, Unit } from "../types"
 
 const BARREL = "src/index.ts"
 
@@ -22,17 +22,19 @@ function toExport(barrel: string, file: File): string {
   return `export * from "./${rel}"`
 }
 
-export async function updateBarrel(unit: Unit) {
+export async function updateBarrel(unit: Unit): Promise<PostProcessResult> {
   const barrel = join(unit.dir, BARREL)
   const lines = unit.files
     .filter((file) => exportable(unit, barrel, file))
     .map((file) => toExport(barrel, file))
 
-  if (!lines.length) return
+  if (!lines.length) return { name: "updateBarrel", paths: [] }
 
   const existing = existsSync(barrel) ? readFileSync(barrel, "utf8") : ""
   const separator = existing && !existing.endsWith("\n") ? "\n" : ""
 
   mkdirSync(dirname(barrel), { recursive: true })
   writeFileSync(barrel, existing + separator + lines.join("\n") + "\n")
+
+  return { name: "updateBarrel", paths: [barrel] }
 }

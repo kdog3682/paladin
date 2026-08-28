@@ -1,4 +1,4 @@
-import { beforeEach, expect, mock, test } from 'bun:test'
+import { afterAll, beforeEach, expect, mock, test } from 'bun:test'
 import { mkdirSync, mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -20,10 +20,17 @@ mock.module('@paladin/utils', () => ({
   },
 }))
 
+const realFetch = globalThis.fetch
+
 globalThis.fetch = (async (url: string | URL) => {
   fetched.push(String(url))
   return new Response(JSON.stringify({ version: '1.2.3' }))
 }) as unknown as typeof fetch
+
+afterAll(() => {
+  mock.module('@paladin/utils', () => utils)
+  globalThis.fetch = realFetch
+})
 
 const base = () => mkdtempSync(join(tmpdir(), 'paladin-base-'))
 

@@ -9,9 +9,33 @@ import type { ScaffoldMessage } from "./services/scaffold/events"
 const app = new Hono()
 app.use("*", cors())
 
+const html = /* html */ `<!doctype html>
+<html>
+<head><title>api2</title></head>
+<body>
+<div id="out"></div>
+<script>
+const out = document.getElementById("out")
+const ws = new WebSocket("ws://" + location.host + "/ws")
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data)
+  if (message.payload == null) return
+  const pre = document.createElement("pre")
+  if (message.kind === "error") pre.style.color = "red"
+  pre.textContent = JSON.stringify(message, null, 2)
+  out.prepend(pre)
+}
+</script>
+</body>
+</html>`
+
+app.get("/", (c) => c.html(html))
+
 const { upgradeWebSocket, websocket } = createBunWebSocket<WebSocket>()
 
-const broadcast = createBroadcast<ScaffoldMessage>()
+type ErrorMessage = { kind: "error"; payload: string }
+
+const broadcast = createBroadcast<ScaffoldMessage | ErrorMessage>()
 
 const scaffold = new ScaffoldService({
   emit: (kind, payload) => broadcast.send({ kind, payload }),
@@ -31,8 +55,14 @@ app.get(
 
 app.post("/controller", async (c) => {
   const { method, kwargs } = await c.req.json()
-  const result = await scaffold.dispatch(method, kwargs)
-  return c.json(result)
+  try {
+    const result = await scaffold.dispatch(method, kwargs)
+    return c.json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    broadcast.send({ kind: "error", payload: message })
+    return c.json({ error: message }, 500)
+  }
 })
 
 const stopWatching = createWatcher(async (path) => {
@@ -40,6 +70,7 @@ const stopWatching = createWatcher(async (path) => {
     await scaffold.process(path)
   } catch (error) {
     console.error(`scaffold failed for ${path}`, error)
+    broadcast.send({ kind: "error", payload: error instanceof Error ? error.message : String(error) })
   }
 })
 

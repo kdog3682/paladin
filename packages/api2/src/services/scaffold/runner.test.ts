@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test"
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -33,6 +33,10 @@ function file(path: string, status: File["status"], content = ""): File {
 
 beforeEach(() => {
   runs.length = 0
+})
+
+afterAll(() => {
+  mock.module("@paladin/utils", () => actual)
 })
 
 describe("CodeRunner", () => {

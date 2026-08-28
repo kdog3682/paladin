@@ -1,7 +1,8 @@
 import type { RunResult } from "./runner"
-import type { Project } from "./types"
+import type { PostProcessResult, Project } from "./types"
 
 export interface ScaffoldEvents {
+  processResult: PostProcessResult
   project: Project
   runResults: RunResult[]
 }
