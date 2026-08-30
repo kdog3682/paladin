@@ -1,14 +1,13 @@
 import { existsSync } from "node:fs"
 import { isBuiltin } from "node:module"
 import { basename, extname, join } from "node:path"
-import { collectImports, expandHome } from "@paladin/utils"
+import { classify, collectImports, expandHome } from "@paladin/utils"
 import { bashOp, isWrite, merge } from "../ops"
 import { localSpec, packageRoot } from "./localSpec"
 import { VersionCache } from "./versions"
 import type { FsOp, PathResolutionOpts, Project, Unit } from "../types"
 
 const SOURCE = "resolveDependencies"
-const DEFAULT_BASE = "~/projects"
 const IMPORT_EXTS = new Set([".ts", ".tsx"])
 
 type Manifest = {
@@ -16,9 +15,6 @@ type Manifest = {
   devDependencies?: Record<string, string>
   [key: string]: unknown
 }
-
-const isTestFile = (path: string) =>
-  /\.(test|spec)\.[jt]sx?$/.test(path) || /(?:^|\/)(test|__tests__)\//.test(path)
 
 const stripJsonComments = (text: string) => text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")
 
@@ -56,7 +52,7 @@ async function manifestOp(
   const devDependencies: Record<string, string> = {}
 
   for (const src of sources(unit)) {
-    const bucket = isTestFile(src.path) ? devDependencies : dependencies
+    const bucket = classify(src.path) == 'test' ? devDependencies : dependencies
 
     for (const ref of collectImports(src.content)) {
       if (ref.type === "local" || isBuiltin(ref.source)) continue
@@ -87,10 +83,10 @@ export async function resolveDependencies(
   project: Project,
   unit: Unit,
   opts: PathResolutionOpts,
-  versions: VersionCache = new VersionCache(opts.npmCachePath),
+  versions: VersionCache,
 ): Promise<FsOp[]> {
-  const scope = project.name.replace(/^@/, "")
-  const base = expandHome(opts.base ?? DEFAULT_BASE)
+  const scope = project.name
+  const base = expandHome(opts.base)
 
   const manifest = await manifestOp(unit, scope, base, versions)
   if (!manifest) return []

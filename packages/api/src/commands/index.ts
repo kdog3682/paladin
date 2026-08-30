@@ -5,7 +5,7 @@ import type { ScaffoldService } from "../services/scaffold/scaffold"
 
 export type Command = (ctx: ScaffoldService, params: any) => unknown
 
-const SKIP = /^index\.ts$|\.(test|spec|d)\.ts$/
+const SKIP = /^index\.ts$|\.(e2e|test|spec|d)\.ts$/
 
 export class UnknownCommandError extends Error {
   constructor(method: string) {

@@ -66,4 +66,4 @@ function shutdown() {
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 
-console.log(`Server listening on http://localhost:${server.port}`)
+console.log(`@paladin/api2: server listening on http://localhost:${server.port}`)

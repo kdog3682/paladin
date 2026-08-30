@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { isBash, isWrite } from "./ops"
 import { ScaffoldService } from "./scaffold"
 import type { ApplyResult } from "./types"
+import {clip} from "@paladin/utils"
 
 const base = mkdtempSync(join(tmpdir(), "scaffold-"))
 const scaffold = new ScaffoldService({ pathResolution: { base }, emit: () => {} })
@@ -34,6 +35,7 @@ let barrelPath = ""
 
 test("writes the unit, exports it, and runs its tests", async () => {
   const result = (await scaffold.process(source))!
+  await clip(result)
 
   const add = find(result, "src/add.ts")
   expect(add?.applied).toBe(true)
@@ -57,6 +59,7 @@ test("writes the unit, exports it, and runs its tests", async () => {
 
 test("second pass touches nothing but still runs the tests", async () => {
   const result = (await scaffold.process(source))!
+  // await clip(result)
 
   // identical input, so the source files come back as skips
   expect(find(result, "src/add.ts")).toBeUndefined()

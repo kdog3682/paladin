@@ -50,6 +50,7 @@ export class ScaffoldService {
   constructor(opts: Partial<ScaffoldServiceOptions> = {}) {
     this.opts = { ...DEFAULT_OPTIONS, ...opts }
     this.codeRunner = new CodeRunner(this.opts.codeRunner.registrations)
+    this.versions = new VersionCache(this.opts.pathResolution.npmCachePath)
   }
 
   setOptions(opts: Partial<ScaffoldServiceOptions>) {
@@ -67,12 +68,11 @@ export class ScaffoldService {
     const project = await plan(input, pathResolution)
     if (!project) return null
 
-    const versions = new VersionCache(pathResolution.npmCachePath)
 
     for (const unit of project.units) {
       for (const processor of postProcessors) unit.ops.push(...(await processor(unit)))
       unit.ops.push(...(await hydrateBoilerplate(project, unit)))
-      unit.ops.push(...(await resolveDependencies(project, unit, pathResolution, versions)))
+      unit.ops.push(...(await resolveDependencies(project, unit, pathResolution, this.versions)))
       unit.ops.push(
         ...this.codeRunner.run(unit.ops, {
           cwd: unit.dir,
@@ -84,12 +84,10 @@ export class ScaffoldService {
     }
 
     const result = await applyOperations(project.units.flatMap((unit) => unit.ops))
-    this.opts.emit(result)
+    this.opts.emit(prettyPrintScaffoldResult(result))
 
-    this.sessions.push(project)
+    this.sessions.push(result)
     if (this.opts.git?.init) await this.git.init(project.dir)
-
-    return result
   }
 
   async dispatch(method: string, kwargs?: unknown) {
