@@ -37,3 +37,5 @@ export * from "./string/truncateLines"
 
 export * from "./clipboard/clipBuffer"
 export * from "./clipboard/clip"
+
+export * from "./path/matchesAnyPath"
