@@ -1,4 +1,6 @@
 import { dirname, extname } from 'path'
+
+
 import { bash } from '@paladin/utils/bash'
 import { fastDependencyList } from '@paladin/utils/fastDependencyList'
 import { webrun } from './webrun'
@@ -55,9 +57,9 @@ async function run(file: string, type: RunType): Promise<RunResult> {
     try {
 
     const summary = await testCodemod([name])
-    await clip(summary)
-    return
     result = summary
+    await clip(result)
+    return
     } catch(e) {
       await clip(e.toString())
     }
@@ -71,7 +73,6 @@ async function run(file: string, type: RunType): Promise<RunResult> {
   else {
     result = await bash(['bun', file], { cwd: dirname(file) })
   }
-  await clip(result)
   return { type, sourceFile: file, result: result as Record<string, unknown> }
 }
 

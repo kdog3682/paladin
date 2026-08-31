@@ -1,53 +1,74 @@
-import { extname } from "node:path"
+import { extname, join } from "node:path"
 import { classify, collectImports, resolveRelativePath, resolveScopedPath } from "@paladin/utils"
 import { bashOp, contentOf, isSkip, isWrite } from "./ops"
 import type { BashOp, FsOp, PathResolutionOpts, SkipOp, WriteOp } from "./types"
 
-export const RUNNABLE_KINDS = ["test", "script", "story", "demo"] as const
-
-export type RunnableKind = (typeof RUNNABLE_KINDS)[number]
-
-const RUNNABLE = new Set<string>(RUNNABLE_KINDS)
 const SOURCE = "codeRunner"
 
+/** Trails the paths, so the path list stays variadic. withArgv reads it back. */
+const OPTS_FLAG = "--opts"
+
 export interface Matcher {
-  kind?: RunnableKind
+  /** Compared against `classify(path)`. The registered kinds are what make a file runnable. */
+  kind: string
   ext?: string
 }
 
 export interface Registration {
-  /** Registering the same id again replaces the earlier one. */
+  /** Registering the same id again replaces the earlier one, and keys `scopedRunOptions`. */
   id?: string
   matches: Matcher
-  /** Tokens: `<path>` for the file, `<opts>` for custom config, `@owner/pkg` for a scoped dir. */
+  /**
+   * Paths and options are appended automatically, so a command is usually just the
+   * executable. Use `<path>`/`<paths>` or `<opts>` only to place them somewhere other
+   * than the end. `@owner/pkg` becomes the directory it lives in.
+   */
   command: string
-  /** Defaults to the kind, except stories, which run as demos. */
+  /** Defaults to the matched kind. */
   purpose?: BashOp["purpose"]
   /** A failure here stops everything queued behind it. Off by default. */
   strict?: boolean
+  /** One run over every matched file, instead of a run per file. */
+  grouped?: boolean
+  /**
+   * Whether the command understands an options flag. Off by default, since a
+   * native binary like `bun test` would choke on it. An explicit `<opts>` token
+   * counts as opting in.
+   */
+  acceptsOptions?: boolean
+  /** Baseline options, overlaid by `scopedRunOptions[id]`. Ignored unless accepted. */
+  options?: Record<string, unknown>
 }
 
 export interface RunOptions {
   cwd: string
-  skip?: string[]
-  /** Extra config for a registration, keyed by its id, serialized into `<opts>`. */
-  custom?: Record<string, unknown>
+  /** Keyed by registration id; merged over that registration's own `options`. */
+  scopedRunOptions?: Record<string, Record<string, unknown>>
+  /** Registration ids to leave out of this run. */
+  disabled?: string[]
   pathResolution?: PathResolutionOpts
 }
 
-function isRunnableKind(kind: string): kind is RunnableKind {
-  return RUNNABLE.has(kind)
-}
-
-export function runnableKind(path: string): RunnableKind | null {
-  const kind = classify(path)
-  return isRunnableKind(kind) ? kind : null
-}
-
-function isSkipped(path: string, skip?: string[]): boolean {
-  if (!skip?.length) return false
-  return skip.some((entry) => path === entry || path.endsWith("/" + entry))
-}
+export const DEFAULT_REGISTRATIONS: Registration[] = [
+  { id: "test", matches: { kind: "test" }, command: "bun test", grouped: true },
+  { id: "script", matches: { kind: "script" }, command: "bun run" },
+  { id: "demo", matches: { kind: "demo" }, command: "bun run" },
+  {
+    id: "story",
+    matches: { kind: "story", ext: "tsx" },
+    command: "bun run @paladin/storylite",
+    purpose: "demo",
+    acceptsOptions: true,
+  },
+  {
+    id: "example",
+    matches: { kind: "example" },
+    command: `bun run ${join(import.meta.dir, "runExampleFiles.ts")}`,
+    purpose: "demo",
+    grouped: true,
+    acceptsOptions: true,
+  },
+]
 
 function importsOf(path: string, content: string): Set<string> {
   const paths = collectImports(content)
@@ -57,34 +78,54 @@ function importsOf(path: string, content: string): Set<string> {
   return new Set(paths)
 }
 
-function purposeOf(registration: Registration, kind: RunnableKind): BashOp["purpose"] {
-  if (registration.purpose) return registration.purpose
-  return kind === "story" ? "demo" : kind
+function acceptsOptions(registration: Registration): boolean {
+  return registration.acceptsOptions ?? registration.command.includes("<opts>")
 }
 
-/**
- * `<path>` is the file, `<opts>` is that registration's custom config as JSON,
- * and a scoped `@owner/pkg` token becomes the directory it lives in.
- */
-function toArgs(registration: Registration, path: string, opts: RunOptions): string[] {
-  const custom = registration.id ? opts.custom?.[registration.id] : undefined
+function payloadOf(registration: Registration, opts: RunOptions): string | null {
+  if (!acceptsOptions(registration)) return null
 
-  return registration.command
+  const scoped = registration.id ? opts.scopedRunOptions?.[registration.id] : undefined
+  const merged = { ...registration.options, ...scoped }
+  return Object.keys(merged).length ? JSON.stringify(merged) : null
+}
+
+function purposeOf(registration: Registration): BashOp["purpose"] {
+  return registration.purpose ?? (registration.matches.kind as BashOp["purpose"])
+}
+
+function toArgs(registration: Registration, paths: string[], opts: RunOptions): string[] {
+  const payload = payloadOf(registration, opts)
+  let placedPaths = false
+  let placedOpts = false
+
+  const args = registration.command
     .split(" ")
     .filter(Boolean)
     .flatMap((part) => {
-      if (part === "<path>") return [path]
-      if (part === "<opts>") return custom === undefined ? [] : [JSON.stringify(custom)]
+      if (part === "<path>" || part === "<paths>") {
+        placedPaths = true
+        return paths
+      }
+      if (part === "<opts>") {
+        placedOpts = true
+        return payload === null ? [] : [OPTS_FLAG, payload]
+      }
       if (part.startsWith("@")) return [resolveScopedPath(part, opts.pathResolution ?? {})]
       return [part]
     })
+
+  if (!placedPaths) args.push(...paths)
+  if (!placedOpts && payload !== null) args.push(OPTS_FLAG, payload)
+  return args
 }
 
 export class CodeRunner {
   private registrations: Registration[] = []
   private imports = new Map<string, Set<string>>()
+  private kinds = new Set<string>()
 
-  constructor(registrations: Registration[] = []) {
+  constructor(registrations: Registration[] = DEFAULT_REGISTRATIONS) {
     for (const registration of registrations) this.register(registration)
   }
 
@@ -95,7 +136,15 @@ export class CodeRunner {
 
     if (at >= 0) this.registrations[at] = registration
     else this.registrations.push(registration)
+
+    this.kinds = new Set(this.registrations.map((existing) => existing.matches.kind))
     return this
+  }
+
+  /** A file is runnable only while some registration claims its kind. */
+  kindOf(path: string): string | null {
+    const kind = classify(path)
+    return this.kinds.has(kind) ? kind : null
   }
 
   /**
@@ -109,13 +158,13 @@ export class CodeRunner {
 
     // index first, so a changed file can find importers that appear later in the batch
     for (const op of touched) {
-      if (!runnableKind(op.path)) continue
+      if (!this.kindOf(op.path)) continue
       const content = contentOf(op)
       if (content !== null) this.imports.set(op.path, importsOf(op.path, content))
     }
 
     for (const op of touched) {
-      if (runnableKind(op.path)) {
+      if (this.kindOf(op.path)) {
         targets.add(op.path)
         continue
       }
@@ -124,23 +173,35 @@ export class CodeRunner {
       for (const runnable of this.importers(op.path)) targets.add(runnable)
     }
 
-    const out: BashOp[] = []
+    const disabled = new Set(opts.disabled ?? [])
+    const groups = new Map<Registration, string[]>()
 
     for (const path of targets) {
-      if (isSkipped(path, opts.skip)) continue
-
-      const kind = runnableKind(path)
+      const kind = this.kindOf(path)
       if (!kind) continue
 
       const registration = this.match(kind, extname(path).slice(1))
       if (!registration) continue
+      if (registration.id && disabled.has(registration.id)) continue
 
-      out.push(
-        bashOp(SOURCE, toArgs(registration, path, opts), purposeOf(registration, kind), {
-          cwd: opts.cwd,
-          strict: registration.strict ?? false,
-        }),
-      )
+      const group = groups.get(registration)
+      if (group) group.push(path)
+      else groups.set(registration, [path])
+    }
+
+    const out: BashOp[] = []
+
+    for (const [registration, paths] of groups) {
+      const batches = registration.grouped ? [paths] : paths.map((path) => [path])
+
+      for (const batch of batches) {
+        out.push(
+          bashOp(SOURCE, toArgs(registration, batch, opts), purposeOf(registration), {
+            cwd: opts.cwd,
+            strict: registration.strict ?? false,
+          }),
+        )
+      }
     }
 
     return out
@@ -154,13 +215,13 @@ export class CodeRunner {
     return out
   }
 
-  private match(kind: RunnableKind, ext: string): Registration | null {
+  private match(kind: string, ext: string): Registration | null {
     for (let i = this.registrations.length - 1; i >= 0; i--) {
       const registration = this.registrations[i]
       if (!registration) continue
 
       const { matches } = registration
-      if (matches.kind && matches.kind !== kind) continue
+      if (matches.kind !== kind) continue
       if (matches.ext && matches.ext !== ext) continue
       return registration
     }

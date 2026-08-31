@@ -1,3 +1,4 @@
+// @paladin/api2/src/services/scaffold/scaffold.ts
 import { GitService } from "../git"
 import { applyOperations } from "./apply"
 import { dispatch } from "./commands"
@@ -8,12 +9,14 @@ import { hydrateBoilerplate } from "./hydrateBoilerplate"
 import { plan } from "./plan/plan"
 import { postProcessors } from "./postProcessors"
 import { CodeRunner } from "./runner"
+import { print } from "./print"
 import type { ScaffoldEmit } from "./emit"
 import type { Registration, RunOptions } from "./runner"
-import type { ApplyResult, PathResolutionOpts, Project } from "./types"
+import type { ApplyResult, PathResolutionOpts } from "./types"
 
 export interface CodeRunnerOptions extends Omit<RunOptions, "cwd" | "pathResolution"> {
-  registrations: Registration[]
+  /** Falls back to the runner's DEFAULT_REGISTRATIONS. */
+  registrations?: Registration[]
 }
 
 export interface ScaffoldServiceOptions {
@@ -23,39 +26,22 @@ export interface ScaffoldServiceOptions {
   git?: { init?: boolean }
 }
 
-export const DEFAULT_REGISTRATIONS: Registration[] = [
-  { id: "test", matches: { kind: "test" }, command: "bun test <path>" },
-  { id: "script", matches: { kind: "script" }, command: "bun run <path>" },
-  { id: "demo", matches: { kind: "demo" }, command: "bun run <path>" },
-  {
-    id: "story",
-    matches: { kind: "story", ext: "tsx" },
-    command: "bun run @paladin/utils <path> <opts>",
-  },
-]
-
 export const DEFAULT_OPTIONS: ScaffoldServiceOptions = {
   pathResolution: {},
   emit: defaultEmit,
-  codeRunner: { registrations: DEFAULT_REGISTRATIONS },
+  codeRunner: {},
 }
 
 export class ScaffoldService {
-  readonly sessions: Project[] = []
-
-  private opts: ScaffoldServiceOptions
-  private codeRunner: CodeRunner
+  private readonly opts: ScaffoldServiceOptions
+  private readonly codeRunner: CodeRunner
+  private readonly versions: VersionCache
   private git = new GitService()
 
   constructor(opts: Partial<ScaffoldServiceOptions> = {}) {
     this.opts = { ...DEFAULT_OPTIONS, ...opts }
     this.codeRunner = new CodeRunner(this.opts.codeRunner.registrations)
     this.versions = new VersionCache(this.opts.pathResolution.npmCachePath)
-  }
-
-  setOptions(opts: Partial<ScaffoldServiceOptions>) {
-    this.opts = { ...this.opts, ...opts }
-    if (opts.codeRunner) this.codeRunner = new CodeRunner(opts.codeRunner.registrations)
   }
 
   /**
@@ -68,7 +54,6 @@ export class ScaffoldService {
     const project = await plan(input, pathResolution)
     if (!project) return null
 
-
     for (const unit of project.units) {
       for (const processor of postProcessors) unit.ops.push(...(await processor(unit)))
       unit.ops.push(...(await hydrateBoilerplate(project, unit)))
@@ -76,18 +61,20 @@ export class ScaffoldService {
       unit.ops.push(
         ...this.codeRunner.run(unit.ops, {
           cwd: unit.dir,
-          skip: codeRunner.skip,
-          custom: codeRunner.custom,
+          scopedRunOptions: codeRunner.scopedRunOptions,
+          disabled: codeRunner.disabled,
           pathResolution,
         }),
       )
     }
 
     const result = await applyOperations(project.units.flatMap((unit) => unit.ops))
-    this.opts.emit(prettyPrintScaffoldResult(result))
 
-    this.sessions.push(result)
     if (this.opts.git?.init) await this.git.init(project.dir)
+
+    this.opts.emit(print(result))
+
+    return result
   }
 
   async dispatch(method: string, kwargs?: unknown) {

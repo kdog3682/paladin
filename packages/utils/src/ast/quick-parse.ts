@@ -3,19 +3,29 @@ export type ImportInfo = {
   source: string
 }
 
-export type DeclInfo = {
-  docstr: string | null
-  text: string
+export type SymbolKind = "function" | "class" | "const"
+
+export type SymbolInfo = {
   name: string
+  docstr?: string
+  text: string
+  exported: boolean
+  kind: SymbolKind
+}
+
+export type TypeInfo = {
+  name: string
+  docstr?: string
+  text: string
+  exported: boolean
 }
 
 export type QuickParsed = {
   imports: ImportInfo[]
-  exports: string[]
+  reExports: ImportInfo[]
   exportDefault: string | null
-  functions: DeclInfo[]
-  classes: DeclInfo[]
-  consts: DeclInfo[]
+  symbols: SymbolInfo[]
+  types: TypeInfo[]
 }
 
 const ID = '[A-Za-z_$][\\w$]*'
@@ -34,12 +44,12 @@ export function quickParse(content: string): QuickParsed {
   const lines = content.split(/\r?\n/)
   const out: QuickParsed = {
     imports: [],
-    exports: [],
+    reExports: [],
     exportDefault: null,
-    functions: [],
-    classes: [],
-    consts: [],
+    symbols: [],
+    types: [],
   }
+  const exportClause = new Set<string>()
 
   let doc: string | null = null
   let i = 0
@@ -96,9 +106,7 @@ export function quickParse(content: string): QuickParsed {
       out.exportDefault = named ? named[1] : expr || null
 
       if (named) {
-        const decl: DeclInfo = { docstr: doc, text, name: named[1] }
-        if (/class/.test(rest)) out.classes.push(decl)
-        else out.functions.push(decl)
+        out.symbols.push(makeSymbol(named[1], text, /class/.test(rest) ? "class" : "function", true, doc))
       }
 
       i = end + 1
@@ -108,15 +116,20 @@ export function quickParse(content: string): QuickParsed {
 
     // ---- export { a, b as c } / export * from '...' ----------------------
     if (/^export\s*\*/.test(line)) {
-      const [, end] = readBlock(lines, i)
-      out.exports.push('*')
+      const [text, end] = readBlock(lines, i)
+      out.reExports.push({ symbols: ['*'], source: parseSource(text) ?? '' })
       i = end + 1
       doc = null
       continue
     }
     if (/^export\s+(?:type\s*)?\{/.test(line)) {
       const [text, end] = readBlock(lines, i)
-      for (const name of parseBraceList(text)) out.exports.push(name)
+      const source = parseSource(text)
+      if (source) {
+        out.reExports.push({ symbols: parseBraceList(text), source })
+      } else {
+        for (const name of parseExportBraceLocals(text)) exportClause.add(name)
+      }
       i = end + 1
       doc = null
       continue
@@ -125,8 +138,8 @@ export function quickParse(content: string): QuickParsed {
     // ---- type / interface / enum ----------------------------------------
     const typeMatch = line.match(TYPE_DECL_RE)
     if (typeMatch) {
-      const [, end] = readBlock(lines, i)
-      out.exports.push(typeMatch[1])
+      const [text, end] = readBlock(lines, i)
+      out.types.push(makeType(typeMatch[1], text, true, doc))
       i = end + 1
       doc = null
       continue
@@ -138,13 +151,8 @@ export function quickParse(content: string): QuickParsed {
       const [, exported, kindRaw, name] = decl
       const [text, end] = readBlock(lines, i)
       const kind = kindRaw.replace(/^abstract\s+/, '')
-      const info: DeclInfo = { docstr: doc, text, name }
-
-      if (kind.startsWith('function')) out.functions.push(info)
-      else if (kind === 'class') out.classes.push(info)
-      else out.consts.push(info)
-
-      if (exported) out.exports.push(name)
+      const symbolKind: SymbolKind = kind.startsWith('function') ? 'function' : kind === 'class' ? 'class' : 'const'
+      out.symbols.push(makeSymbol(name, text, symbolKind, Boolean(exported), doc))
 
       i = end + 1
       doc = null
@@ -153,6 +161,10 @@ export function quickParse(content: string): QuickParsed {
 
     doc = null
     i++
+  }
+
+  for (const info of [...out.symbols, ...out.types]) {
+    if (exportClause.has(info.name)) info.exported = true
   }
 
   return out
@@ -189,6 +201,30 @@ function parseImport(stmt: string): ImportInfo | null {
   }
 
   return { symbols, source }
+}
+
+function parseSource(stmt: string): string | null {
+  return stmt.match(/\bfrom\s*['"]([^'"]+)['"]/)?.[1] ?? null
+}
+
+function makeSymbol(name: string, text: string, kind: SymbolKind, exported: boolean, docstr: string | null): SymbolInfo {
+  return { name, text, exported, kind, ...(docstr == null ? {} : { docstr }) }
+}
+
+function makeType(name: string, text: string, exported: boolean, docstr: string | null): TypeInfo {
+  return { name, text, exported, ...(docstr == null ? {} : { docstr }) }
+}
+
+function parseExportBraceLocals(text: string): string[] {
+  const inner = text.slice(text.indexOf('{') + 1, text.lastIndexOf('}'))
+  return inner
+    .split(',')
+    .map(part => {
+      const p = part.trim().replace(/^type\s+/, '')
+      if (!p) return ''
+      return p.split(/\s+as\s+/)[0].trim()
+    })
+    .filter(Boolean)
 }
 
 function parseBraceList(text: string): string[] {

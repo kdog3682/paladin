@@ -6,6 +6,7 @@ export interface BashResult {
   stderr: string
   exitCode: number
   args: string[]
+  /* jsonlike data extracted from the stdout */
   data?: unknown
 }
 

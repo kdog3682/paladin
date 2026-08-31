@@ -1,4 +1,3 @@
-export * from "./clip.ts"
 export * from "./fs.ts"
 export * from "./bash.ts"
 
@@ -22,3 +21,19 @@ export * from "./fs/isFile"
 export * from "./fs/rmDir"
 export * from "./fs/rmFile"
 export * from "./object/deepMerge"
+
+export * from "./ast/quick-parse"
+
+export * from "./argv/withArgv"
+export * from "./cache/createCache"
+export * from "./path/deriveNamespace"
+
+export * from "./module/loadSpec"
+
+export * from "./argv/withArgv"
+
+export * from "./object/deepMap"
+export * from "./string/truncateLines"
+
+export * from "./clipboard/clipBuffer"
+export * from "./clipboard/clip"

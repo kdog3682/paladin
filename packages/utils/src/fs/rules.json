@@ -34,6 +34,13 @@
       "exts": ["test.ts", "test.tsx", "spec.ts", "spec.tsx"]
     },
     {
+      "kind": "example",
+      "desc": "Example entrypoints meant to be read and run by hand.",
+      "dirs": ["example", "examples"],
+      "files": ["example.ts"],
+      "exts": ["example.ts", "example.tsx"]
+    },
+    {
       "kind": "demo",
       "desc": "Example entrypoints meant to be read and run by hand.",
       "dirs": ["demo", "demos", "example", "examples"],
