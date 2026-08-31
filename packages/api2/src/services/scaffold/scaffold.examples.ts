@@ -199,7 +199,7 @@ export function Button({ label }: { label: string }) {
 /* ------------------------------------------------------------------- usage */
 
 export async function examples() {
-  const base = mkdtempSync('/tmp')
+  const base = mkdtempSync(join(tmpdir(), "scaffold-"))
   const scaffold = new ScaffoldService({ emit: clipBuffer, pathResolution: { base },  })
 
   await scaffold.process(SINGLE_MODULE)
@@ -214,20 +214,8 @@ export async function examples() {
   // src/add.ts is rewritten (mode "write"), barrel still untouched —
   // the export line is already in the file
 
-  await scaffold.process(NO_HEADERS)
-  // no unit could be planned, so process resolves null and nothing hits disk
-
-  await scaffold.process(MIXED_SCOPES)
-  // two scopes in one input — expect the project to be whichever scope plan
-  // picks first; the point of this one is to pin that behaviour down
-
-  await scaffold.process(NESTED_MODULES)
-  // barrel gains ./lib/upper and ./lib/lower — paths are relative to the barrel,
-  // not the unit root
-
-  await scaffold.process(AUTHORED_BARREL)
-  // the authored barrel already exports ./trim, so only ./pad is appended;
-  // the barrel itself is never exported from itself
+  await scaffold.process(CREATE_BARRELS)
+  // expect barrel files to arise
 
   await scaffold.process(UNEXPORTABLE)
   // all five files are written, none are exported: the test and its fixtures live

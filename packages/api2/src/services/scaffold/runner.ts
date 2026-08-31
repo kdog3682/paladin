@@ -70,6 +70,14 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
   },
 ]
 
+const DEFAULT_KINDS = new Set(DEFAULT_REGISTRATIONS.map((registration) => registration.matches.kind))
+
+/** Whether `path` is runnable under the default registrations, independent of any CodeRunner instance. */
+export function runnableKind(path: string): string | null {
+  const kind = classify(path)
+  return DEFAULT_KINDS.has(kind) ? kind : null
+}
+
 function importsOf(path: string, content: string): Set<string> {
   const paths = collectImports(content)
     .filter((ref) => ref.type === "local")
@@ -123,7 +131,6 @@ function toArgs(registration: Registration, paths: string[], opts: RunOptions): 
 export class CodeRunner {
   private registrations: Registration[] = []
   private imports = new Map<string, Set<string>>()
-  private kinds = new Set<string>()
 
   constructor(registrations: Registration[] = DEFAULT_REGISTRATIONS) {
     for (const registration of registrations) this.register(registration)
@@ -136,15 +143,7 @@ export class CodeRunner {
 
     if (at >= 0) this.registrations[at] = registration
     else this.registrations.push(registration)
-
-    this.kinds = new Set(this.registrations.map((existing) => existing.matches.kind))
     return this
-  }
-
-  /** A file is runnable only while some registration claims its kind. */
-  kindOf(path: string): string | null {
-    const kind = classify(path)
-    return this.kinds.has(kind) ? kind : null
   }
 
   /**
@@ -158,13 +157,13 @@ export class CodeRunner {
 
     // index first, so a changed file can find importers that appear later in the batch
     for (const op of touched) {
-      if (!this.kindOf(op.path)) continue
+      if (!runnableKind(op.path)) continue
       const content = contentOf(op)
       if (content !== null) this.imports.set(op.path, importsOf(op.path, content))
     }
 
     for (const op of touched) {
-      if (this.kindOf(op.path)) {
+      if (runnableKind(op.path)) {
         targets.add(op.path)
         continue
       }
@@ -177,7 +176,7 @@ export class CodeRunner {
     const groups = new Map<Registration, string[]>()
 
     for (const path of targets) {
-      const kind = this.kindOf(path)
+      const kind = runnableKind(path)
       if (!kind) continue
 
       const registration = this.match(kind, extname(path).slice(1))
