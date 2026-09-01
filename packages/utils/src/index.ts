@@ -1,6 +1,4 @@
 export * from "./fs/getMostRecentFile"
-export * from "./bash.ts"
-
 export * from "./resolveRelativePath"
 
 export * from "./fs/filePartitions"
@@ -40,3 +38,4 @@ export * from "./clipboard/clip"
 
 export * from "./path/matchesAnyPath"
 export * from "./path/classify"
+export * from "./bash/bash"
