@@ -16,7 +16,7 @@ type ErrorMessage = { kind: "error"; payload: string }
 const broadcast = createBroadcast<ScaffoldMessage | ErrorMessage>()
 
 const scaffold = new ScaffoldService({
-  emit: (kind, payload) => broadcast.send({ kind, payload }),
+  // emit: (kind, payload) => broadcast.send({ kind, payload }),
 })
 
 app.get(
@@ -56,14 +56,24 @@ const server = Bun.serve({
   port: Number(process.env.PORT ?? 3000),
   fetch: app.fetch,
   websocket,
+  reusePort: true,
 })
 
 function shutdown() {
   stopWatching()
-  server.stop()
+  server.stop(true)
+  process.exit(0)
 }
 
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 
 console.log(`@paladin/api2: server listening on http://localhost:${server.port}`)
+
+
+
+
+
+
+
+
