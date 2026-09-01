@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs"
-import { basename, dirname, extname, join, relative } from "node:path"
+import { basename, dirname, extname, join, relative, sep } from "node:path"
 import { matchesAnyPath } from "@paladin/utils"
 import { append, isWrite } from "../ops"
 import { runnableKind } from "../runner"
@@ -27,15 +27,39 @@ const isNamedIndexFile: EntryTest = (path) => {
 }
 
 /**
- * The entry rules an in-scope unit has turned on, or null when this unit barrels
- * nothing — either it sits outside `matches` or no rule was enabled. Not barrelling
- * is the default; a file has to earn its export.
+ * Sits directly beside the barrel (`src/foobar.ts`), or is the index of a folder
+ * sitting directly beside it (`src/foobar/index.ts`). Anything deeper belongs to
+ * the folder that owns it and reaches the barrel through that folder's entry, if
+ * it reaches it at all.
  */
-function barrelEntryTest(unit: Unit, opts: PostProcessorOptions): EntryTest | null {
+function fileRelativeToBarrel(barrel: string): EntryTest {
+  const root = dirname(barrel)
+
+  return (path) => {
+    const rel = relative(root, path)
+    if (!rel || rel.startsWith("..")) return false
+
+    const depth = rel.split(sep).length
+    if (depth === 1) return true
+    return depth === 2 && isIndexFile(path)
+  }
+}
+
+/**
+ * The entry rules an in-scope unit has turned on, or null when this unit barrels
+ * nothing — either it sits outside `matches` or every rule was turned off. A file
+ * still has to earn its export; the rules only widen what counts as earning it.
+ */
+function barrelEntryTest(
+  unit: Unit,
+  barrel: string,
+  opts: PostProcessorOptions,
+): EntryTest | null {
   const {
-    fileMatchesFolder: folderEntries = false,
-    treatIndexAsEntry = false,
-    treatNamedIndexAsEntry = false,
+    fileMatchesFolder: folderEntries = true,
+    treatIndexAsEntry = true,
+    treatNamedIndexAsEntry = true,
+    fileRelativeToBarrelIndex = true,
     matches = [],
   } = opts.updateBarrel ?? {}
 
@@ -45,6 +69,7 @@ function barrelEntryTest(unit: Unit, opts: PostProcessorOptions): EntryTest | nu
   if (folderEntries) tests.push(fileMatchesFolder)
   if (treatIndexAsEntry) tests.push(isIndexFile)
   if (treatNamedIndexAsEntry) tests.push(isNamedIndexFile)
+  if (fileRelativeToBarrelIndex) tests.push(fileRelativeToBarrel(barrel))
   if (!tests.length) return null
 
   return (path) => tests.some((test) => test(path))
@@ -74,10 +99,11 @@ function toExport(barrel: string, path: string): string {
 }
 
 export function updateBarrel(unit: Unit, opts: PostProcessorOptions = {}): FsOp[] {
-  const isEntry = barrelEntryTest(unit, opts)
+  const barrel = join(unit.dir, BARREL)
+
+  const isEntry = barrelEntryTest(unit, barrel, opts)
   if (!isEntry) return []
 
-  const barrel = join(unit.dir, BARREL)
   const existing = existsSync(barrel) ? readFileSync(barrel, "utf8") : ""
 
   // the unit may be authoring the barrel itself in this same pass
