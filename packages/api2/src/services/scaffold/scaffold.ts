@@ -1,3 +1,4 @@
+// @paladin/api2/src/services/scaffold/scaffold.ts
 import { GitService } from "../git"
 import { applyOperations } from "./apply"
 import { dispatch } from "./commands"
@@ -90,12 +91,9 @@ export class ScaffoldService {
       )
     }
 
-    const result = await applyOperations(project.units.flatMap((unit) => unit.ops))
-
+    const result = await applyOperations(project)
     if (this.opts.git?.init) await this.git.init(project.dir)
-
     this.opts.emit(print(result))
-
     return result
   }
 

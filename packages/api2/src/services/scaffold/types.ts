@@ -63,5 +63,33 @@ export interface PathResolutionOpts {
   npmCachePath?: string
 }
 
-/** What apply hands back: every op it saw, annotated with what became of it. */
-export type ApplyResult = FsOp[]
+
+// @paladin/api2/src/services/scaffold/types.ts
+// --- replaces the old `export type ApplyResult = FsOp[]` ---
+
+export interface ApplySummary {
+  created: number
+  updated: number
+  unchanged: number
+  deleted: number
+  commands: number
+  failed: number
+}
+
+export interface UnitResult {
+  name: string
+  /** Absolute — the only absolute path in the result. */
+  dir: string
+  isNew: boolean
+  /** Paths (and bash cwds) are relative to `dir`; join to get back to disk. */
+  ops: FsOp[]
+}
+
+export interface ApplyResult {
+  name: string
+  dir: string
+  isNew: boolean
+  units: UnitResult[]
+  summary: ApplySummary
+}
+
