@@ -63,7 +63,11 @@ export function withArgv<A extends unknown[], R>(
     const positional = variadic ? [args] : args
     const applied = opts === undefined ? positional : [...positional, opts]
     const output = await fn(...(applied as A))
-    console.log(`${MARKER}${JSON.stringify(output)}${MARKER}`)
+    if (typeof output === "string") {
+      console.log(output)
+    } else {
+      console.log(`${MARKER}${JSON.stringify(output)}${MARKER}`)
+    }
     return output
   }
 }

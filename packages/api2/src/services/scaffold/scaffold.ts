@@ -28,7 +28,10 @@ export interface ScaffoldServiceOptions {
 }
 
 export const DEFAULT_OPTIONS: ScaffoldServiceOptions = {
-  pathResolution: {},
+  pathResolution: {
+    base: '~/projects',
+    relativeTo: null,
+  },
   emit: defaultEmit,
   codeRunner: {},
   postProcessorOptions: {
