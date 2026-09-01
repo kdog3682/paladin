@@ -1,6 +1,7 @@
 /*
   await bash(['bun', 'test'])
 */
+import { isAbsolute, relative } from 'node:path'
 import { parseTestSummary, type TestSummary } from './parseTestSummary'
 
 export type BashType = 'test' | 'run' | 'install' | 'shell'
@@ -61,6 +62,16 @@ function extractData(s: string): { text: string; data?: unknown } {
     .trim()
   if (found.length === 0) return { text }
   return { text, data: found.length === 1 ? found[0] : found }
+}
+
+function relativizeArgs(args: string[], cwd?: string): string[] {
+  if (!cwd) return args
+  return args.map((arg) => {
+    if (!isAbsolute(arg)) return arg
+    const rel = relative(cwd, arg)
+    if (rel.startsWith('..')) return arg
+    return rel === '' ? '.' : `./${rel}`
+  })
 }
 
 function truncate(s: string, max = MAX_DETAIL): string {
@@ -147,10 +158,12 @@ export async function bash(
     stderr = ''
   }
 
+  const resultArgs = relativizeArgs(args, opts.cwd)
+
   const result: BashResult =
     type === 'test'
-      ? { stdout, stderr, exitCode, args, type, data: summary ?? undefined }
-      : { stdout, stderr, exitCode, args, type, data }
+      ? { stdout, stderr, exitCode, args: resultArgs, type, data: summary ?? undefined }
+      : { stdout, stderr, exitCode, args: resultArgs, type, data }
 
   if (exitCode !== 0 && opts.strict) {
     throw new BashError(result)
