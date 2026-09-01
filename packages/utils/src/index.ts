@@ -39,3 +39,4 @@ export * from "./clipboard/clipBuffer"
 export * from "./clipboard/clip"
 
 export * from "./path/matchesAnyPath"
+export * from "./path/classify"

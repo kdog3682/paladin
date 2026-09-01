@@ -31,7 +31,8 @@
       "kind": "test",
       "desc": "Unit and integration tests.",
       "dirs": ["test", "tests", "__tests__"],
-      "exts": ["test.ts", "test.tsx", "spec.ts", "spec.tsx"]
+      "exts": ["test.ts", "test.tsx", "spec.ts", "spec.tsx"],
+      "not": ["shared.ts", "helpers.ts", "setup.ts"]
     },
     {
       "kind": "example",
