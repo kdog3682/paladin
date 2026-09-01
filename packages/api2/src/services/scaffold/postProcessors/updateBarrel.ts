@@ -9,8 +9,17 @@ import type { FsOp, Unit, WriteOp } from "../types"
 const BARREL = "src/index.ts"
 const SOURCE = "updateBarrel"
 const NAMED_INDEX = ".index"
+const SOURCE_EXT = /\.tsx?$/
+const EXPORT_SPEC = /from\s+["'](\.[^"']*)["']/g
 
 type EntryTest = (path: string) => boolean
+
+type BarrelContext = {
+  unit: Unit
+  barrel: string
+  isEntry: EntryTest
+  isOwned: EntryTest
+}
 
 const stemOf = (path: string) => basename(path, extname(path))
 
@@ -24,6 +33,15 @@ const isIndexFile: EntryTest = (path) => stemOf(path) === "index"
 const isNamedIndexFile: EntryTest = (path) => {
   const stem = stemOf(path)
   return stem.length > NAMED_INDEX.length && stem.endsWith(NAMED_INDEX)
+}
+
+/** A file that speaks for the folder it sits in: `bash/bash.ts` or `bash/index.ts`. */
+const isFolderEntry: EntryTest = (path) => fileMatchesFolder(path) || isIndexFile(path)
+
+/** `dir` is somewhere strictly below `root`. */
+function inside(root: string, dir: string): boolean {
+  const rel = relative(root, dir)
+  return rel !== "" && !rel.startsWith("..")
 }
 
 /**
@@ -75,17 +93,71 @@ function barrelEntryTest(
   return (path) => tests.some((test) => test(path))
 }
 
+/** A folder that already has an entry sitting on disk. */
+function folderEntryOnDisk(dir: string): boolean {
+  const name = basename(dir)
+  const candidates = ["index.ts", "index.tsx", `${name}.ts`, `${name}.tsx`]
+  return candidates.some((file) => existsSync(join(dir, file)))
+}
+
+/**
+ * Folders the barrel already reaches, read back out of its own text. `./bash`,
+ * `./bash/index` and `./bash/bash` all mean the same thing: `bash` is exported.
+ */
+function foldersExportedBy(root: string, content: string): Set<string> {
+  const dirs = new Set<string>()
+
+  for (const [, spec] of content.matchAll(EXPORT_SPEC)) {
+    const resolved = join(root, spec.replace(SOURCE_EXT, ""))
+    dirs.add(isFolderEntry(resolved) ? dirname(resolved) : resolved)
+  }
+
+  return dirs
+}
+
+/**
+ * A folder reaching the barrel through its own entry owns everything below it.
+ * Once `bash/bash.ts` exists — written in this pass, already on disk, or already
+ * named in the barrel — a later `bash/Smth/Smth.ts` is bash's business to export,
+ * so the barrel leaves it alone rather than reaching past the entry.
+ */
+function folderOwnershipTest(unit: Unit, barrel: string, current: string): EntryTest {
+  const root = dirname(barrel)
+  const claimed = foldersExportedBy(root, current)
+
+  for (const op of unit.ops) {
+    if (isWrite(op) && isFolderEntry(op.path)) claimed.add(dirname(op.path))
+  }
+
+  const owns = (dir: string) => claimed.has(dir) || folderEntryOnDisk(dir)
+
+  return (path) => {
+    // an entry answers for its own folder, so ownership starts one level up
+    let dir = isFolderEntry(path) ? dirname(dirname(path)) : dirname(path)
+
+    while (inside(root, dir)) {
+      if (owns(dir)) return true
+      dir = dirname(dir)
+    }
+
+    return false
+  }
+}
+
 /**
  * Only brand new source files get exported. Nothing has been written yet at this
  * point in the pipeline, so a path that already exists on disk is a file the
  * barrel has had its chance to pick up.
  */
-function exportable(unit: Unit, barrel: string, isEntry: EntryTest, op: FsOp): op is WriteOp {
+function exportable(ctx: BarrelContext, op: FsOp): op is WriteOp {
+  const { unit, barrel, isEntry, isOwned } = ctx
+
   if (!isWrite(op) || op.mode !== "write") return false
   if (op.path === barrel || existsSync(op.path)) return false
   if (runnableKind(op.path)) return false
-  if (!/\.tsx?$/.test(op.path)) return false
+  if (!SOURCE_EXT.test(op.path)) return false
   if (!isEntry(op.path)) return false
+  if (isOwned(op.path)) return false
 
   const rel = relative(unit.dir, op.path)
   if (!rel.startsWith("src/")) return false
@@ -94,7 +166,7 @@ function exportable(unit: Unit, barrel: string, isEntry: EntryTest, op: FsOp): o
 }
 
 function toExport(barrel: string, path: string): string {
-  const rel = relative(dirname(barrel), path).replace(/\.tsx?$/, "")
+  const rel = relative(dirname(barrel), path).replace(SOURCE_EXT, "")
   return `export * from "./${rel}"`
 }
 
@@ -110,8 +182,15 @@ export function updateBarrel(unit: Unit, opts: PostProcessorOptions = {}): FsOp[
   const authored = unit.ops.find((op) => isWrite(op) && op.path === barrel) as WriteOp | undefined
   const current = existing + "\n" + (authored?.content ?? "")
 
+  const ctx: BarrelContext = {
+    unit,
+    barrel,
+    isEntry,
+    isOwned: folderOwnershipTest(unit, barrel, current),
+  }
+
   const lines = unit.ops
-    .filter((op): op is WriteOp => exportable(unit, barrel, isEntry, op))
+    .filter((op): op is WriteOp => exportable(ctx, op))
     .map((op) => toExport(barrel, op.path))
     .filter((line) => !current.includes(line))
 
