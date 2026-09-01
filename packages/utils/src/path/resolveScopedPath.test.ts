@@ -13,6 +13,7 @@ const cases: [input: string, expected: string][] = [
   ['@paladin', '/base/paladin'],
   ['@paladin/web', web],
   ['@paladin/packages/web', web],
+  ['@web/Foobar.tsx', `${web}/src/components/Foobar.tsx`],
 
   /* dangerous*/
   ['@paladin/web/src', `${web}/src/components`],
