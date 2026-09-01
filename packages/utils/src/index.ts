@@ -1,4 +1,4 @@
-export * from "./fs.ts"
+export * from "./fs/getMostRecentFile"
 export * from "./bash.ts"
 
 export * from "./resolveRelativePath"
