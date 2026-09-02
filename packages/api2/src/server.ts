@@ -6,9 +6,23 @@ import { createBroadcast } from "./broadcast"
 import { keep, replace, onSignal, disposeAll } from "./hot"
 import { ScaffoldService } from "./services/scaffold/scaffold"
 import type { ScaffoldMessage } from "./services/scaffold/events"
+import { serveStatic } from "hono/bun"
+import { resolve } from "node:path"
 
 const app = new Hono()
 app.use("*", cors())
+
+const IMAGE_ROOT = '/home/kdog3682/trash'
+app.use(
+  "/images/*",
+  serveStatic({
+    // root: resolve(import.meta.dir, "../public"),
+    root: IMAGE_ROOT,
+    onFound: (_path, c) => {
+      c.header("Cache-Control", "no-store")
+    },
+  }),
+)
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<WebSocket>()
 
