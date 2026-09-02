@@ -14,6 +14,26 @@ export type ScopedRoute = {
 /** Returns a replacement tail, or nothing to pass. */
 export type TailRouter = (route: ScopedRoute) => string | null | undefined
 
+/**
+ * Single-segment tails matching any of these live at the package root rather
+ * than inside a src-like dir. Strings match exactly, regexes are tested against
+ * the whole segment.
+ */
+export const pkgRootFiles: (string | RegExp)[] = [
+  /^\./, // .gitignore, .env, .npmrc, .prettierrc
+  /^package(-lock)?\.json$/,
+  /^bun\.lockb?$/,
+  /^bunfig\.toml$/,
+  /^tsconfig(\..+)?\.json$/,
+  /^jsconfig(\..+)?\.json$/,
+  /^readme(\..+)?$/i,
+  /^license(\..+)?$/i,
+  /^changelog(\..+)?$/i,
+  /^dockerfile$/i,
+  /^makefile$/i,
+  /\.config\.[cm]?[jt]sx?$/ // vite.config.ts, tailwind.config.js
+]
+
 export type ResolveScopedPathOptions = {
   /** root dir containing all scopes/projects */
   base?: string
@@ -27,6 +47,14 @@ export type ResolveScopedPathOptions = {
   aliases?: Record<string, string>
   /** rewrite the dir-relative tail */
   routers?: TailRouter[]
+  /** files that belong at the package root instead of a src-like dir */
+  rootFiles?: (string | RegExp)[]
+}
+
+/** True for a bare filename that belongs at the package root. */
+function isPkgRootFile(tail: string, patterns: (string | RegExp)[]): boolean {
+  if (!tail || tail.includes('/')) return false
+  return patterns.some(p => (typeof p === 'string' ? p === tail : p.test(tail)))
 }
 
 function splitSrcDir(tail: string, srcDirs: string[]): { dir: string; tail: string } {
@@ -38,15 +66,18 @@ function splitSrcDir(tail: string, srcDirs: string[]): { dir: string; tail: stri
 /**
  * Resolve a specifier into an absolute filesystem path. Absolute and '~' paths pass through,
  * single-segment and './' paths resolve against relativeTo, everything else must be scoped
- * as '@scope/pkg/tail'. 
+ * as '@scope/pkg/tail'. Manifest-style files (package.json, tsconfig.json, dotfiles, ...)
+ * land at the package root; prefix them with a src-like dir to override.
  * example: @mathpen/manim -> ~/projects/mathpen/packages/manim
+ * example: @mathpen/manim/package.json -> ~/projects/mathpen/packages/manim/package.json
  */
 export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions = {}): string {
   const {
     base = '~/projects',
     relativeTo = null,
-    srcDirs = ['src', 'docs', 'scripts', 'corpus'],
+    srcDirs = ['src', 'docs', 'scripts', 'corpus', 'dev'],
     packagesDir = 'packages',
+    rootFiles = pkgRootFiles,
     aliases = {
       '@ui': '@paladin/web/ui',
       '@web': '@paladin/web',
@@ -59,6 +90,7 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
         if (!['web', 'ui'].includes(pkg)) return
         if (tail.split('/').includes('components')) return
         if (tail.includes('App')) return
+        if (!tail.endsWith('.tsx')) return
         return join('components', tail)
       }
     ]
@@ -108,6 +140,8 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
   const rawTail = (isPrefixed ? rest.slice(2) : rest.slice(1)).join('/')
   if (!rawTail) return pkgDir
 
+  if (isPkgRootFile(rawTail, rootFiles)) return join(pkgDir, rawTail)
+
   const { dir, tail: split } = splitSrcDir(rawTail, srcDirs)
   let tail = split
 
@@ -123,14 +157,19 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
  * Inverse of resolveScopedPath: converts an absolute path under `base` back
  * into a scoped specifier. The default src dir (srcDirs[0]) is omitted when a
  * tail follows, other src-like dirs are kept, and the `packages` segment is
- * dropped.
+ * dropped. Package-root files keep their bare form, and a root-file name that
+ * really does sit inside the default src dir keeps that dir explicit so the
+ * specifier round-trips.
  * @example /base/paladin/packages/web/src/Foo.tsx -> @paladin/web/Foo.tsx
+ * @example /base/paladin/packages/web/package.json -> @paladin/web/package.json
+ * @example /base/paladin/packages/web/src/package.json -> @paladin/web/src/package.json
  */
 export function toScopedPath(input: string, opts: ResolveScopedPathOptions = {}): string {
   const {
     base = '~/projects',
     srcDirs = ['src', 'docs', 'scripts', 'corpus'],
-    packagesDir = 'packages'
+    packagesDir = 'packages',
+    rootFiles = pkgRootFiles
   } = opts
 
   const raw = input.trim()
@@ -160,5 +199,7 @@ export function toScopedPath(input: string, opts: ResolveScopedPathOptions = {})
   const tail = (hasExplicitDir ? rest.slice(1) : rest).join('/')
 
   if (!tail) return `@${scope}/${pkg}/${dir}`
-  return dir === defaultDir ? `@${scope}/${pkg}/${tail}` : `@${scope}/${pkg}/${dir}/${tail}`
+  if (dir !== defaultDir) return `@${scope}/${pkg}/${dir}/${tail}`
+  if (hasExplicitDir && isPkgRootFile(tail, rootFiles)) return `@${scope}/${pkg}/${dir}/${tail}`
+  return `@${scope}/${pkg}/${tail}`
 }
