@@ -6,10 +6,13 @@ const ILLEGAL_RE = /["'`<>|*?]/
 const TRAILING_PUNCT_RE = /[),.;:]+$/
 /** a path quoted at the end of the line, so spaces inside are preserved */
 const TRAILING_QUOTED_RE = /(['"`])([^'"`]+)\1\s*$/
-
 const MAX_PATH_LEN = 4096
-/** a header is a short label like `files`, not a paragraph of prose */
-const MAX_HEADER_LEN = 120
+
+export type ArtifactPaths = {
+  /** everything above the trailing run of paths, trimmed */
+  text: string
+  paths: string[]
+}
 
 function unquote(s: string): string {
   return s.replace(/^['"`]+/, '').replace(/['"`]+$/, '')
@@ -33,47 +36,39 @@ export function isArtifactPath(token: string): boolean {
 export function extractPathFromLine(line: string): string | undefined {
   const trimmed = line.trim()
   if (!trimmed) return undefined
-
   const quoted = TRAILING_QUOTED_RE.exec(trimmed)
   if (quoted && isArtifactPath(quoted[2] ?? '')) return quoted[2]
-
   const tokens = trimmed.split(/\s+/)
   const last = unquote(tokens[tokens.length - 1] ?? '').replace(TRAILING_PUNCT_RE, '')
   return isArtifactPath(last) ? last : undefined
 }
 
 /**
- * Treat stdout as a path listing, all or nothing. Every line must be blank or
- * end in an artifact path; a single short header line is tolerated, but only
- * before the first path. Anything else means this wasn't a listing, so we
- * return null and the caller keeps stdout as-is.
+ * Walk stdout from the bottom up, collecting paths until a line isn't one.
+ * Whatever sits above that point is returned as `text`, so a program can log
+ * prose and still have its trailing file list lifted out. Blank lines are
+ * transparent. Returns null when the last non-blank line isn't a path.
  *
- *   files              <- header, allowed
- *                      <- blank, allowed
+ *   building...        <- text
+ *                      <- blank, transparent
  *   src/a.ts           <- path
  *   wrote src/b.ts     <- path with a label
  */
-export function extractArtifactPaths(stdout: string): string[] | null {
+export function extractArtifactPaths(stdout: string): ArtifactPaths | null {
+  const lines = stdout.split(/\r?\n/)
   const paths: string[] = []
   const seen = new Set<string>()
-  let headed = false
-
-  for (const line of stdout.split(/\r?\n/)) {
-    const trimmed = line.trim()
+  let start = lines.length
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const trimmed = lines[i]?.trim() ?? ''
     if (!trimmed) continue
-
     const path = extractPathFromLine(trimmed)
-    if (!path) {
-      if (headed || paths.length > 0) return null
-      if (trimmed.length > MAX_HEADER_LEN) return null
-      headed = true
-      continue
-    }
-
+    if (!path) break
+    start = i
     if (seen.has(path)) continue
     seen.add(path)
-    paths.push(path)
+    paths.unshift(path)
   }
-
-  return paths.length > 0 ? paths : null
+  if (paths.length === 0) return null
+  return { text: lines.slice(0, start).join('\n').trim(), paths }
 }

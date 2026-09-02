@@ -14,7 +14,6 @@ export function typeOf(args: string[]): BashType {
   const bin = args[0]?.split('/').pop() ?? ''
   if (bin === 'bunx') return 'run'
   if (bin !== 'bun') return 'shell'
-
   const sub = args.slice(1).find((arg) => !arg.startsWith('-'))
   if (!sub) return 'shell'
   if (sub === 'test') return 'test'
@@ -24,8 +23,8 @@ export function typeOf(args: string[]): BashType {
 
 /**
  * Lift structured data out of stdout. Explicit <BASH> payloads win; failing
- * that, stdout that is nothing but logged paths collapses into artifactPaths
- * and the text is dropped, since the paths carry everything it said.
+ * that, a trailing run of logged paths collapses into artifactPaths and only
+ * the prose above it is kept as text.
  */
 export function extractData(s: string): { text: string; data?: unknown } {
   const found: unknown[] = []
@@ -39,12 +38,9 @@ export function extractData(s: string): { text: string; data?: unknown } {
       return ''
     })
     .trim()
-
   if (found.length > 0) return { text, data: found.length === 1 ? found[0] : found }
-
-  const artifactPaths = extractArtifactPaths(text)
-  if (artifactPaths) return { text: '', data: { artifactPaths } }
-
+  const artifacts = extractArtifactPaths(text)
+  if (artifacts) return { text: artifacts.text, data: { artifactPaths: artifacts.paths } }
   return { text }
 }
 
