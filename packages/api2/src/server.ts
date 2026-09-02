@@ -1,22 +1,21 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
-import { createBunWebSocket } from "hono/bun"
+import { createBunWebSocket, serveStatic } from "hono/bun"
 import { createWatcher } from "./watcher"
 import { createBroadcast } from "./broadcast"
-import { keep, replace, onSignal, disposeAll } from "./hot"
 import { ScaffoldService } from "./services/scaffold/scaffold"
 import type { ScaffoldMessage } from "./services/scaffold/events"
-import { serveStatic } from "hono/bun"
-import { resolve } from "node:path"
+
+const IMAGE_ROOT = "/home/kdog3682/trash"
+
+type ErrorMessage = { kind: "error"; payload: string }
 
 const app = new Hono()
 app.use("*", cors())
 
-const IMAGE_ROOT = '/home/kdog3682/trash'
 app.use(
   "/images/*",
   serveStatic({
-    // root: resolve(import.meta.dir, "../public"),
     root: IMAGE_ROOT,
     onFound: (_path, c) => {
       c.header("Cache-Control", "no-store")
@@ -26,17 +25,15 @@ app.use(
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<WebSocket>()
 
-type ErrorMessage = { kind: "error"; payload: string }
+const broadcast = createBroadcast<ScaffoldMessage | ErrorMessage>()
 
-const broadcast = keep("broadcast", () => createBroadcast<ScaffoldMessage | ErrorMessage>())
+const scaffold = new ScaffoldService({
+  // emit: (kind, payload) => broadcast.send({ kind, payload }),
+})
 
-const scaffold = keep(
-  "scaffold",
-  () =>
-    new ScaffoldService({
-      // emit: (kind, payload) => broadcast.send({ kind, payload }),
-    }),
-)
+function toMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 app.get(
   "/ws",
@@ -56,25 +53,20 @@ app.post("/controller", async (c) => {
     const result = await scaffold.dispatch(method, kwargs)
     return c.json(result)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = toMessage(error)
     broadcast.send({ kind: "error", payload: message })
     return c.json({ error: message }, 500)
   }
 })
 
-replace(
-  "watcher",
-  () =>
-    createWatcher(async (path) => {
-      try {
-        await scaffold.process(path)
-      } catch (error) {
-        console.error(`scaffold failed for ${path}`, error)
-        broadcast.send({ kind: "error", payload: error instanceof Error ? error.message : String(error) })
-      }
-    }),
-  (stop) => stop(),
-)
+const stopWatcher = createWatcher(async (path) => {
+  try {
+    await scaffold.process(path)
+  } catch (error) {
+    console.error(`scaffold failed for ${path}`, error)
+    broadcast.send({ kind: "error", payload: toMessage(error) })
+  }
+})
 
 const server = Bun.serve({
   port: Number(process.env.PORT ?? 3000),
@@ -82,11 +74,17 @@ const server = Bun.serve({
   websocket,
 })
 
+let shuttingDown = false
+
 async function shutdown() {
-  await disposeAll()
+  if (shuttingDown) return
+  shuttingDown = true
+  stopWatcher()
   await server.stop(true)
+  process.exit(0)
 }
 
-onSignal(["SIGINT", "SIGTERM"], shutdown)
+process.on("SIGINT", shutdown)
+process.on("SIGTERM", shutdown)
 
 console.log(`@paladin/api2: server listening on http://localhost:${server.port}`)
