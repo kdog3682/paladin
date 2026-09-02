@@ -3,8 +3,8 @@ import { resolveScopedPath } from "@paladin/utils"
 import { append, deprecate, merge, remove, skip, write } from "../ops"
 import type { FsOp, PathResolutionOpts } from "../types"
 
-// matches a leading '// path', '# path', or '/* path */' comment line
-const COMMENT_RE = /^\s*(?:\/\/|#|\/\*+)\s*(.+?)\s*(?:\*+\/\s*)?$/
+// matches a leading '// path', '# path', '/* path */', or '<!-- path -->' comment line
+const COMMENT_RE = /^\s*(?:\/\/|#|\/\*+|<!--)\s*(.+?)\s*(?:\*+\/|-->\s*)?$/;
 // requires the path to end in a file extension, e.g. '.ts'
 const EXT_RE = /\.[a-z0-9]+$/i
 // trailing directive on the header, e.g. '// foo.ts (append)'
