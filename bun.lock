@@ -145,6 +145,13 @@
         "tree-sitter-typescript": "^0.23.2",
       },
     },
+    "packages/exemplar": {
+      "name": "@paladin/exemplar",
+      "version": "0.1.0",
+      "dependencies": {
+        "@paladin/utils": "workspace:*",
+      },
+    },
     "packages/fcache": {
       "name": "@paladin/fcache",
       "version": "0.1.0",
@@ -566,6 +573,8 @@
     "@paladin/commands": ["@paladin/commands@workspace:packages/commands"],
 
     "@paladin/docgen": ["@paladin/docgen@workspace:packages/docgen"],
+
+    "@paladin/exemplar": ["@paladin/exemplar@workspace:packages/exemplar"],
 
     "@paladin/fcache": ["@paladin/fcache@workspace:packages/fcache"],
 
