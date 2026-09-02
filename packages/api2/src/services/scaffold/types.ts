@@ -62,15 +62,9 @@ export interface PathResolutionOpts {
   relativeTo?: string
   npmCachePath?: string
 }
-
-
-// @paladin/api2/src/services/scaffold/types.ts
-// --- replaces the old `export type ApplyResult = FsOp[]` ---
-
 export interface ApplySummary {
   created: number
   updated: number
-  unchanged: number
   deleted: number
   commands: number
   failed: number

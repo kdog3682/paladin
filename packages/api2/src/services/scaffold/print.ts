@@ -1,34 +1,51 @@
-import yaml from "js-yaml"
-import { deepMap, truncateLines } from "@paladin/utils"
+import { clip } from "@paladin/utils"
+import type { ApplyResult, ExampleResult } from "./types"
 
-export type PrintOptions = {
-  /** kept content lines per multiline string, middle collapsed (default 6) */
-  maxLines?: number
-  indent?: number
+/* artifacts written by display(), plus any emitted by a bash op */
+function artifactsOf(result: ApplyResult, examples?: ExampleResult): string[] {
+  const paths: string[] = []
+  if (examples) {
+    for (const file of examples.files) {
+      if (file.artifactPath) paths.push(file.artifactPath)
+    }
+  }
+  for (const unit of result.units) {
+    for (const op of unit.ops) {
+      if (op.kind !== "bash") continue
+      const found = op.result?.data?.artifactPaths
+      if (found?.length) paths.push(...found)
+    }
+  }
+  return paths
 }
 
-/** trailing whitespace forces js-yaml into quoted style, so scrub it */
-function scrub(text: string): string {
-  return text
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+$/, ""))
-    .join("\n")
+/* raw output from every bash op */
+function bashOf(result: ApplyResult): string {
+  const blocks: string[] = []
+  for (const unit of result.units) {
+    for (const op of unit.ops) {
+      if (op.kind !== "bash") continue
+      const res = op.result
+      if (!res) continue
+      const out = [res.stdout, res.stderr]
+        .map(text => text?.trim())
+        .filter(Boolean)
+        .join("\n")
+      if (!out) continue
+      blocks.push([`$ ${res.args.join(" ")}`, out].join("\n"))
+    }
+  }
+  return blocks.join("\n\n").trim()
 }
 
-export function print(value: unknown, options: PrintOptions = {}): string {
-  const { maxLines = 6, indent = 2 } = options
-
-  const prepared = deepMap(value, (leaf) =>
-    typeof leaf === "string" && leaf.includes("\n")
-      ? truncateLines(scrub(leaf), { maxLines })
-      : leaf,
-  )
-
-  return yaml.dump(prepared, {
-    indent,
-    lineWidth: -1,
-    noRefs: true,
-    noCompatMode: true,
-    quotingType: '"',
-  })
+/* clip the artifacts if there are any, else the bash output, else nothing */
+export function print(result: ApplyResult, examples?: ExampleResult): null {
+  const artifacts = artifactsOf(result, examples)
+  if (artifacts.length) {
+    for (const path of artifacts) clip(path)
+    return null
+  }
+  const text = bashOf(result)
+  if (text) clip(text)
+  return null
 }

@@ -59,12 +59,13 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     command: "bun run @paladin/storylite",
     purpose: "demo",
     acceptsOptions: true,
+    enabled: false, // TODO
   },
   {
     id: "example",
     matches: { kind: "example" },
-    command: `bun run ${join(import.meta.dir, "runExampleFiles.ts")}`,
-    purpose: "demo",
+    command: `bun run @paladin/exemplar/cli.ts`,
+    purpose: "example",
     grouped: true,
     acceptsOptions: true,
   },

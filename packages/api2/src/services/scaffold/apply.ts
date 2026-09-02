@@ -183,7 +183,6 @@ function summarize(ops: FsOp[]): ApplySummary {
   return {
     created: writes.filter((op) => op.applied && op.created).length,
     updated: writes.filter((op) => op.applied && !op.created).length,
-    unchanged: writes.filter((op) => !op.applied && op.reason === "unchanged").length,
     deleted: ops.filter(isDelete).filter((op) => op.applied).length,
     commands: ops.filter(isBash).length,
     failed: ops.filter(failed).length,
