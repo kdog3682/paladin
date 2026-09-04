@@ -29,4 +29,4 @@ export async function runExampleFiles(paths: string[], options: Options = {}): P
   return { namespace, root, files, summary: summarize(files) }
 }
 
-export default withArgv(runExampleFiles)
+export default withArgv(runExampleFiles, { variadic: true })

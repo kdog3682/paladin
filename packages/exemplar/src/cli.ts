@@ -1,3 +1,3 @@
-import { runExampleFiles } from "./runFiles"
+import runExampleFiles from "./runFiles"
 
 runExampleFiles()

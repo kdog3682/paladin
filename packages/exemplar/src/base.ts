@@ -8,7 +8,9 @@ display hook and may rewrite the baseline, runTest does neither and only
 reports mismatches.
 */
 import { type SymbolInfo, createCache, loadSpecFunction, quickParse } from "@paladin/utils"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 /* "src/manim/display.ts#display" | "@a/b/display#display" */
 export type Spec = string
@@ -40,6 +42,8 @@ export type ExampleFile = {
   relpath: string
   /* whatever display() wrote, if anything */
   artifactPath: string | null
+  /* stack or message when display() threw; artifactPath is null in that case */
+  displayError?: string
   /* in source order */
   items: ExampleItem[]
 }
@@ -85,9 +89,14 @@ export type RunContext = {
 
 const defaultSerialize: Serialize = (value) => JSON.stringify(value, null, 2)
 
+async function importNamespace(namespace: string, root: string): Promise<any> {
+  return import(namespace).catch(() =>
+    import(pathToFileURL(join(root, "src/index.ts")).href).catch(() => ({})),
+  )
+}
+
 export async function resolveHooks(namespace: string, root: string, hooks: Hooks) {
-  const fallback: any =
-    hooks.serialize && hooks.display ? {} : await import(namespace).catch(() => ({}))
+  const fallback: any = hooks.serialize && hooks.display ? {} : await importNamespace(namespace, root)
   const serialize: Serialize = hooks.serialize
     ? ((await loadSpecFunction(hooks.serialize, { root })) as Serialize)
     : (fallback.serialize ?? defaultSerialize)
@@ -115,7 +124,7 @@ const KINDS = new Set(["function", "class"])
 
 /* quickParse returns every symbol, so narrow to exported callables ourselves */
 export function exampleSymbols(path: string): SymbolInfo[] {
-  const { symbols } = quickParse(path)
+  const { symbols } = quickParse(readFileSync(path, "utf8"))
   return symbols.filter((symbol) => symbol.exported && KINDS.has(symbol.kind))
 }
 
@@ -169,11 +178,18 @@ export async function runFile(path: string, context: RunContext): Promise<Exampl
     if (!error) shown.push({ ...item, value })
   }
 
-  const artifactPath =
-    display && shown.length ? await display(shown, { path, relpath, namespace, root }) : null
+  let artifactPath: string | null = null
+  let displayError: string | undefined
+  if (display && shown.length) {
+    try {
+      artifactPath = await display(shown, { path, relpath, namespace, root })
+    } catch (cause) {
+      displayError = cause instanceof Error ? (cause.stack ?? cause.message) : String(cause)
+    }
+  }
   if (write) await cache.save()
 
-  return { relpath, artifactPath, items }
+  return { relpath, artifactPath, displayError, items }
 }
 
 export function emptySummary(): Record<Status, number> {
