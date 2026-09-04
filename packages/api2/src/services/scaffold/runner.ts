@@ -69,16 +69,32 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     grouped: true,
     acceptsOptions: true,
   },
+  {
+    id: "recast-spec",
+    matches: { kind: "recast-spec" },
+    command: `bun run @paladin/recast/runner.ts`,
+    purpose: "script",
+  },
 ]
 
 const DEFAULT_KINDS = new Set(DEFAULT_REGISTRATIONS.map((registration) => registration.matches.kind))
 
-/** `foo.examples.ts` — classify() reads these as plain source, so they're matched here instead. */
-const EXAMPLES_FILE = /\.examples\.\w+$/
+/**
+ * Path patterns matched directly, ahead of classify(). classify() only
+ * knows the kinds in rules.json, so anything runnable that lives outside
+ * that scheme (a suffix like `.examples.ts`, a directory like recast's
+ * specs/) needs an entry here instead.
+ */
+const PATTERN_KINDS: { kind: string; pattern: RegExp }[] = [
+  { kind: "example", pattern: /\.examples\.\w+$/ },
+  { kind: "recast-spec", pattern: /(^|\/)packages\/recast\/src\/specs\// },
+]
 
 /** Whether `path` is runnable under the default registrations, independent of any CodeRunner instance. */
 export function runnableKind(path: string): string | null {
-  if (EXAMPLES_FILE.test(path)) return "example"
+  for (const { kind, pattern } of PATTERN_KINDS) {
+    if (pattern.test(path)) return kind
+  }
   const kind = classify(path)
   return DEFAULT_KINDS.has(kind) ? kind : null
 }
