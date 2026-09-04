@@ -38,6 +38,7 @@ export const DEFAULT_OPTIONS: ScaffoldServiceOptions = {
   postProcessorOptions: {
     updateBarrel: {
       fileMatchesFolder: true,
+      alwaysBarrel: ['packages/utils'],
       treatIndexAsEntry: true,
       treatNamedIndexAsEntry: true,
       matches: ["packages/utils", "packages/ui"],

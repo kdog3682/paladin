@@ -64,9 +64,27 @@ function fileRelativeToBarrel(barrel: string): EntryTest {
 }
 
 /**
+ * Every source file under these paths is an entry, whatever it is named and
+ * however deep it sits. This is the rule for flat category layouts — `fs/`,
+ * `path/`, `string/` holding their members directly — where the file name is
+ * the export and no folder speaks for the folder.
+ *
+ * Matched against the file, not the unit, so it can be scoped to a package
+ * (`packages/utils/**`) or to one folder inside it (`packages/utils/src/fs/*`).
+ * Ownership still applies on top: the moment a folder grows a real entry, that
+ * entry answers for the folder and the barrel stops reaching past it.
+ */
+function alwaysBarrelTest(paths: string[]): EntryTest {
+  return (path) => matchesAnyPath(path, paths)
+}
+
+/**
  * The entry rules an in-scope unit has turned on, or null when this unit barrels
  * nothing — either it sits outside `matches` or every rule was turned off. A file
  * still has to earn its export; the rules only widen what counts as earning it.
+ *
+ * `matches` is a scope gate, not a rule: failing it switches the processor off
+ * for this unit, and no `alwaysBarrel` entry will bring it back.
  */
 function barrelEntryTest(
   unit: Unit,
@@ -78,12 +96,14 @@ function barrelEntryTest(
     treatIndexAsEntry = true,
     treatNamedIndexAsEntry = true,
     fileRelativeToBarrelIndex = true,
+    alwaysBarrel = [],
     matches = [],
   } = opts.updateBarrel ?? {}
 
   if (matches.length && !matchesAnyPath(unit.dir, matches)) return null
 
   const tests: EntryTest[] = []
+  if (alwaysBarrel.length) tests.push(alwaysBarrelTest(alwaysBarrel))
   if (folderEntries) tests.push(fileMatchesFolder)
   if (treatIndexAsEntry) tests.push(isIndexFile)
   if (treatNamedIndexAsEntry) tests.push(isNamedIndexFile)
@@ -120,6 +140,10 @@ function foldersExportedBy(root: string, content: string): Set<string> {
  * Once `bash/bash.ts` exists — written in this pass, already on disk, or already
  * named in the barrel — a later `bash/Smth/Smth.ts` is bash's business to export,
  * so the barrel leaves it alone rather than reaching past the entry.
+ *
+ * A folder named in the barrel only because its own members are listed there
+ * (`./fs/mergeJson`) is not claimed by that listing: `foldersExportedBy` records
+ * the member path, not its parent, so sibling members stay exportable.
  */
 function folderOwnershipTest(unit: Unit, barrel: string, current: string): EntryTest {
   const root = dirname(barrel)
@@ -190,7 +214,7 @@ export function updateBarrel(unit: Unit, opts: PostProcessorOptions = {}): FsOp[
   }
 
   const lines = unit.ops
-    .filter((op): op is WriteOp => exportable(ctx, op))
+    .filter((op) => exportable(ctx, op))
     .map((op) => toExport(barrel, op.path))
     .filter((line) => !current.includes(line))
 
