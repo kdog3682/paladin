@@ -46,7 +46,12 @@ function parseTemplate(text: string): { path: string; content: string }[] {
 function detectUnitType(unit: Unit): UnitType {
   const exts = new Set(unit.ops.map(pathOf).map((path) => (path ? extname(path) : "")))
   if (exts.has(".astro")) return "astro"
-  if (exts.has(".tsx") || exts.has(".jsx")) return "react"
+  if (exts.has(".tsx") || exts.has(".jsx")) {
+    if (/^ui/.test(unit.name)) {
+      return 'react-peer'
+    }
+    return "react"
+  }
   return "typescript"
 }
 
