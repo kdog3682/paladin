@@ -13,4 +13,5 @@ const dir = "/home/kdog3682/projects/paladin/packages/codemod/src/utils"
 // clip(a)
 
 
-generatePackageIndex('@mathpen/manim')
+// clip(await docgenPackage('@mathpen/manim'))
+// clip(await docgenPackage(dir))
