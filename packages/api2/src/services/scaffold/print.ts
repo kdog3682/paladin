@@ -1,11 +1,39 @@
 import { clip } from "@paladin/utils"
 import type { ApplyResult, ExampleResult } from "./types"
 
+/* every example run in the result: carried on a bash op, or passed in directly */
+function examplesOf(result: ApplyResult, examples?: ExampleResult): ExampleResult[] {
+  const runs: ExampleResult[] = []
+  if (examples?.files) runs.push(examples)
+  for (const unit of result.units) {
+    for (const op of unit.ops) {
+      if (op.kind !== "bash") continue
+      const data = op.result?.data
+      if (data?.files) runs.push(data as ExampleResult)
+    }
+  }
+  return runs
+}
+
+/* item errors and display() failures from a run of the examples */
+function errorsOf(result: ApplyResult, examples?: ExampleResult): string {
+  const blocks: string[] = []
+  for (const run of examplesOf(result, examples)) {
+    for (const file of run.files) {
+      for (const item of file.items ?? []) {
+        if (item.error) blocks.push(`${file.relpath}#${item.name}\n${item.error}`)
+      }
+      if (file.displayError) blocks.push(`${file.relpath} (display)\n${file.displayError}`)
+    }
+  }
+  return blocks.join("\n\n").trim()
+}
+
 /* artifacts written by display(), plus any emitted by a bash op */
 function artifactsOf(result: ApplyResult, examples?: ExampleResult): string[] {
   const paths: string[] = []
-  if (examples) {
-    for (const file of examples.files) {
+  for (const run of examplesOf(result, examples)) {
+    for (const file of run.files) {
       if (file.artifactPath) paths.push(file.artifactPath)
     }
   }
@@ -16,7 +44,7 @@ function artifactsOf(result: ApplyResult, examples?: ExampleResult): string[] {
       if (found?.length) paths.push(...found)
     }
   }
-  return paths
+  return [...new Set(paths)]
 }
 
 /* raw output from every bash op */
@@ -38,13 +66,20 @@ function bashOf(result: ApplyResult): string {
   return blocks.join("\n\n").trim()
 }
 
-/* clip the artifacts if there are any, else the bash output, else nothing */
+/* clip the error if the run failed, else the artifacts, else the bash output, else nothing */
 export function print(result: ApplyResult, examples?: ExampleResult): null {
+  const errors = errorsOf(result, examples)
+  if (errors) {
+    clip(errors)
+    return null
+  }
+
   const artifacts = artifactsOf(result, examples)
   if (artifacts.length) {
     for (const path of artifacts) clip(path)
     return null
   }
+
   const text = bashOf(result)
   if (text) clip(text)
   return null

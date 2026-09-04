@@ -5,7 +5,7 @@ import { ScaffoldService } from "./services/scaffold/scaffold"
 
 const dir = join(homedir(), "scratch")
 
-const file = await getMostRecentFile({ dir, ext: "zip" })
+const file = await getMostRecentFile({ dir, ext: ["zip", "ts"] })
 if (!file) {
   console.error(`no files in ${dir}`)
   process.exit(1)
@@ -20,3 +20,4 @@ if (!result) {
   console.error("nothing to do")
   process.exit(1)
 }
+console.log(result)

@@ -73,8 +73,12 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
 
 const DEFAULT_KINDS = new Set(DEFAULT_REGISTRATIONS.map((registration) => registration.matches.kind))
 
+/** `foo.examples.ts` — classify() reads these as plain source, so they're matched here instead. */
+const EXAMPLES_FILE = /\.examples\.\w+$/
+
 /** Whether `path` is runnable under the default registrations, independent of any CodeRunner instance. */
 export function runnableKind(path: string): string | null {
+  if (EXAMPLES_FILE.test(path)) return "example"
   const kind = classify(path)
   return DEFAULT_KINDS.has(kind) ? kind : null
 }
