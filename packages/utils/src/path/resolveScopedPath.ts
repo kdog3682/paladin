@@ -81,6 +81,9 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
     aliases = {
       '@ui': '@paladin/web/ui',
       '@web': '@paladin/web',
+      '@utils': '@paladin/utils',
+      '@cmd': '@paladin/api2/src/commands',
+      '@api': '@paladin/api2',
       '@services': '@paladin/api/services',
       paladin: '@paladin'
     },

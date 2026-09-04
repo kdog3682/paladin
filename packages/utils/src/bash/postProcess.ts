@@ -3,7 +3,7 @@ import { extractArtifactPaths } from './extractArtifactPaths'
 import type { BashType } from './types'
 
 const BUN_VERSION_RE = /bun (?:test )?v[\d.]+\s*(?:\(.*?\))?/i
-const BASH_DATA_RE = /<BASH>([\s\S]*?)<\/BASH>/g
+const BASH_DATA_RE = /<BASH>\s*([\s\S]*?)\s*<\/BASH>/g
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'add', 'remove', 'rm', 'update', 'link'])
 
 export function stripBunVersion(s: string): string {

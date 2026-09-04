@@ -9,11 +9,12 @@ a trailing `--opts <json>` (or --options, or --config, all the same thing) is
 lifted out and handed over as the final argument, which keeps the positionals
 variadic — a caller can pass one path or twenty without the options blob being
 mistaken for another one.
-the return value is printed between <BASH> markers so the caller can
+the return value is printed between <BASH>...</BASH> markers so the caller can
 slice it out of stdout without being confused by anything the example
 itself logged.
 */
 export const MARKER = "<BASH>"
+export const CLOSE_MARKER = "</BASH>"
 
 const OPTS_FLAGS = new Set(["--opts", "--options", "--config"])
 
@@ -27,8 +28,8 @@ export function parseArg(raw: string): unknown {
 
 export function extract(stdout: string): unknown {
   const start = stdout.indexOf(MARKER)
-  const end = stdout.lastIndexOf(MARKER)
-  if (start === -1 || start === end) throw new Error("no <BASH> payload in stdout")
+  const end = stdout.lastIndexOf(CLOSE_MARKER)
+  if (start === -1 || end === -1) throw new Error("no <BASH> payload in stdout")
   return JSON.parse(stdout.slice(start + MARKER.length, end))
 }
 
@@ -66,7 +67,7 @@ export function withArgv<A extends unknown[], R>(
     if (typeof output === "string") {
       console.log(output)
     } else {
-      console.log(`${MARKER}${JSON.stringify(output)}${MARKER}`)
+      console.log(`${MARKER}${JSON.stringify(output)}${CLOSE_MARKER}`)
     }
     return output
   }
