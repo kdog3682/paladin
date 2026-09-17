@@ -47,10 +47,13 @@ function detectUnitType(unit: Unit): UnitType {
   const exts = new Set(unit.ops.map(pathOf).map((path) => (path ? extname(path) : "")))
   if (exts.has(".astro")) return "astro"
   if (exts.has(".tsx") || exts.has(".jsx")) {
-    if (/^ui/.test(unit.name)) {
-      return 'react-peer'
+    const WEB_APPS = [
+      'web', 'web2'
+    ]
+    if (WEB_APPS.includes(unit.name)) {
+      return 'react'
     }
-    return "react"
+    return 'react-peer'
   }
   return "typescript"
 }

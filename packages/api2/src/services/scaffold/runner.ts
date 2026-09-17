@@ -51,6 +51,7 @@ export interface RunOptions {
 
 export const DEFAULT_REGISTRATIONS: Registration[] = [
   { id: "test", matches: { kind: "test" }, command: "bun test", grouped: true },
+  { id: "test", matches: { kind: "test", ext: "tsx" }, command: "bun test --preload ./happydom.ts", grouped: true },
   { id: "script", matches: { kind: "script" }, command: "bun run" },
   { id: "demo", matches: { kind: "demo" }, command: "bun run" },
   {
