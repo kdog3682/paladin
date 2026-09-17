@@ -18,6 +18,8 @@ export * from "./fs/isDir"
 export * from "./fs/isFile"
 export * from "./fs/rmDir"
 export * from "./fs/rmFile"
+export * from "./fs/listFiles"
+export * from "./fs/resolveModuleFile"
 export * from "./object/deepMerge"
 
 export * from "./ast/quick-parse"
@@ -32,6 +34,8 @@ export * from "./argv/withArgv"
 
 export * from "./object/deepMap"
 export * from "./string/truncateLines"
+export * from "./string/camelCase"
+export * from "./string/pascalCase"
 
 export * from "./clipboard/clipBuffer"
 export * from "./clipboard/clip"
