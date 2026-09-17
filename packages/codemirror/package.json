@@ -1,0 +1,44 @@
+{
+  "name": "@paladin/codemirror",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./fonts.css": "./fonts/index.css"
+  },
+  "files": [
+    "src",
+    "fonts"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "test": "bun test --preload ./happydom.ts"
+  },
+  "dependencies": {
+    "@bklearn/shadcn": "^0.1.2",
+    "lucide-react": "^0.563.0",
+    "@codemirror/state": "^6.7.0",
+    "@codemirror/view": "^6.43.5",
+    "@codemirror/language": "^6.12.4",
+    "@lezer/highlight": "^1.2.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/autocomplete": "^6.20.3"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.0.10",
+    "@types/bun": "latest",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "react": "^18",
+    "react-dom": "^18",
+    "@testing-library/react": "^16.3.3"
+  }
+}

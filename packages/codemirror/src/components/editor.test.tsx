@@ -1,0 +1,302 @@
+import { afterEach, describe, expect, mock, test } from 'bun:test'
+import { cleanup, render } from '@testing-library/react'
+import { foldEffect } from '@codemirror/language'
+import type { EditorView } from '@codemirror/view'
+import { Editor, type EditorProps } from './editor'
+import { defaultExtensions } from '../extensions'
+import { FONT_STACKS, FONT_VAR } from '../fonts'
+import type { LanguageMap } from '../languages'
+import { serializeEditorState } from '../state'
+
+afterEach(cleanup)
+
+const LANGUAGES: LanguageMap = {
+  // wrapLines differs between the two so a file switch can't quietly lose it
+  flat: { wrapLines: false, placeholder: 'flat' },
+  prose: { wrapLines: true, placeholder: 'prose' },
+  scripty: { font: 'ncm-mono', placeholder: 'scripty' },
+}
+
+const DEBOUNCE = 10
+const tick = (ms = DEBOUNCE + 10) => new Promise((r) => setTimeout(r, ms))
+
+type Handle = {
+  view: EditorView
+  update: (next: Partial<EditorProps>) => void
+  unmount: () => void
+  container: HTMLElement
+}
+
+function mount(initial: Partial<EditorProps> = {}): Handle {
+  const captured: { view: EditorView | null } = { view: null }
+  let props: EditorProps = {
+    fileId: 'a.txt',
+    language: 'prose',
+    languages: LANGUAGES,
+    onSaveDebounceDelay: DEBOUNCE,
+    ...initial,
+  }
+  const ui = () => (
+    <Editor
+      {...props}
+      onViewReady={(v) => {
+        captured.view = v
+        initial.onViewReady?.(v)
+      }}
+    />
+  )
+  const r = render(ui())
+  return {
+    get view() {
+      return captured.view!
+    },
+    update(next) {
+      props = { ...props, ...next }
+      r.rerender(ui())
+    },
+    unmount: r.unmount,
+    container: r.container,
+  }
+}
+
+/** Types at the end of the doc, which is what drives the updateListener. */
+function type(view: EditorView, text: string) {
+  view.dispatch({
+    changes: { from: view.state.doc.length, insert: text },
+  })
+}
+
+describe('mounting', () => {
+  test('starts empty when no state is given', () => {
+    const h = mount()
+    expect(h.view.state.doc.toString()).toBe('')
+  })
+
+  test('loads the doc and selection from a snapshot', () => {
+    const h = mount({
+      state: {
+        doc: 'hello\nworld',
+        selection: { main: 0, ranges: [{ anchor: 3, head: 3 }] },
+      },
+    })
+    expect(h.view.state.doc.toString()).toBe('hello\nworld')
+    expect(h.view.state.selection.main.head).toBe(3)
+  })
+
+  test('accepts a doc-only snapshot, with the cursor at the start', () => {
+    const h = mount({ state: { doc: 'seeded from plain text' } })
+    expect(h.view.state.doc.toString()).toBe('seeded from plain text')
+    expect(h.view.state.selection.main.head).toBe(0)
+  })
+
+  test('applies the language placeholder and wrap setting', () => {
+    const h = mount({ language: 'prose' })
+    expect(h.container.querySelector('.cm-lineWrapping')).not.toBeNull()
+    expect(h.container.textContent).toContain('prose')
+  })
+
+  test('an unknown language key falls back rather than throwing', () => {
+    const h = mount({ language: 'nope' })
+    expect(h.view.state.doc.toString()).toBe('')
+    expect(h.container.textContent).toContain('start typing in nope')
+  })
+})
+
+/** The family the editor is actually asking for, read off the custom property. */
+function fontOf(h: Handle) {
+  const root = h.container.querySelector('.cm-editor') as HTMLElement
+  return getComputedStyle(root).getPropertyValue(FONT_VAR).trim()
+}
+
+describe('font selection', () => {
+  test('defaults to inconsolata', () => {
+    const h = mount()
+    expect(fontOf(h)).toBe(FONT_STACKS.inconsolata)
+  })
+
+  test('a language can prefer a family', () => {
+    const h = mount({ language: 'scripty' })
+    expect(fontOf(h)).toBe(FONT_STACKS['ncm-mono'])
+  })
+
+  test('the prop overrides the language preference', () => {
+    const h = mount({ language: 'scripty', font: 'inconsolata' })
+    expect(fontOf(h)).toBe(FONT_STACKS.inconsolata)
+  })
+
+  test('switches without remounting the view', () => {
+    const h = mount({ font: 'inconsolata' })
+    const before = h.view
+
+    h.update({ font: 'ncm-mono' })
+
+    expect(fontOf(h)).toBe(FONT_STACKS['ncm-mono'])
+    expect(h.view).toBe(before)
+  })
+
+  test('survives a file switch', () => {
+    const h = mount({ fileId: 'a.txt', font: 'ncm-mono' })
+    h.update({ fileId: 'b.txt' })
+    expect(fontOf(h)).toBe(FONT_STACKS['ncm-mono'])
+  })
+})
+
+describe('serialization', () => {
+  test('round-trips doc, selection and folds through a snapshot', () => {
+    const first = mount({ state: { doc: 'one\ntwo\nthree\nfour' } })
+    first.view.dispatch({
+      selection: { anchor: 4, head: 7 },
+      effects: foldEffect.of({ from: 8, to: 17 }),
+    })
+
+    const snapshot = serializeEditorState(first.view)
+    expect(snapshot.doc).toBe('one\ntwo\nthree\nfour')
+    expect(snapshot.selection?.ranges[0]).toEqual({ anchor: 4, head: 7 })
+    expect(snapshot.folds).toEqual([8, 17])
+
+    first.unmount()
+
+    const second = mount({ state: snapshot })
+    expect(second.view.state.doc.toString()).toBe('one\ntwo\nthree\nfour')
+    expect(second.view.state.selection.main.anchor).toBe(4)
+    expect(serializeEditorState(second.view).folds).toEqual([8, 17])
+  })
+})
+
+describe('saving', () => {
+  test('debounces, then reports the doc and the file it belongs to', async () => {
+    const onSave = mock()
+    const h = mount({ onSave, fileId: 'a.txt' })
+
+    type(h.view, 'a')
+    type(h.view, 'b')
+    expect(onSave).not.toHaveBeenCalled()
+
+    await tick()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const [state, fileId] = onSave.mock.calls[0]!
+    expect(state.doc).toBe('ab')
+    expect(fileId).toBe('a.txt')
+  })
+
+  test('calls the latest onSave, not the one from the first render', async () => {
+    const first = mock()
+    const second = mock()
+    const h = mount({ onSave: first })
+
+    h.update({ onSave: second })
+    type(h.view, 'x')
+    await tick()
+
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledTimes(1)
+  })
+
+  test('honours a debounce delay changed after mount', async () => {
+    const onSave = mock()
+    const h = mount({ onSave, onSaveDebounceDelay: 5_000 })
+
+    h.update({ onSaveDebounceDelay: DEBOUNCE })
+    type(h.view, 'x')
+    await tick()
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  test('flushes a pending save on unmount', () => {
+    const onSave = mock()
+    const h = mount({ onSave })
+
+    type(h.view, 'x')
+    h.unmount()
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0]![0].doc).toBe('x')
+  })
+})
+
+describe('switching files', () => {
+  test('flushes the outgoing file under its own id, then loads the new state', () => {
+    const onSave = mock()
+    const h = mount({ onSave, fileId: 'a.txt' })
+
+    type(h.view, 'from a')
+    h.update({ fileId: 'b.txt', state: { doc: 'from b' } })
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0]![1]).toBe('a.txt')
+    expect(onSave.mock.calls[0]![0].doc).toBe('from a')
+    expect(h.view.state.doc.toString()).toBe('from b')
+  })
+
+  test('keeps the current language config across the switch', () => {
+    const h = mount({ fileId: 'a.txt', language: 'flat' })
+    expect(h.container.querySelector('.cm-lineWrapping')).toBeNull()
+
+    h.update({ language: 'prose' })
+    expect(h.container.querySelector('.cm-lineWrapping')).not.toBeNull()
+
+    // the regression: the reloaded state used to revert to the mount-time config
+    h.update({ fileId: 'b.txt' })
+    expect(h.container.querySelector('.cm-lineWrapping')).not.toBeNull()
+  })
+
+  test('still saves edits made after the switch, under the new id', async () => {
+    const onSave = mock()
+    const h = mount({ onSave, fileId: 'a.txt' })
+
+    h.update({ fileId: 'b.txt' })
+    type(h.view, 'later')
+    await tick()
+
+    const last = onSave.mock.calls.at(-1)!
+    expect(last[1]).toBe('b.txt')
+    expect(last[0].doc).toBe('later')
+  })
+})
+
+describe('dirty state', () => {
+  test('fires on the edges only', async () => {
+    const onDirtyChange = mock()
+    const h = mount({ onSave: mock(), onDirtyChange })
+
+    type(h.view, 'a')
+    type(h.view, 'b')
+    expect(onDirtyChange.mock.calls).toEqual([[true, 'a.txt']])
+
+    await tick()
+    expect(onDirtyChange.mock.calls).toEqual([
+      [true, 'a.txt'],
+      [false, 'a.txt'],
+    ])
+  })
+
+  test('stays quiet when nothing has been edited', () => {
+    const onDirtyChange = mock()
+    mount({ onDirtyChange, state: { doc: 'preloaded' } })
+    expect(onDirtyChange).not.toHaveBeenCalled()
+  })
+})
+
+describe('defaultExtensions options', () => {
+  test('omits the line-number gutter by default', () => {
+    const h = mount()
+    expect(h.container.querySelector('.cm-lineNumbers')).toBeNull()
+  })
+
+  test('adds it when asked', () => {
+    const h = mount({
+      baseExtensions: defaultExtensions({ lineNumbers: true }),
+      state: { doc: 'a\nb\nc' },
+    })
+    expect(h.container.querySelector('.cm-lineNumbers')).not.toBeNull()
+  })
+
+  test('folding survives even with the gutter off, so snapshots stay loadable', () => {
+    const h = mount({
+      baseExtensions: defaultExtensions({ foldGutter: false }),
+      state: { doc: 'one\ntwo\nthree', folds: [4, 7] },
+    })
+    expect(serializeEditorState(h.view).folds).toEqual([4, 7])
+  })
+})

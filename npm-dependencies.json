@@ -493,5 +493,9 @@
   "src": "^1.1.2",
   "chalk": "^6.0.0",
   "fflate": "^0.8.3",
-  "hono": "^4.13.5"
+  "hono": "^4.13.5",
+  "@testing-library/react": "^16.3.3",
+  "@lezer/highlight": "^1.2.3",
+  "@codemirror/search": "^6.7.2",
+  "@codemirror/autocomplete": "^6.20.3"
 }
