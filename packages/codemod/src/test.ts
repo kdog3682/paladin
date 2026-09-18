@@ -258,9 +258,15 @@ export async function testAll() {
   }
 }
 
+/** A path to a transform, a command, or a corpus file stands for the corpus it belongs to. */
+function corpusName(arg: string) {
+  if (!arg.includes('/')) return arg
+  return arg.match(/(?:transforms|commands|corpus)\/([^/.]+)(?:\.ts|\/)/)?.[1] ?? arg
+}
+
 if (import.meta.main) {
   const args = process.argv.slice(2)
-  const names = args.filter(arg => !arg.startsWith('-'))
+  const names = args.filter(arg => !arg.startsWith('-')).map(corpusName)
 
   if (names.length === 0) {
     const { pass, passed, failed, summaries } = await testAll()

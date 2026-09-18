@@ -76,6 +76,12 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     command: `bun run @paladin/recast/runner.ts`,
     purpose: "script",
   },
+  {
+    id: "codemod",
+    matches: { kind: "codemod" },
+    command: `bun run @paladin/codemod/test.ts`,
+    purpose: "test",
+  },
 ]
 
 const DEFAULT_KINDS = new Set(DEFAULT_REGISTRATIONS.map((registration) => registration.matches.kind))
@@ -89,6 +95,11 @@ const DEFAULT_KINDS = new Set(DEFAULT_REGISTRATIONS.map((registration) => regist
 const PATTERN_KINDS: { kind: string; pattern: RegExp }[] = [
   { kind: "example", pattern: /\.examples\.\w+$/ },
   { kind: "recast-spec", pattern: /(^|\/)packages\/recast\/src\/specs\// },
+  // a transform, a command, or a file of the corpus they are tested against (classify() calls those "corpus")
+  {
+    kind: "codemod",
+    pattern: /(^|\/)packages\/codemod\/(src\/(transforms|commands)\/[^/]+|corpus\/[^/]+\/(input|output))\.ts$/,
+  },
 ]
 
 /** Whether `path` is runnable under the default registrations, independent of any CodeRunner instance. */
