@@ -28,9 +28,9 @@ export function addNamedImport(
   file: SourceFile,
   target: SourceFile,
   name: string,
-  options: { alias?: string; isTypeOnly?: boolean; insertIndex?: number } = {},
+  options: { alias?: string; isTypeOnly?: boolean; inlineType?: boolean; insertIndex?: number } = {},
 ): ImportSpecifier {
-  const { alias, isTypeOnly = false, insertIndex } = options
+  const { alias, isTypeOnly = false, inlineType = false, insertIndex } = options
 
   for (const declaration of getImportsOf(file, target)) {
     if (declaration.isTypeOnly() !== isTypeOnly) continue
@@ -40,11 +40,11 @@ export function addNamedImport(
       .getNamedImports()
       .find(specifier => specifier.getName() === name && specifier.getAliasNode()?.getText() === alias)
 
-    return existing ?? declaration.addNamedImport({ name, alias })
+    return existing ?? declaration.addNamedImport({ name, alias, isTypeOnly: inlineType })
   }
 
   const moduleSpecifier = file.getRelativePathAsModuleSpecifierTo(target)
-  const structure = { moduleSpecifier, isTypeOnly, namedImports: [{ name, alias }] }
+  const structure = { moduleSpecifier, isTypeOnly, namedImports: [{ name, alias, isTypeOnly: inlineType }] }
   const declaration =
     insertIndex === undefined ? file.addImportDeclaration(structure) : file.insertImportDeclaration(insertIndex, structure)
   stripTrailingSemicolon(declaration)
