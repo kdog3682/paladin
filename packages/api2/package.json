@@ -2,12 +2,9 @@
   "name": "@paladin/api2",
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {},
   "dependencies": {
     "@paladin/utils": "workspace:*",
     "fflate": "^0.8.3",
