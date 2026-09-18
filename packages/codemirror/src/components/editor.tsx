@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, placeholder } from '@codemirror/view'
-import { defaultExtensions } from '../extensions'
+import { defaultExtensions } from '../defaultExtensions'
 import { DEFAULT_FONT, type FontKey, fontExtension } from '../fonts'
 import { type LanguageMap, type ResolvedLanguage, resolveLanguage } from '../languages'
 import {
