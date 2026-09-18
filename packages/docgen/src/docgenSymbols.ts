@@ -37,6 +37,9 @@ const WORD = /[A-Za-z_$][\w$]*/g
 /** `@scope` or `@scope/pkg` not preceded by a word char, `@`, `/` or `.` (skips emails, paths). */
 const SPEC = /(?<![\w@/.])@[A-Za-z0-9][\w-]*(?:\/[A-Za-z0-9][\w.-]*)?/g
 
+/** Symbols common enough that pulling their docs into every text is just noise. */
+export const DEFAULT_EXCLUDE = ["Text", "Rectangle"]
+
 const indexCache = new Map<string, SymbolIndex>()
 
 /** Split `@scope` / `@scope/pkg` into its parts. */
@@ -99,13 +102,15 @@ export function specsInText(text: string): string[] {
 
 /**
  * Find the specs mentioned in `text` (unresolvable ones are ignored), then
- * every word naming a symbol exported by those packages.
+ * every word naming a symbol exported by those packages. `exclude` drops
+ * symbol names from the result; defaults to `DEFAULT_EXCLUDE`.
  */
-export function fromText(text: string): TextSymbols {
+export function fromText(text: string, exclude: string[] = DEFAULT_EXCLUDE): TextSymbols {
   const specs = normalizeSpecs(specsInText(text).filter(isResolvable))
   if (specs.length === 0) return { specs, symbols: [] }
   const words = text.replace(SPEC, " ")
-  return { specs, symbols: symbolsInText(words, indexSpecs(specs)) }
+  const excluded = new Set(exclude)
+  return { specs, symbols: symbolsInText(words, indexSpecs(specs)).filter((name) => !excluded.has(name)) }
 }
 
 /** Unique words in `text` that are keys of `index`, in order of first appearance. */
@@ -136,11 +141,17 @@ export async function docgenSymbols(
   return docs.join("\n")
 }
 
+export type DocgenTextOptions = DocgenOptions & {
+  /** Symbol names to drop from the text scan. Defaults to `DEFAULT_EXCLUDE`. */
+  exclude?: string[]
+}
+
 /** Generate docs for every symbol mentioned in `text` from the specs it mentions. */
-export async function docgenText(text: string, options: DocgenOptions = {}): Promise<string> {
-  const { specs, symbols } = fromText(text)
+export async function docgenText(text: string, options: DocgenTextOptions = {}): Promise<string> {
+  const { exclude, ...rest } = options
+  const { specs, symbols } = fromText(text, exclude)
   if (specs.length === 0) return ""
-  return docgenSymbols(specs, symbols, options)
+  return docgenSymbols(specs, symbols, rest)
 }
 
 /** Map symbol names to docgen entry points. Omitted `symbols` means all. */
