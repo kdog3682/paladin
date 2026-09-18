@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { Project } from 'ts-morph'
+import { withoutInsertedSemicolons } from './utils/semicolons'
 
 const PROJECTS = join(homedir(), 'projects')
 
@@ -74,10 +75,12 @@ export type CommandInvocation = { command: string; args: unknown[] }
 export async function runCommands(commands: CommandInvocation[], project: Project | string) {
   const target = typeof project === 'string' ? createProject(project) : project
 
-  for (const { command, args } of commands) {
-    const fn = await loadCommand(command)
-    await fn(target, ...args)
-  }
+  await withoutInsertedSemicolons(target, async () => {
+    for (const { command, args } of commands) {
+      const fn = await loadCommand(command)
+      await fn(target, ...args)
+    }
+  })
 
   return target
 }
@@ -85,10 +88,12 @@ export async function runCommands(commands: CommandInvocation[], project: Projec
 export async function run(names: string[], project: Project | string) {
   const target = typeof project === 'string' ? createProject(project) : project
 
-  for (const name of names) {
-    const codemod = await loadCodemod(name)
-    await codemod(target)
-  }
+  await withoutInsertedSemicolons(target, async () => {
+    for (const name of names) {
+      const codemod = await loadCodemod(name)
+      await codemod(target)
+    }
+  })
 
   return target
 }
