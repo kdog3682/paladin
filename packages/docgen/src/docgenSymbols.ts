@@ -126,9 +126,14 @@ export async function docgenSymbols(
   symbols?: string[],
   options: DocgenOptions = {},
 ): Promise<string> {
-  const entries = toEntryPoints(spec, symbols)
-  if (entries.length === 0) return ""
-  return docgen(entries, options)
+  const index = indexSpecs(spec)
+  const groups = entryPointsByPackage(symbols ?? [...index.keys()], index)
+  const docs: string[] = []
+  for (const entries of groups.values()) {
+    const doc = await docgen(entries, options)
+    if (doc) docs.push(doc)
+  }
+  return docs.join("\n")
 }
 
 /** Generate docs for every symbol mentioned in `text` from the specs it mentions. */
@@ -155,6 +160,32 @@ export function entryPointsFor(symbols: string[], index: SymbolIndex): EntryPoin
     }
   }
   return [...byFile.entries()].map(([file, names]) => ({ file, symbols: [...names] }))
+}
+
+/**
+ * Map symbol names to entry points, grouped by declaring package and then
+ * file. Kept separate per package so `docgen` never attributes a symbol to
+ * the wrong package's barrel when a spec spans several packages.
+ */
+export function entryPointsByPackage(symbols: string[], index: SymbolIndex): Map<string, EntryPoint[]> {
+  const byPackage = new Map<string, Map<string, Set<string>>>()
+  for (const name of symbols) {
+    for (const hit of index.get(name) ?? []) {
+      let byFile = byPackage.get(hit.package)
+      if (!byFile) {
+        byFile = new Map()
+        byPackage.set(hit.package, byFile)
+      }
+      const bucket = byFile.get(hit.file)
+      if (bucket) bucket.add(hit.local)
+      else byFile.set(hit.file, new Set([hit.local]))
+    }
+  }
+  const result = new Map<string, EntryPoint[]>()
+  for (const [pkg, byFile] of byPackage) {
+    result.set(pkg, [...byFile.entries()].map(([file, names]) => ({ file, symbols: [...names] })))
+  }
+  return result
 }
 
 /**
