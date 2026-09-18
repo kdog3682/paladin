@@ -46,7 +46,7 @@ export function render(result: DocgenResult, options: RenderOptions): string {
 
   const barrel = barrelSpecifier(result, options.barrel)
   const blocks: string[] = []
-  if (result.package) blocks.push(result.package)
+  if (result.package && !barrel) blocks.push(result.package)
   const imports = [...renderExternals(result.externals, format.width), ...renderBarrel(result, barrel, ctx)]
   if (imports.length > 0) blocks.push(imports.join("\n"))
 
