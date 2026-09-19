@@ -1,12 +1,9 @@
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { homedir } from 'os'
+import { openInBrowser } from './openInBrowser'
 
 const SCRATCH_PATH = join(homedir(), 'trash', 'scratch.temp.content.txt')
-
-function open(url: string) {
-  Bun.spawn(['python3', '-c', `import webbrowser; webbrowser.open('${url}')`])
-}
 
 function looksLikeUrl(text: string) {
   return text.length < 100 && !text.includes('\n') && /\.[a-z]{2,}(\/\S*)?$/i.test(text)
@@ -23,12 +20,12 @@ export async function clip(...contents: unknown[]) {
   if (trimmed === '') return
 
   if (looksLikeUrl(trimmed)) {
-    open(trimmed)
+    openInBrowser(trimmed)
     return trimmed
   }
 
   await mkdir(join(homedir(), 'scratch'), { recursive: true })
   await writeFile(SCRATCH_PATH, text, 'utf-8')
-  open(`file://${SCRATCH_PATH}`)
+  openInBrowser(`file://${SCRATCH_PATH}`)
   return SCRATCH_PATH
 }
