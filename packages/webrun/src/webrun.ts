@@ -90,7 +90,11 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     }
 
     // different app, or a dead/stale server — take the old one down first
-    if (state && alive(state.pid)) await kill(state.pid, settle)
+    if (state && alive(state.pid)) {
+      await kill(state.pid, settle)
+      // state.json is the only record of this server — never drop it while it may still be running
+      if (alive(state.pid)) throw new Error(`could not stop the previous server (pid ${state.pid})`)
+    }
     await clearState()
 
     const layout = await plan(app, opts)
@@ -100,11 +104,8 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     const url = `http://127.0.0.1:${port}/`
     started = await spawnVite(layout, port)
 
-    if (!(await waitReady(url, started.pid, timeout))) {
-      const why = await tail(started.log)
-      throw new Error(why || `vite failed to start on port ${port}`)
-    }
-
+    // recorded the moment it exists, not once it's ready: if this process dies
+    // mid-startup the next call still finds the server through state.json
     await writeState({
       app,
       pid: started.pid,
@@ -116,6 +117,11 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       startedAt: Date.now(),
       runs: 1,
     })
+
+    if (!(await waitReady(url, started.pid, timeout))) {
+      const why = await tail(started.log)
+      throw new Error(why || `vite failed to start on port ${port}`)
+    }
 
     if (opts.open !== false) await openUrl(url)
     return url
