@@ -14,7 +14,6 @@ function inlineWrap(state: EditorState, range: SelectionRange, open: string, clo
   return {
     changes: { from: range.from, to: range.to, insert: open + inner + close },
     range: EditorSelection.range(anchor, anchor + inner.length),
-    reinsert: false,
   }
 }
 
@@ -33,7 +32,6 @@ function blockWrap(state: EditorState, range: SelectionRange, open: string, clos
   return {
     changes: { from, to, insert: head + body + '\n' + base + close },
     range: EditorSelection.range(from + head.length, from + head.length + body.length),
-    reinsert: false,
   }
 }
 

@@ -1,16 +1,7 @@
-import { Annotation, EditorSelection, type EditorState, type SelectionRange, type TransactionSpec } from '@codemirror/state'
+import { EditorSelection, type EditorState, type SelectionRange, type TransactionSpec } from '@codemirror/state'
 import type { ResolvedConfig } from './config'
 import type { InputRule, RuleContext, RuleResult } from './types'
 import { matchWrap } from './wraps'
-
-export type InputRuleEvent = {
-  /* the physical character the user pressed */
-  typed: string
-  /* whether Backspace should re-insert `typed` after reverting */
-  reinsert: boolean
-}
-
-export const inputRuleEvent = Annotation.define<InputRuleEvent>()
 
 const EMPTY_MATCH = Object.assign([''] as unknown as RegExpMatchArray, { index: 0, input: '' })
 
@@ -78,9 +69,8 @@ export function applyRules(
     const { text, cursor } = splitCursor(raw)
     const from = range.from - match[0].length
     return {
-      changes: { from, to: range.to, insert: text },
+      changes: { from, to: Math.min(range.to + (rule.skip ?? 0), endLine.to), insert: text },
       range: EditorSelection.cursor(from + cursor),
-      reinsert: true,
     }
   }
 
@@ -89,7 +79,6 @@ export function applyRules(
     return {
       changes: { from: range.from, to: range.to, insert: char },
       range: EditorSelection.cursor(range.from + char.length),
-      reinsert: true,
     }
   }
 
@@ -106,7 +95,6 @@ export function inputRuleTransaction(
   const results = state.selection.ranges.map((range) => applyRules(state, range, typed, config))
   if (!results.some((result) => result !== null)) return null
 
-  let reinsert = true
   let index = 0
   const spec = state.changeByRange((range) => {
     const result = results[index++]
@@ -117,13 +105,11 @@ export function inputRuleTransaction(
         range: EditorSelection.cursor(range.from + typed.length),
       }
     }
-    if (!result.reinsert) reinsert = false
     return { changes: result.changes, range: result.range }
   })
   return {
     ...spec,
     scrollIntoView: true,
     userEvent: 'input.type',
-    annotations: inputRuleEvent.of({ typed, reinsert }),
   }
 }

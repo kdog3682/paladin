@@ -29,6 +29,8 @@ export type InputRule = {
   when?: (ctx: RuleContext) => boolean
   /* the replacement for match[0] plus the typed character */
   insert: Insert
+  /* characters after the cursor to replace as well, eg 1 to step over an auto-closed pair */
+  skip?: number
 }
 
 export type WrapSpec = {
@@ -47,6 +49,4 @@ export type RuleResult = {
   changes: { from: number, to: number, insert: string }
   /* the selection for this range once the change is applied */
   range: SelectionRange
-  /* false when Backspace should only revert, not re-insert the typed character */
-  reinsert: boolean
 }

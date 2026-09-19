@@ -3,7 +3,7 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import type { SelectionRange } from '@codemirror/state'
 import { inputRuleTransaction, splitCursor } from './apply'
 import { resolveConfig, type ResolvedConfig } from './config'
-import { packedInputRules } from './index'
+import { packedInputRules, templates } from './index'
 import { HORIZONTAL_RULE } from './presets/markdown'
 
 const config = resolveConfig(packedInputRules)
@@ -185,6 +185,52 @@ describe('brackets', () => {
   })
 })
 
+describe('code', () => {
+  test('a backtick opens an empty pair', () => {
+    expect(type('|', '`')).toBe('`|`')
+    expect(type('a |', '`')).toBe('a `|`')
+  })
+
+  test('a backtick before text is left alone', () => {
+    expect(type('|foo', '`')).toBe('`|foo')
+  })
+
+  test('the closing backtick is stepped over', () => {
+    expect(type('|', '`x`')).toBe('`x`|')
+  })
+
+  test('three backticks at the line start open a fenced block', () => {
+    expect(type('|', '```')).toBe('```\n|\n```')
+    expect(type('  |', '```')).toBe('  ```\n  |\n  ```')
+  })
+
+  test('three backticks mid-line stay bare', () => {
+    expect(type('a |', '```')).toBe('a ```|')
+  })
+
+  test('a selection is wrapped in backticks', () => {
+    expect(type('«foo»', '`')).toBe('`«foo»`')
+  })
+
+  test('a language typed on an empty line expands to a fenced block', () => {
+    expect(type('|', 'ts')).toBe('```ts\n|\n```')
+    expect(type('  |', 'py')).toBe('  ```py\n  |\n  ```')
+  })
+
+  test('a language mid-line, inside a word or before text is left alone', () => {
+    expect(type('a |', 'ts')).toBe('a ts|')
+    expect(type('|', 'pits')).toBe('pits|')
+    expect(type('t|x', 's')).toBe('ts|x')
+  })
+
+  test('a template can wait for an explicit trigger', () => {
+    const cfg = resolveConfig({ rules: templates({ ts: '```ts\n|\n```' }, { on: ' ' }) })
+    expect(type('|', 'ts', cfg)).toBe('ts|')
+    expect(type('|', 'ts ', cfg)).toBe('```ts\n|\n```')
+    expect(type('|foo', 'ts ', cfg)).toBe('ts |foo')
+  })
+})
+
 describe('multiple cursors', () => {
   test('every cursor runs the pipeline', () => {
     expect(type('a|b|', ',')).toBe('a, |b, |')
@@ -203,13 +249,6 @@ describe('transaction shape', () => {
   test('every application is tagged as typing', () => {
     const spec = inputRuleTransaction(parse('a|'), ',', config)!
     expect(spec.userEvent).toBe('input.type')
-  })
-
-  test('rules are re-insertable, wraps are not', () => {
-    const rule = inputRuleTransaction(parse('a|'), ',', config)!
-    const wrap = inputRuleTransaction(parse('«foo»'), '(', config)!
-    expect(rule.annotations).toMatchObject({ value: { typed: ',', reinsert: true } })
-    expect(wrap.annotations).toMatchObject({ value: { typed: '(', reinsert: false } })
   })
 
   test('an unmatched character is left to the browser', () => {
