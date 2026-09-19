@@ -28,7 +28,7 @@ function errorsOf(result: ApplyResult): string {
   return blocks.join("\n\n").trim()
 }
 
-/* artifacts written by display(), plus any emitted by a bash op */
+/* artifacts written by display(), plus any a bash op reports through a <BASH> payload */
 function artifactsOf(result: ApplyResult): string[] {
   const paths: string[] = []
   for (const run of examplesOf(result)) {

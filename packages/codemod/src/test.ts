@@ -119,7 +119,6 @@ if (import.meta.main) {
   } else {
     const summary = await test(names)
     process.exitCode = summary.pass ? 0 : 1
-    // ends on prose: a report ending in a path line gets lifted out by bash()'s extractArtifactPaths and opened in a browser
     console.log(`${printReport(summary)}\n\n${summary.passed}/${summary.passed + summary.failed} files passed`)
   }
 }

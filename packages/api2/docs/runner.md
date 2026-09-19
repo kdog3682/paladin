@@ -44,7 +44,7 @@ Command building (`toArgs`):
 | `story` | story, `tsx` | `bun run @paladin/storylite` | `enabled: false` (TODO) |
 | `example` | example | `bun run @paladin/exemplar/cli.ts` | grouped, accepts options, purpose `example` |
 | `recast-spec` | recast-spec | `bun run @paladin/recast/runner.ts` | purpose `script`; see [runners/recast-spec.md](./runners/recast-spec.md) |
-| `webrun` | basename `App.tsx` | `bun run @paladin/webrun/webrun.ts` | purpose `demo` |
+| `webrun` | basename `App.tsx` | `bun run @paladin/webrun/cli.ts` | purpose `demo` |
 | `codemod` | codemod | `bun run @paladin/codemod/test.ts` | purpose `test`; see `packages/codemod/README.md` |
 
 `ScaffoldService` takes `codeRunner: { registrations?, disabled?, scopedRunOptions? }`; `registrations` replaces the defaults wholesale.
@@ -58,7 +58,7 @@ Command building (`toArgs`):
 
 ## What happens to the commands
 
-`apply` merges the runner's ops with the rest: duplicates (same cwd + args) collapse, and they run after writes, ordered by purpose. Non-zero exits are recorded on the op (`reason: "exit N"`, stdout/stderr/`data` in `result`) and don't stop anything unless the registration is `strict`. `print.ts` reads example runs off `result.data` (`files[].items[].error`, `displayError`, `artifactPath`, `artifactPaths`) to surface errors and artifacts.
+`apply` merges the runner's ops with the rest: duplicates (same cwd + args) collapse, and they run after writes, ordered by purpose. Non-zero exits are recorded on the op (`reason: "exit N"`, stdout/stderr/`data` in `result`) and don't stop anything unless the registration is `strict`. `print.ts` reads example runs off `result.data` (`files[].items[].error`, `displayError`, `artifactPath`, `artifactPaths`) to surface errors and artifacts. Only `<BASH>` payloads (`markBashPayload`) become `result.data`; plain stdout is never scanned for paths.
 
 ## Tests
 

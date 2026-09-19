@@ -43,12 +43,9 @@ describe('extractData', () => {
     expect(extractData(stdout)).toEqual({ text: 'building...', data: { ok: true, count: 3 } })
   })
 
-  test('falls back to a trailing run of artifact paths when there is no <BASH> pair', () => {
+  test('leaves trailing paths as text: only a <BASH> payload is structured', () => {
     const stdout = 'compiling\nwrote dist/a.js\nwrote dist/b.js\n'
-    expect(extractData(stdout)).toEqual({
-      text: 'compiling',
-      data: { artifactPaths: ['dist/a.js', 'dist/b.js'] },
-    })
+    expect(extractData(stdout)).toEqual({ text: 'compiling\nwrote dist/a.js\nwrote dist/b.js' })
   })
 
   test('returns plain text when nothing structured is present', () => {

@@ -1,5 +1,4 @@
 import { isAbsolute, relative } from 'node:path'
-import { extractArtifactPaths } from './extractArtifactPaths'
 import type { BashType } from './types'
 
 const BUN_VERSION_RE = /bun (?:test )?v[\d.]+\s*(?:\(.*?\))?/i
@@ -22,9 +21,9 @@ export function typeOf(args: string[]): BashType {
 }
 
 /**
- * Lift structured data out of stdout. Explicit <BASH> payloads win; failing
- * that, a trailing run of logged paths collapses into artifactPaths and only
- * the prose above it is kept as text.
+ * Lift structured data out of stdout. Only explicit <BASH> payloads (see
+ * markBashPayload) count; everything else stays text, however much it looks
+ * like a path.
  */
 export function extractData(s: string): { text: string; data?: unknown } {
   const found: unknown[] = []
@@ -39,8 +38,6 @@ export function extractData(s: string): { text: string; data?: unknown } {
     })
     .trim()
   if (found.length > 0) return { text, data: found.length === 1 ? found[0] : found }
-  const artifacts = extractArtifactPaths(text)
-  if (artifacts) return { text: artifacts.text, data: { artifactPaths: artifacts.paths } }
   return { text }
 }
 

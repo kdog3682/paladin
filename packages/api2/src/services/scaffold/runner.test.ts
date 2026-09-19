@@ -143,7 +143,7 @@ describe("CodeRunner", () => {
 
     expect(ops).toHaveLength(1)
     expect(ops[0]!.args.slice(0, 2)).toEqual(["bun", "run"])
-    expect(ops[0]!.args[2]).toEndWith("/webrun/src/webrun.ts")
+    expect(ops[0]!.args[2]).toEndWith("/webrun/src/cli.ts")
     expect(ops[0]!.args[3]).toBe("/p/src/App.tsx")
   })
 

@@ -82,7 +82,7 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
   {
     id: "webrun",
     matches: { basename: "App.tsx" },
-    command: `bun run @paladin/webrun/webrun.ts`,
+    command: `bun run @paladin/webrun/cli.ts`,
     purpose: "demo",
   },
 ]
