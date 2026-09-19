@@ -146,12 +146,58 @@ export type DocgenTextOptions = DocgenOptions & {
   exclude?: string[]
 }
 
-/** Generate docs for every symbol mentioned in `text` from the specs it mentions. */
+const BROWSER_INSTRUCTIONS_FILE = "CLAUDE_BROWSER_INSTRUCTIONS.md"
+
+/** Package root dirs implied by `specs`: the pkg's dir for `@scope/pkg`, every package dir under the scope for `@scope`. */
+function packageDirsForSpecs(specs: string[]): string[] {
+  const dirs: string[] = []
+  for (const spec of specs) {
+    const { scope, pkg } = parseSpec(spec)
+    if (pkg) {
+      dirs.push(resolveScopedPath(spec))
+      continue
+    }
+    const packagesDir = join(resolveScopedPath(scope), "packages")
+    if (!existsSync(packagesDir)) continue
+    for (const dirent of readdirSync(packagesDir, { withFileTypes: true })) {
+      if (dirent.isDirectory()) dirs.push(join(packagesDir, dirent.name))
+    }
+  }
+  return dirs
+}
+
+/**
+ * Contents of `CLAUDE_BROWSER_INSTRUCTIONS.md` for each package implied by
+ * `specs` that actually has one, labeled by package name since not every
+ * package does.
+ */
+function browserInstructionsFor(specs: string[]): string {
+  const sections: string[] = []
+  for (const dir of packageDirsForSpecs(specs)) {
+    const file = join(dir, BROWSER_INSTRUCTIONS_FILE)
+    if (!existsSync(file)) continue
+    const pkg = readPackageName(dir, dir.split("/").pop()!)
+    sections.push(`## ${pkg}\n\n${readFileSync(file, "utf8").trim()}`)
+  }
+  return sections.join("\n\n")
+}
+
+/**
+ * Generate docs for every symbol mentioned in `text` from the specs it
+ * mentions, plus an `# Instructions` section echoing `text` itself. When a
+ * mentioned package has a `CLAUDE_BROWSER_INSTRUCTIONS.md`, its contents lead
+ * the `# Reference API` section.
+ */
 export async function docgenText(text: string, options: DocgenTextOptions = {}): Promise<string> {
   const { exclude, ...rest } = options
   const { specs, symbols } = fromText(text, exclude)
-  if (specs.length === 0) return ""
-  return docgenSymbols(specs, symbols, rest)
+  const markdown = specs.length ? await docgenSymbols(specs, symbols, rest) : ""
+  const top = specs.length ? browserInstructionsFor(specs) : ""
+  const sections = [
+    markdown.trim() && `# Reference API\n\n${top ? `${top}\n\n` : ""}${markdown.trim()}`,
+    `# Instructions\n\n${text.trim()}`,
+  ]
+  return sections.filter(Boolean).join("\n\n")
 }
 
 /** Map symbol names to docgen entry points. Omitted `symbols` means all. */
