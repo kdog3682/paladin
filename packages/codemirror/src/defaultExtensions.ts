@@ -22,6 +22,7 @@ import {
   indentUnit,
 } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
+import { bracketIndent } from './extensions/bracketIndent'
 
 export type DefaultExtensionOptions = {
   /** Line-number gutter. Defaults to false — wanted for code, not for prose. */
@@ -77,7 +78,7 @@ export function defaultExtensions(
     undoRedo ? history() : [],
     find ? search() : [],
     reindent ? indentOnInput() : [],
-    brackets ? [closeBrackets(), bracketMatching()] : [],
+    brackets ? [closeBrackets(), bracketMatching(), bracketIndent()] : [],
     showLineNumbers ? lineNumbers() : [],
     showFoldGutter ? foldGutter() : [],
     showActiveLine
