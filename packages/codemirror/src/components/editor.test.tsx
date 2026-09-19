@@ -330,4 +330,41 @@ describe('defaults', () => {
     const h = mount({ fileId: 'scratchpad', state: { doc: 'explicit' } })
     expect(h.view.state.doc.toString()).toBe('explicit')
   })
+
+  describe('leaving the page', () => {
+    const hide = () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    }
+
+    test('hiding the tab with unsaved edits saves to localStorage immediately', () => {
+      const h = mount({ fileId: 'a.txt', onSaveDebounceDelay: 60_000 })
+      type(h.view, 'unsaved')
+      expect(localStorage.getItem('paladin:editor:a.txt')).toBeNull()
+      hide()
+      expect(JSON.parse(localStorage.getItem('paladin:editor:a.txt')!).doc).toBe('unsaved')
+    })
+
+    test('calls onLeave once per burst of edits, even when both events fire', () => {
+      const onLeave = mock()
+      const h = mount({ onLeave, onSaveDebounceDelay: 60_000 })
+      type(h.view, 'x')
+      hide()
+      window.dispatchEvent(new Event('pagehide'))
+      expect(onLeave).toHaveBeenCalledTimes(1)
+      expect(onLeave.mock.calls[0]![1]).toBe('a.txt')
+      type(h.view, 'y')
+      window.dispatchEvent(new Event('pagehide'))
+      expect(onLeave).toHaveBeenCalledTimes(2)
+    })
+
+    test('does nothing when there is nothing unsaved', () => {
+      const onLeave = mock()
+      mount({ onLeave })
+      hide()
+      window.dispatchEvent(new Event('pagehide'))
+      expect(onLeave).not.toHaveBeenCalled()
+    })
+  })
 })

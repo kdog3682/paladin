@@ -54,6 +54,15 @@ export type EditorProps = {
    * and `onLoad` to read it back.
    */
   onSave?: (state: SerializedState, fileId: string) => void
+  /**
+   * Called synchronously when the user leaves the page: the tab is hidden or the
+   * page is closing. Only fires if there are unsaved edits, once per burst of
+   * edits. It does not replace `onSave`, which still runs on its own schedule
+   * if the user comes back. Defaults to saving to localStorage; a custom one
+   * must be synchronous (eg `navigator.sendBeacon`), since the page may not
+   * outlive it.
+   */
+  onLeave?: (state: SerializedState, fileId: string) => void
   /** Debounce window for onSave, in ms. Defaults to 30_000. */
   onSaveDebounceDelay?: number
   /** Fires on the edges only: true on the first edit after a save, false once onSave has run. */
@@ -90,6 +99,7 @@ export function Editor(props: EditorProps) {
     baseExtensions,
     onLoad = loadFromLocalStorage,
     onSave = saveToLocalStorage,
+    onLeave = saveToLocalStorage,
     onSaveDebounceDelay = 30_000,
     onDirtyChange,
     onViewReady,
@@ -101,12 +111,16 @@ export function Editor(props: EditorProps) {
   // the file a pending save belongs to — advanced only once that save has flushed
   const fileIdRef = useRef(fileId)
   const dirtyRef = useRef(false)
+  // set once the current edits have been handed to onLeave, so the several
+  // events a closing tab fires don't each write
+  const leftRef = useRef(false)
 
   const langRef = useLatest(resolveLanguage(language, languages))
   const fontRef = useLatest(font)
   const stateRef = useLatest(state)
   const onLoadRef = useLatest(onLoad)
   const onSaveRef = useLatest(onSave)
+  const onLeaveRef = useLatest(onLeave)
   const onDirtyChangeRef = useLatest(onDirtyChange)
   const onViewReadyRef = useLatest(onViewReady)
 
@@ -142,6 +156,7 @@ export function Editor(props: EditorProps) {
       configCompartment.of(buildLanguageConfig(langRef.current, fontRef.current)),
       EditorView.updateListener.of((u) => {
         if (!u.docChanged) return
+        leftRef.current = false
         setDirty(true)
         saver.run()
       }),
@@ -163,6 +178,26 @@ export function Editor(props: EditorProps) {
       saver.flush()
       view.destroy()
       viewRef.current = null
+    }
+  }, [])
+
+  // leaving the page: hidden tab, closed tab, navigation. `visibilitychange`
+  // is the reliable one on mobile, `pagehide` covers the rest.
+  useEffect(() => {
+    const leave = () => {
+      const view = viewRef.current
+      if (!view || !dirtyRef.current || leftRef.current) return
+      leftRef.current = true
+      onLeaveRef.current(serializeEditorState(view), fileIdRef.current)
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') leave()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', leave)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', leave)
     }
   }, [])
 
