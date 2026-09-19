@@ -498,5 +498,7 @@
   "@lezer/highlight": "^1.2.3",
   "@codemirror/search": "^6.7.2",
   "@codemirror/autocomplete": "^6.20.3",
-  "@lezer/common": "^1.5.2"
+  "@lezer/common": "^1.5.2",
+  "@lezer/generator": "^1.8.0",
+  "@lezer/lr": "^1.4.10"
 }
