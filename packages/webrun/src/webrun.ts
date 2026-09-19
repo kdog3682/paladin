@@ -2,7 +2,7 @@ import { openInBrowser } from "@paladin/utils"
 import { existsSync } from "node:fs"
 import { relative, resolve } from "node:path"
 import { plan } from "./detect"
-import { alive, freePort, isUp, kill, spawnVite, tail, waitReady } from "./proc"
+import { DEFAULT_PORT, alive, isUp, kill, spawnVite, tail, waitPortFree, waitReady } from "./proc"
 import { clearState, readState, writeState } from "./state"
 import { scaffold } from "./scaffold"
 import type { WebrunOpts, WebrunState } from "./types"
@@ -68,7 +68,7 @@ export function formatReport(state: WebrunState) {
  * on failure (errors are the only thing logged).
  */
 export async function webrun(appPath: string, opts: WebrunOpts = {}) {
-  const { timeout = 15_000, settle = 300 } = opts
+  const { timeout = 15_000, settle = 300, port = DEFAULT_PORT } = opts
   const app = resolve(appPath)
 
   let started: { pid: number; log: string } | null = null
@@ -81,7 +81,7 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     const state = await readState()
 
     // already serving this exact app — reuse it and say so
-    if (state?.app === app && alive(state.pid) && (await isUp(state.url))) {
+    if (state?.app === app && state.port === port && alive(state.pid) && (await isUp(state.url))) {
       const reused: WebrunState = { ...state, runs: state.runs + 1 }
       await writeState(reused)
       if (opts.open) await openUrl(reused.url)
@@ -100,7 +100,8 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     const layout = await plan(app, opts)
     await scaffold(layout, app)
 
-    const port = freePort()
+    if (!(await waitPortFree(port, 2_000))) throw new Error(`port ${port} is in use by another process`)
+
     const url = `http://127.0.0.1:${port}/`
     started = await spawnVite(layout, port)
 

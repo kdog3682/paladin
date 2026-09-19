@@ -37,7 +37,8 @@ const orphan = join(fixtures, "project", "src", "Orphan.tsx")
 
 // every call passes this: no browser windows pop open during a test run, but
 // everything else (vite boot, caching, pid bookkeeping) runs for real.
-const opts = { open: false }
+const PORT = 35738
+const opts = { open: false, port: PORT }
 
 /** read the cache file webrun just wrote */
 const state = async () => JSON.parse(await readFile(STATE_FILE, "utf8")) as State
@@ -116,7 +117,7 @@ describe("webrun", () => {
       const url = await webrun(hello, opts)
 
       // same url AND same pid is the assertion that matters: a new vite would
-      // have grabbed a different free port and a new pid
+      // have had a new pid
       expect(url).toBe(before.url)
 
       const after = await state()
@@ -133,8 +134,8 @@ describe("webrun", () => {
 
       const url = await webrun(bye, opts)
 
-      // new port, new process
-      expect(url).not.toBe(before.url)
+      // same fixed port, new process
+      expect(url).toBe(before.url)
       const after = await state()
       expect(after.app).toBe(bye)
       expect(after.url).toBe(url)
@@ -186,7 +187,7 @@ describe("webrun", () => {
       // their config asks for port 5199 and server.open — we pass --port with
       // --strictPort and force open:false, so the run must be on our port and
       // must not have launched a browser
-      expect(s.port).not.toBe(5199)
+      expect(s.port).toBe(PORT)
       expect(await fetch(s.url).then((r) => r.ok)).toBe(true)
     },
     30_000,

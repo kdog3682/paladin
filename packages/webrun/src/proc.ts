@@ -29,11 +29,26 @@ export async function kill(pid: number, settle: number) {
   if (settle > 0) await Bun.sleep(settle)
 }
 
-export function freePort() {
-  const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("") })
-  const { port } = server
-  server.stop(true)
-  return port
+/** the port webrun always serves on, so the url (and any open tab) survives a restart */
+export const DEFAULT_PORT = 35737
+
+function bindable(port: number) {
+  try {
+    Bun.serve({ port, hostname: "127.0.0.1", fetch: () => new Response("") }).stop(true)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** poll until `port` can be bound — a killed server's socket is released a beat after its pid goes */
+export async function waitPortFree(port: number, timeout: number) {
+  const deadline = Date.now() + timeout
+  while (!bindable(port)) {
+    if (Date.now() >= deadline) return false
+    await Bun.sleep(50)
+  }
+  return true
 }
 
 export async function isUp(url: string) {

@@ -32,6 +32,8 @@ export type WebrunOpts = {
   timeout?: number
   /** ms to settle after killing a previous server. @default 300 */
   settle?: number
+  /** port to serve on. a fixed one keeps the url stable across restarts. @default 35737 */
+  port?: number
   /**
    * force the browser open, or force it shut. left alone, a freshly started
    * server opens and a reused one prints a report instead. @default undefined
