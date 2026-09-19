@@ -98,7 +98,7 @@ const PATTERN_KINDS: { kind: string; pattern: RegExp }[] = [
   // a transform, a command, or a file of the corpus they are tested against (classify() calls those "corpus")
   {
     kind: "codemod",
-    pattern: /(^|\/)packages\/codemod\/(src\/(transforms|commands)\/[^/]+|corpus\/[^/]+\/(input|output))\.ts$/,
+    pattern: /(^|\/)packages\/codemod\/(src\/(transforms|commands)\/[^/]+|corpus\/[^/]+\/(output))\.ts$/,
   },
 ]
 
