@@ -69,7 +69,7 @@ export class ScaffoldService {
    * Every stage adds ops to the unit and nothing touches disk until the end, so
    * each stage sees the world as it is plus everything the ones before it intend.
    */
-  async process(input: string): Promise<ApplyResult | null> {
+  async process(input: string | string[]): Promise<ApplyResult | null> {
     const { pathResolution, codeRunner, postProcessorOptions } = this.opts
 
     const project = await plan(input, pathResolution)

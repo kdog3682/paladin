@@ -57,11 +57,11 @@ app.post("/controller", async (c) => {
   }
 })
 
-const stopWatcher = createWatcher(async (path) => {
+const stopWatcher = createWatcher(async (paths) => {
   try {
-    await scaffold.process(path)
+    await scaffold.process(paths)
   } catch (error) {
-    console.error(`scaffold failed for ${path}`, error)
+    console.error(`scaffold failed for ${paths.join(", ")}`, error)
     broadcast.send({ kind: "error", payload: toMessage(error) })
   }
 })

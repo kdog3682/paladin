@@ -2,7 +2,7 @@ import { watch } from "node:fs"
 import { stat } from "node:fs/promises"
 import { join } from "node:path"
 
-type WatcherCallback = (path: string) => Promise<void> | void
+type WatcherCallback = (paths: string[]) => Promise<void> | void
 
 function resolveDir(): string {
   const dir = process.env.DOWNLOAD_DIR
@@ -54,16 +54,56 @@ async function waitForStable(
   return !signal.aborted
 }
 
+export type WatcherOptions = {
+  /** Quiet period after the last file arrives before the batch is handed over. Each new file restarts it. */
+  groupWaitMs?: number
+}
+
 /**
  * Watch the download directory for newly created files.
  *
+ * Files often trickle in from several downloads, so settled files are collected and
+ * handed to the callback together once no new file has arrived for `groupWaitMs`.
+ * Every arrival (and every file finishing its settle) restarts that wait.
+ *
  * Returns a function that stops watching and cancels any in-flight settle loop.
  */
-export function createWatcher(callback: WatcherCallback): () => void {
+export function createWatcher(
+  callback: WatcherCallback,
+  { groupWaitMs = 1500 }: WatcherOptions = {},
+): () => void {
   const dir = resolveDir()
-  const processing = new Set<string>()
+  const seen = new Set<string>()
   const controller = new AbortController()
   const signal = controller.signal
+
+  let batch: string[] = []
+  let settling = 0
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let running: Promise<void> = Promise.resolve()
+
+  const flush = () => {
+    const paths = batch
+    batch = []
+    if (!paths.length) return
+    running = running.then(async () => {
+      if (signal.aborted) return
+      try {
+        await callback(paths)
+      } catch (error) {
+        console.error(`watcher callback failed for ${paths.join(", ")}`, error)
+      } finally {
+        for (const path of paths) seen.delete(path)
+      }
+    })
+  }
+
+  const schedule = () => {
+    clearTimeout(timer)
+    if (settling > 0 || signal.aborted) return
+    timer = setTimeout(flush, groupWaitMs)
+    timer.unref?.()
+  }
 
   const watcher = watch(dir, async (event, filename) => {
     if (signal.aborted) return
@@ -73,24 +113,28 @@ export function createWatcher(callback: WatcherCallback): () => void {
     }
 
     const path = join(dir, filename)
-    if (processing.has(path)) return
-    processing.add(path)
+    if (seen.has(path)) return
+    seen.add(path)
 
+    clearTimeout(timer)
+    settling++
+    let stable = false
     try {
-      if (!(await waitForStable(path, signal))) return
-      if (signal.aborted) return
-      await callback(path)
-    } catch (error) {
-      console.error(`watcher callback failed for ${path}`, error)
+      stable = await waitForStable(path, signal)
     } finally {
-      processing.delete(path)
+      settling--
     }
+
+    if (stable) batch.push(path)
+    else seen.delete(path)
+    schedule()
   })
 
   watcher.unref()
 
   return () => {
     controller.abort()
+    clearTimeout(timer)
     watcher.close()
   }
 }

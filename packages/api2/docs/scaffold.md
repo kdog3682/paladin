@@ -5,12 +5,14 @@ How a dropped file becomes files on disk. Code: `src/services/scaffold/`. The ru
 ## Entry points
 
 - `src/server.ts` — Hono. `POST /controller {method, kwargs}` → `ScaffoldService.dispatch` (table in `scaffold/commands/`); `/ws` websocket via `broadcast.ts`; `/images/*` static. Needs `DOWNLOAD_DIR`, `PORT` defaults to 3000.
-- `src/watcher.ts` — watches `DOWNLOAD_DIR`, waits for a new file's size to settle, calls `scaffold.process(path)`.
+- `src/watcher.ts` — watches `DOWNLOAD_DIR`, waits for each new file's size to settle, then groups files that trickle in: the batch is flushed to `scaffold.process(paths)` only after `groupWaitMs` (default 1500) with no new arrival, and every arrival restarts that wait.
 - `src/cli.ts` — one-shot: scaffolds the newest `.zip`/`.ts` in `~/scratch`.
 - `src/hot.ts` — `keep`/`replace`/`onSignal` registry on `globalThis` so state survives hot reloads. `src/services/git.ts` — `git` wrapper. `src/commands/registerBin.ts` — adds a file as a `bin` and `bun link`s it.
 - Tests: `bun test` from this package.
 
 ## `ScaffoldService.process(input)` (`scaffold.ts`)
+
+`input` is one source or an array of them; an array is planned as a single batch.
 
 **Nothing touches disk until the last step.** Every stage only appends `FsOp`s to `unit.ops`, so each stage sees the world as it is plus what the earlier stages intend.
 

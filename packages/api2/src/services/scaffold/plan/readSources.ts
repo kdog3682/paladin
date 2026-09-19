@@ -26,7 +26,10 @@ function splitSources(input: string): string[] {
   return chunks.filter(Boolean)
 }
 
-export async function readSources(input: string): Promise<string[]> {
+export async function readSources(input: string | string[]): Promise<string[]> {
+  if (Array.isArray(input)) {
+    return (await Promise.all(input.map(readSources))).flat()
+  }
   if (!looksLikePath(input)) {
     return splitSources(input)
   }
