@@ -21,8 +21,8 @@ export interface User {
 
 /* src/api/user.ts */
 
-/// the local User was folded into models/user. the Address import went with it
-/// import may land in a slightly different spot depending on addNamedImport
+/// the local User was folded into models/user, so the Address import went unused
+/// and was dropped. import may land in a slightly different spot
 import type { User } from "../models/user"
 
 export function toUser(raw: { id: string; name: string }): User {
@@ -31,10 +31,11 @@ export function toUser(raw: { id: string; name: string }): User {
 
 /* src/billing/types.ts */
 
+/// added when `to: BillingAddress` was retargeted to Address
 import type { Address } from "../models/address"
 
-/// BillingAddress had the exact shape of Address.
-/// ./index re-exports it, so it stays as a forward instead of being deleted
+/// BillingAddress had the exact shape of Address, so it folded into it.
+/// ./index re-exports the name, so it stays as a forward instead of being deleted
 export type { Address as BillingAddress } from "../models/address"
 
 export type Invoice = {
@@ -46,7 +47,7 @@ export type Invoice = {
 
 /* src/billing/index.ts */
 
-/// unchanged: BillingAddress still resolves through the forward
+/// unchanged: BillingAddress still resolves, now through the forward
 export { BillingAddress, Invoice } from "./types"
 
 /* src/shipping.ts */
@@ -62,7 +63,7 @@ export function label(user: User, to: Address) {
 /* src/ui/card.ts */
 
 /// unchanged: same shape as models/user's original User, but Props is local
-/// local types only dedupe within their own file
+/// local types only dedupe within their own file, so pass 1 leaves it alone
 type Props = {
   id: string
   name: string

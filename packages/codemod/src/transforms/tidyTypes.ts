@@ -10,7 +10,8 @@ import {
 } from "ts-morph"
 import { getDeclarationsNamed, isExported } from "../utils/declarations"
 import { copyImportsFor, removeUnusedImports } from "../utils/imports"
-import { getBindings, getLocalDependencies, isUnused } from "../utils/references"
+import { isMemberName } from "../utils/nodes"
+import { getLocalDependencies } from "../utils/references"
 import { removeNode } from "../utils/removal"
 import { retargetReferences } from "../utils/retarget"
 import { hasExports } from "../utils/source-files"
@@ -118,21 +119,58 @@ function widen(canon: Shape, rest: Shape[]) {
   for (const [name, prop] of extras) {
     copyImportsFor([prop.node], file)
     const { kind, ...structure } = prop.node.getStructure()
-    canon.body.addProperty({ ...structure, hasQuestionToken: true, isReadonly: readonlyEverywhere(name) })
+    stripSemicolon(canon.body.addProperty({ ...structure, hasQuestionToken: true, isReadonly: readonlyEverywhere(name) }))
   }
 }
 
+// ts-morph prints `;` after inserted statements and members; the codebase has none
+function stripSemicolon(node: Node) {
+  node.getLastChildByKind(SyntaxKind.SemicolonToken)?.replaceWithText("")
+}
+
 function fold(dup: ShapeDecl, canon: ShapeDecl) {
+  // computed before retargeting, which rewrites the import bindings out from under us
+  const bindings = findBindings(dup)
+  const stranded = dup.getNameNode().findReferencesAsNodes().some(isMemberName)
+  const reexported = bindings.some(Node.isExportSpecifier) || isStarReexported(dup)
+
   retargetReferences(dup, canon, true)
+  if (stranded || reexported) return forward(dup, canon)
+
+  // bindings still standing were imports of the dup that nothing used
+  for (const binding of bindings) if (!binding.wasForgotten()) removeNode(binding)
   const file = dup.getSourceFile()
-  const bindings = getBindings(dup)
-  if (isUnused(dup) && !bindings.some(Node.isExportSpecifier)) {
-    bindings.forEach(removeNode)
-    dup.remove()
-    removeUnusedImports(file)
-    return
+  dup.remove()
+  removeUnusedImports(file)
+}
+
+/*
+The import and export specifiers across the project that bind this declaration's name.
+getBindings resolves them through the language service, which does not hand back the
+specifier of a barrel's `export { X } from "./x"`, so these are found structurally: the
+declarations whose module specifier resolves to this file, then the names they bind.
+*/
+function findBindings(decl: ShapeDecl): Node[] {
+  const file = decl.getSourceFile()
+  const name = decl.getName()
+  const found: Node[] = []
+  for (const other of decl.getProject().getSourceFiles()) {
+    const statements = [...other.getImportDeclarations(), ...other.getExportDeclarations()]
+    for (const statement of statements) {
+      if (statement.getModuleSpecifierSourceFile() !== file) continue
+      const specifiers = Node.isImportDeclaration(statement) ? statement.getNamedImports() : statement.getNamedExports()
+      for (const specifier of specifiers) if (specifier.getName() === name) found.push(specifier)
+    }
   }
-  forward(dup, canon)
+  return found
+}
+
+/* `export * from "./x"` re-exports the name without ever spelling it, so the name has to stay */
+function isStarReexported(decl: ShapeDecl): boolean {
+  const file = decl.getSourceFile()
+  return decl.getProject().getSourceFiles().some(other => other !== file
+    && other.getExportDeclarations().some(statement => statement.getModuleSpecifierSourceFile() === file
+      && statement.getNamedExports().length === 0))
 }
 
 /* keeps a folded name alive for re-exports and `ns.Name` uses by pointing it at the canonical */
@@ -141,15 +179,14 @@ function forward(dup: ShapeDecl, canon: ShapeDecl) {
   const index = dup.getChildIndex()
   const name = dup.getName()
   const target = canon.getName()
-  if (canon.getSourceFile() === file) {
-    file.insertTypeAlias(index, { name, type: target, isExported: true })
-  } else {
-    file.insertExportDeclaration(index, {
+  const statement = canon.getSourceFile() === file
+    ? file.insertTypeAlias(index, { name, type: target, isExported: true })
+    : file.insertExportDeclaration(index, {
       isTypeOnly: true,
       namedExports: [name === target ? { name } : { name: target, alias: name }],
       moduleSpecifier: file.getRelativePathAsModuleSpecifierTo(canon.getSourceFile()),
     })
-  }
+  stripSemicolon(statement)
   dup.remove()
   removeUnusedImports(file)
 }
