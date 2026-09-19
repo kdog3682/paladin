@@ -11,7 +11,7 @@ import {
 import { getDeclarationsNamed, isExported } from "../utils/declarations"
 import { copyImportsFor, removeUnusedImports } from "../utils/imports"
 import { isMemberName } from "../utils/nodes"
-import { getLocalDependencies } from "../utils/references"
+import { getBindings, getLocalDependencies, isStarReexported } from "../utils/references"
 import { removeNode } from "../utils/removal"
 import { retargetReferences } from "../utils/retarget"
 import { hasExports } from "../utils/source-files"
@@ -130,7 +130,7 @@ function stripSemicolon(node: Node) {
 
 function fold(dup: ShapeDecl, canon: ShapeDecl) {
   // computed before retargeting, which rewrites the import bindings out from under us
-  const bindings = findBindings(dup)
+  const bindings = getBindings(dup)
   const stranded = dup.getNameNode().findReferencesAsNodes().some(isMemberName)
   const reexported = bindings.some(Node.isExportSpecifier) || isStarReexported(dup)
 
@@ -142,35 +142,6 @@ function fold(dup: ShapeDecl, canon: ShapeDecl) {
   const file = dup.getSourceFile()
   dup.remove()
   removeUnusedImports(file)
-}
-
-/*
-The import and export specifiers across the project that bind this declaration's name.
-getBindings resolves them through the language service, which does not hand back the
-specifier of a barrel's `export { X } from "./x"`, so these are found structurally: the
-declarations whose module specifier resolves to this file, then the names they bind.
-*/
-function findBindings(decl: ShapeDecl): Node[] {
-  const file = decl.getSourceFile()
-  const name = decl.getName()
-  const found: Node[] = []
-  for (const other of decl.getProject().getSourceFiles()) {
-    const statements = [...other.getImportDeclarations(), ...other.getExportDeclarations()]
-    for (const statement of statements) {
-      if (statement.getModuleSpecifierSourceFile() !== file) continue
-      const specifiers = Node.isImportDeclaration(statement) ? statement.getNamedImports() : statement.getNamedExports()
-      for (const specifier of specifiers) if (specifier.getName() === name) found.push(specifier)
-    }
-  }
-  return found
-}
-
-/* `export * from "./x"` re-exports the name without ever spelling it, so the name has to stay */
-function isStarReexported(decl: ShapeDecl): boolean {
-  const file = decl.getSourceFile()
-  return decl.getProject().getSourceFiles().some(other => other !== file
-    && other.getExportDeclarations().some(statement => statement.getModuleSpecifierSourceFile() === file
-      && statement.getNamedExports().length === 0))
 }
 
 /* keeps a folded name alive for re-exports and `ns.Name` uses by pointing it at the canonical */

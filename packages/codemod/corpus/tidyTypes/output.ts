@@ -1,6 +1,7 @@
 /* src/models/address.ts */
 
-/// unchanged: canonical for the { street, city } shape (exported, most referenced)
+/// unchanged: canonical for the { street, city } shape (exported, most referenced).
+/// BillingAddress and Envelope both fold into it, by two different routes
 export interface Address {
   street: string
   city: string
@@ -35,7 +36,8 @@ export function toUser(raw: { id: string; name: string }): User {
 import type { Address } from "../models/address"
 
 /// BillingAddress had the exact shape of Address, so it folded into it.
-/// ./index re-exports the name, so it stays as a forward instead of being deleted
+/// ./index re-exports the name, so getBindings finds an ExportSpecifier and the
+/// declaration stays as a forward instead of being deleted
 export type { Address as BillingAddress } from "../models/address"
 
 export type Invoice = {
@@ -50,6 +52,18 @@ export type Invoice = {
 /// unchanged: BillingAddress still resolves, now through the forward
 export { BillingAddress, Invoice } from "./types"
 
+/* src/mail/envelope.ts */
+
+/// Envelope had the same shape as Address and nothing re-exports it, so it was
+/// deleted outright rather than forwarded. SENDER keeps the file alive
+export const SENDER = "acme"
+
+/* src/mail/label.ts */
+
+/// the `import type { Envelope }` was never used here, so no retargeting reached it.
+/// getBindings returned the specifier anyway and it was dropped with the declaration
+export const MAIL = "mail"
+
 /* src/shipping.ts */
 
 /// unchanged
@@ -59,6 +73,27 @@ import type { User } from "./models/user"
 export function label(user: User, to: Address) {
   return `${user.name}, ${to.street}, ${to.city}`
 }
+
+/* src/models/size.ts */
+
+/// unchanged: canonical for { width, height }. Size and Frame are referenced equally
+/// often, so the tie breaks on path and src/models sorts before src/ui
+export interface Size {
+  width: number
+  height: number
+}
+
+/* src/ui/frame.ts */
+
+/// Frame folded into Size. ./index re-exports it with `export *`, which names nothing,
+/// so there is no specifier and no reference to find: isStarReexported is what keeps
+/// the name alive here as a forward
+export type { Size as Frame } from "../models/size"
+
+/* src/ui/index.ts */
+
+/// unchanged: Frame still reaches consumers through the star re-export
+export * from "./frame"
 
 /* src/ui/card.ts */
 
