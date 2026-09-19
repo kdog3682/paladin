@@ -1,10 +1,10 @@
 import { existsSync } from 'node:fs'
 import type { Project } from 'ts-morph'
-import { extractSymbol } from './commands/extractSymbol'
-import { remapSymbol } from './commands/remapSymbol'
-import { renameFile } from './commands/renameFile'
-import { renameSymbol } from './commands/renameSymbol'
-import { createProject, loadCommand, resolveProjectDir } from './run'
+import { extractSymbol } from './codemods/extractSymbol'
+import { remapSymbol } from './codemods/remapSymbol'
+import { renameFile } from './codemods/renameFile'
+import { renameSymbol } from './codemods/renameSymbol'
+import { createProject, loadCodemod, resolveProjectDir } from './run'
 
 export type Action = { action: string } & Record<string, unknown>
 export type Spec = { dir: string; actions: Action[]; dry?: boolean }
@@ -23,8 +23,8 @@ function optionalString(action: Action, key: string) {
 }
 
 // Named-field actions map onto the same commands the `test.ts` preamble drives
-// positionally (src/commands/<name>.ts). Anything not listed here falls back to
-// loadCommand + a plain `args` array, so new commands work without touching this file.
+// positionally (src/codemods/<name>.ts). Anything not listed here falls back to
+// loadCodemod + a plain `args` array, so new codemods work without touching this file.
 const ACTIONS: Record<string, (project: Project, action: Action) => unknown> = {
   renameSymbol: (project, action) =>
     renameSymbol(
@@ -49,7 +49,7 @@ async function runAction(project: Project, action: Action) {
   const handler = ACTIONS[action.action]
   if (handler) return handler(project, action)
 
-  const fn = await loadCommand(action.action)
+  const fn = await loadCodemod(action.action)
   const args = Array.isArray(action.args) ? action.args : []
   return fn(project, ...args)
 }

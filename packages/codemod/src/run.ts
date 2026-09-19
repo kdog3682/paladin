@@ -41,33 +41,25 @@ export function createProject(spec: string) {
   return project
 }
 
-async function loadFunction(dir: string, kind: string, name: string) {
-  const url = new URL(`./${dir}/${name}.ts`, import.meta.url)
+export async function loadCodemod(name: string) {
+  const url = new URL(`./codemods/${name}.ts`, import.meta.url)
 
   let mod: Record<string, unknown>
   try {
     mod = (await import(url.href)) as Record<string, unknown>
   } catch (error) {
-    throw new Error(`could not load ${kind} "${name}" from src/${dir}/${name}.ts\n${String(error)}`)
+    throw new Error(`could not load codemod "${name}" from src/codemods/${name}.ts\n${String(error)}`)
   }
 
   for (const key of [name, toCamelCase(name), 'default']) {
     const value = mod[key]
-    if (typeof value === 'function') return value
+    if (typeof value === 'function') return value as (project: Project, ...args: unknown[]) => unknown
   }
 
   const exported = Object.values(mod).filter(value => typeof value === 'function')
-  if (exported.length === 1) return exported[0]
+  if (exported.length === 1) return exported[0] as (project: Project, ...args: unknown[]) => unknown
 
-  throw new Error(`${kind} "${name}" must export a function named "${name}"`)
-}
-
-export async function loadCodemod(name: string) {
-  return (await loadFunction('transforms', 'transform', name)) as (project: Project) => unknown
-}
-
-export async function loadCommand(name: string) {
-  return (await loadFunction('commands', 'command', name)) as (project: Project, ...args: unknown[]) => unknown
+  throw new Error(`codemod "${name}" must export a function named "${name}"`)
 }
 
 export type CommandInvocation = { command: string; args: unknown[] }
@@ -77,7 +69,7 @@ export async function runCommands(commands: CommandInvocation[], project: Projec
 
   await withoutInsertedSemicolons(target, async () => {
     for (const { command, args } of commands) {
-      const fn = await loadCommand(command)
+      const fn = await loadCodemod(command)
       await fn(target, ...args)
     }
   })

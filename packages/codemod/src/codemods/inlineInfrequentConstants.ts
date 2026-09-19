@@ -1,4 +1,4 @@
-// @paladin/codemod/src/transforms/inlineInfrequentConstants.ts
+// @paladin/codemod/src/codemods/inlineInfrequentConstants.ts
 
 import { ExportSpecifier, Identifier, ImportSpecifier, Node, Project, SyntaxKind, VariableDeclaration } from "ts-morph"
 import { isExported } from "../utils/declarations"

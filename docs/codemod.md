@@ -1,96 +1,59 @@
 # Codemods
 
-All of this lives in `packages/codemod` (run every command below from that directory). Everything operates on a
-`ts-morph` `Project`.
-
-There are two kinds of thing, both loaded by name from `src/`:
-
-| Kind      | Location                | Signature                                | Purpose                                              |
-| --------- | ----------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| transform | `src/transforms/<name>.ts` | `(project) => void`                   | Tidy-up passes that need no input (`tidyTypes`, `inlineExportStatements`, `relativizeSelfImports`, `inlineInfrequentConstants`, `destructureNullishDefaults`) |
-| command   | `src/commands/<name>.ts`   | `(project, ...args) => void`          | Parameterized operations (`renameSymbol`, `renameFile`, `remapSymbol`, `extractSymbol`, `deleteSymbol`, `removeBarrel`) |
-
-The module must export a function named `<name>`, its camelCase form, `default`, or be the sole function export.
-Both run inside `withoutInsertedSemicolons`, so ts-morph edits don't introduce semicolons.
-
-## Quick reference
+In `packages/codemod` (run everything below from there). A codemod is `src/codemods/<name>.ts` exporting
+`(project: Project, ...args) => void`; the export is named `<name>`, its camelCase form, `default`, or is the sole
+function export. Some take no arguments (`tidyTypes`, `inlineExportStatements`), some do (`renameSymbol`,
+`extractSymbol`). They run on a `ts-morph` `Project`.
 
 ```
-bun src/test.ts                                  # test every corpus (do this after any change)
+bun src/test.ts                                  # test every corpus (run after any change)
 bun src/test.ts tidyTypes                        # test one corpus
-bun src/run.ts tidyTypes --project=. --dry       # preview a transform on a project
-bun src/run.ts tidyTypes --project=.             # apply it
+bun src/run.ts tidyTypes --project=. --dry       # preview a no-argument codemod
 bun src/cli.ts '{"dir":".","actions":[{"action":"renameSymbol","symbol":"Foo","to":"Bar"}]}'
 ```
 
-Only transforms can be run with `run.ts` (it takes no arguments for the codemod). Commands take arguments, so they
-go through `cli.ts` (or a corpus preamble, below).
+## Running
 
-## Running a transform (`src/run.ts`)
+**`src/run.ts <codemod> [...codemods] [--project=<spec>] [--dry]`** — no-argument codemods, run in order on one
+project, then saved. `--dry` prints the paths that would change; do that first.
 
-```
-bun src/run.ts <codemod> [...codemods] [--project=<spec>] [--dry]
-```
+`--project` (default `.`) is resolved by `resolveProjectDir`: `~/...` under home, `.`/absolute/relative as-is,
+`repo/rest...` → `~/projects/repo/packages/rest...` (fallbacks `apps/rest...`, `repo/rest...`).
 
-- Several codemods run in order against the same in-memory project, then the project is saved once.
-- `--project=<spec>` (default `.`): resolved by `resolveProjectDir` — `~/...` under home, `.`/absolute/relative
-  as-is, `repo/rest...` → `~/projects/repo/packages/rest...` (or `apps/rest...`/`repo/rest...` as fallback).
-  The project uses the directory's `tsconfig.json` if present, otherwise globs its source files.
-- `--dry`: print paths that would change instead of writing. Always `--dry` first:
-  `bun src/run.ts inlineExportStatements --project=. --dry`
-- Ends with `N file(s) changed` (or `would change`).
+**`src/cli.ts '<json>'`** — any codemod, with arguments. `{ dir, actions: [...], dry? }`; `dir` resolves like
+`--project`, actions run in order:
 
-## Running commands (`src/cli.ts`)
-
-Takes one JSON spec: `dir` (same resolution as `--project`), an ordered list of `actions`, and optional `dry`.
-
-```
-bun src/cli.ts '{
-  "dir": "./src",
-  "actions": [
-    { "action": "renameSymbol", "symbol": "Foo", "to": "Bar" },
-    { "action": "renameFile", "file": "src/a.ts", "to": "src/b.ts" },
-    { "action": "extractSymbol", "file": "src/a.ts", "symbol": "Foo", "newFile": "src/foo.ts" }
-  ]
-}'
+```json
+{ "dir": ".", "actions": [
+  { "action": "renameSymbol", "symbol": "Foo", "to": "Bar" },
+  { "action": "extractSymbol", "file": "src/a.ts", "symbol": "Foo", "newFile": "src/foo.ts" },
+  { "action": "deleteSymbol", "args": ["ABC"] }
+] }
 ```
 
-- `renameSymbol`, `renameFile`, `remapSymbol`, `extractSymbol` have named fields (see `ACTIONS` in `src/cli.ts`).
-- Any other command (e.g. `deleteSymbol`, `removeBarrel`) works with positional `args`:
-  `{ "action": "deleteSymbol", "args": ["ABC"] }`.
-- After a non-dry run, `cli.ts` runs `sanity.test.ts` in the target dir if one exists, and exits 1 if it fails.
+`renameSymbol`, `renameFile`, `remapSymbol` and `extractSymbol` have named fields (see `ACTIONS` in `src/cli.ts`);
+every other codemod takes a positional `args` array. After a non-dry run it runs the target's `sanity.test.ts`, if
+any.
 
-## Testing against a corpus (`src/test.ts`)
+## Corpus tests (`src/test.ts`)
 
-```
-bun src/test.ts                       # every corpus/<name>/ directory, one report each, then "N/N corpora passed"
-bun src/test.ts <name>                # a single corpus
-bun src/test.ts <codemod> <codemod>   # several transforms chained against ONE corpus (see caveat)
-```
+`corpus/<name>/input.ts` and `output.ts` each pack several virtual files, delimited by `/* path.ts */` headers.
+`test.ts` loads `input.ts` into an in-memory project, runs the codemod, and diffs every file against `output.ts`
+(whitespace-normalized). `///` lines in `output.ts` are annotations, stripped before comparing.
 
-- Exit code is 0 only if everything passes.
-- **Don't pass many corpus names to test several corpora.** Multiple names are joined into one corpus path
-  (`a.b.c`) and run as a chain of transforms over that single fixture. To test everything, pass no arguments.
-- An argument may also be a path (`src/transforms/tidyTypes.ts`, `corpus/tidyTypes/input.ts`); it's reduced to the
-  corpus name.
+- No arguments: every corpus, then `N/N corpora passed`. Exit code is 0 only if all pass.
+- Names: they are joined into one corpus path (`a.b.c`) and run as a chain over that single fixture, so **don't**
+  pass several corpus names to test several corpora.
+- A path (`src/codemods/tidyTypes.ts`, `corpus/tidyTypes/input.ts`) is reduced to its corpus name.
+- An empty expected file means "should be deleted".
 
-### Fixture format
-
-Each corpus lives in `corpus/<name>/input.ts` and `corpus/<name>/output.ts`, packing multiple virtual files into one,
-delimited by `/* path.ts */` headers. `test.ts` seeds an in-memory project from `input.ts`, runs the codemod(s), and
-diffs each result against `output.ts` (whitespace-normalized). Lines starting with `///` in `output.ts` are
-annotations, stripped before comparison — use them to explain why an output looks the way it does.
-
-A file present in the result but absent from `output.ts` is `unexpected`; one in `output.ts` but deleted from the
-result is `missing` (unless its expected content is empty, which means "should be deleted").
-
-To add a codemod: write `src/transforms/<name>.ts`, create `corpus/<name>/{input,output}.ts`, run
+To add a codemod: write `src/codemods/<name>.ts`, add `corpus/<name>/{input,output}.ts`, run
 `bun src/test.ts <name>`.
 
-### Preamble commands
+### Preamble
 
-`input.ts` may start with a `/* ... */` preamble listing commands to play instead of the codemod named by the
-corpus. This is how commands (which need arguments) are tested:
+To run codemods with arguments (or several in sequence), start `input.ts` with a `/* ... */` preamble. Without one,
+the codemod named after the corpus directory runs with no arguments.
 
 ```
 /*
@@ -101,10 +64,6 @@ corpus. This is how commands (which need arguments) are tested:
 */
 ```
 
-Each entry's `command` names a module in `src/commands/<command>.ts`, called as `command(project, ...args)`.
-Commands run in order against the same project. With no preamble, the codemod(s) named on the CLI run instead
-(for `test.ts` with no arguments, the corpus directory name is the transform name).
-
 ### Reading a report
 
 ```
@@ -114,13 +73,8 @@ FAIL inlineExportStatements (5/8)
     ...
     - 
       export type Config = {
-    ...
 ```
 
-- Header is `PASS|FAIL <corpus> (passed/total files)`.
-- Status per file: `pass`, `changed` (content differs), `missing`, `unexpected`.
-- Diff legend: `-` is what the codemod produced (received), `+` is what `output.ts` expected; unchanged context is
-  elided with `...`.
-- A fixture that throws (bad header, missing `output.ts`, codemod error) shows up as an `error: ...` status.
-- Some codemods print diagnostics to the console before the report (e.g. `relativizeSelfImports` logs which
-  duplicate it picked). These are not failures.
+Statuses: `pass`, `changed`, `missing`, `unexpected`, or `error: ...` if the fixture or codemod threw. In diffs `-` is
+what the codemod produced and `+` is what `output.ts` expected; `...` elides unchanged lines. Console diagnostics
+before a report (e.g. `relativizeSelfImports` logging which duplicate it picked) aren't failures.

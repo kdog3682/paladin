@@ -1,5 +1,5 @@
-import {deleteSymbol} from "./commands/deleteSymbol"
-import {renameSymbol} from "./commands/renameSymbol"
+import {deleteSymbol} from "./codemods/deleteSymbol"
+import {renameSymbol} from "./codemods/renameSymbol"
 import {initializeProject} from "./initialize"
 import {filesToBundle} from "@paladin/utils"
 

@@ -261,7 +261,7 @@ export async function testAll() {
 /** A path to a transform, a command, or a corpus file stands for the corpus it belongs to. */
 function corpusName(arg: string) {
   if (!arg.includes('/')) return arg
-  return arg.match(/(?:transforms|commands|corpus)\/([^/.]+)(?:\.ts|\/)/)?.[1] ?? arg
+  return arg.match(/(?:codemods|corpus)\/([^/.]+)(?:\.ts|\/)/)?.[1] ?? arg
 }
 
 if (import.meta.main) {
