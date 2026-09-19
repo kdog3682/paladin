@@ -331,6 +331,28 @@ describe('defaults', () => {
     expect(h.view.state.doc.toString()).toBe('explicit')
   })
 
+  test('restores the cursor from localStorage', async () => {
+    let view: EditorView | undefined
+    const first = render(<Editor onSaveDebounceDelay={DEBOUNCE} onViewReady={(v) => (view = v)} />)
+    type(view!, 'hello world')
+    view!.dispatch({ selection: { anchor: 5 } })
+    await tick()
+    first.unmount()
+
+    render(<Editor onViewReady={(v) => (view = v)} />)
+    expect(view!.state.selection.main.head).toBe(5)
+  })
+
+  test('a cursor move alone does not trigger onSave or report the editor dirty', async () => {
+    const onSave = mock()
+    const onDirtyChange = mock()
+    const h = mount({ state: { doc: 'hello world' }, onSave, onDirtyChange })
+    h.view.dispatch({ selection: { anchor: 4 } })
+    await tick()
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onDirtyChange).not.toHaveBeenCalled()
+  })
+
   describe('leaving the page', () => {
     const hide = () => {
       Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
@@ -357,6 +379,14 @@ describe('defaults', () => {
       type(h.view, 'y')
       window.dispatchEvent(new Event('pagehide'))
       expect(onLeave).toHaveBeenCalledTimes(2)
+    })
+
+    test('hiding the tab after only moving the cursor still saves it', () => {
+      const onLeave = mock()
+      const h = mount({ onLeave, state: { doc: 'hello' }, onSaveDebounceDelay: 60_000 })
+      h.view.dispatch({ selection: { anchor: 2 } })
+      hide()
+      expect(onLeave).toHaveBeenCalledTimes(1)
     })
 
     test('does nothing when there is nothing unsaved', () => {

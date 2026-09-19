@@ -45,7 +45,8 @@ export type EditorProps = {
   /**
    * Fetches the snapshot for a file when no `state` is given, on mount and on
    * every fileId change. Defaults to restoring what the default `onSave` wrote
-   * to localStorage. Return undefined for an empty document.
+   * to localStorage, cursor and selection included. Return undefined for an
+   * empty document.
    */
   onLoad?: (fileId: string) => SerializedState | undefined
   /**
@@ -56,13 +57,18 @@ export type EditorProps = {
   onSave?: (state: SerializedState, fileId: string) => void
   /**
    * Called synchronously when the user leaves the page: the tab is hidden or the
-   * page is closing. Only fires if there are unsaved edits, once per burst of
-   * edits. It does not replace `onSave`, which still runs on its own schedule
+   * page is closing. Only fires if there are unsaved edits or cursor moves, once
+   * per burst of them. It does not replace `onSave`, which still runs on its own schedule
    * if the user comes back. Defaults to saving to localStorage; a custom one
    * must be synchronous (eg `navigator.sendBeacon`), since the page may not
    * outlive it.
    */
   onLeave?: (state: SerializedState, fileId: string) => void
+  /**
+   * Focus the editor on mount and after a file switch, with the restored cursor
+   * scrolled into view. Defaults to true.
+   */
+  autofocus?: boolean
   /** Debounce window for onSave, in ms. Defaults to 30_000. */
   onSaveDebounceDelay?: number
   /** Fires on the edges only: true on the first edit after a save, false once onSave has run. */
@@ -72,6 +78,16 @@ export type EditorProps = {
   /** Class applied to the editor's container element. Size the editor here. */
   className?: string
 }
+
+/**
+ * Fills the container so the scroller, not the page, is what scrolls. Without
+ * it the editor grows to the height of its document and scroll-into-view has
+ * nothing to scroll. In an auto-height container this is a no-op.
+ */
+const FILL_CONTAINER = EditorView.theme({
+  '&': { height: '100%' },
+  '.cm-scroller': { overflow: 'auto' },
+})
 
 /**
  * Everything the config compartment holds. The font is resolved here rather
@@ -86,6 +102,7 @@ function buildLanguageConfig(lang: ResolvedLanguage, font?: FontKey): Extension 
     lang.extensions ?? [],
     fontExtension(font ?? lang.font ?? DEFAULT_FONT),
     lang.wrapLines ? EditorView.lineWrapping : [],
+    FILL_CONTAINER,
   ]
 }
 
@@ -100,6 +117,7 @@ export function Editor(props: EditorProps) {
     onLoad = loadFromLocalStorage,
     onSave = saveToLocalStorage,
     onLeave = saveToLocalStorage,
+    autofocus = true,
     onSaveDebounceDelay = 30_000,
     onDirtyChange,
     onViewReady,
@@ -111,6 +129,8 @@ export function Editor(props: EditorProps) {
   // the file a pending save belongs to — advanced only once that save has flushed
   const fileIdRef = useRef(fileId)
   const dirtyRef = useRef(false)
+  // the cursor moved since the last save; not an edit, so it stays out of onDirtyChange
+  const cursorMovedRef = useRef(false)
   // set once the current edits have been handed to onLeave, so the several
   // events a closing tab fires don't each write
   const leftRef = useRef(false)
@@ -123,6 +143,7 @@ export function Editor(props: EditorProps) {
   const onLeaveRef = useLatest(onLeave)
   const onDirtyChangeRef = useLatest(onDirtyChange)
   const onViewReadyRef = useLatest(onViewReady)
+  const autofocusRef = useLatest(autofocus)
 
   // built once: the extension array is rebuilt per state, but an unstable
   // default here would reconfigure the editor on every render
@@ -142,8 +163,18 @@ export function Editor(props: EditorProps) {
     const view = viewRef.current
     if (!view) return
     onSaveRef.current(serializeEditorState(view), fileIdRef.current)
+    cursorMovedRef.current = false
     setDirty(false)
   }, onSaveDebounceDelay)
+
+  // put the cursor a freshly loaded state restored where the user can see it
+  const reveal = (view: EditorView) => {
+    if (!autofocusRef.current) return
+    view.dispatch({
+      effects: EditorView.scrollIntoView(view.state.selection.main, { y: 'center' }),
+    })
+    view.focus()
+  }
 
   const configCompartment = useRef(new Compartment()).current
 
@@ -155,8 +186,13 @@ export function Editor(props: EditorProps) {
       ...baseRef.current!,
       configCompartment.of(buildLanguageConfig(langRef.current, fontRef.current)),
       EditorView.updateListener.of((u) => {
-        if (!u.docChanged) return
+        if (!u.docChanged && !u.selectionSet) return
         leftRef.current = false
+        if (!u.docChanged) {
+          // a cursor move alone is only worth writing when the user leaves
+          cursorMovedRef.current = true
+          return
+        }
         setDirty(true)
         saver.run()
       }),
@@ -173,6 +209,7 @@ export function Editor(props: EditorProps) {
       parent: containerRef.current!,
     })
     viewRef.current = view
+    reveal(view)
     onViewReadyRef.current?.(view)
     return () => {
       saver.flush()
@@ -186,7 +223,7 @@ export function Editor(props: EditorProps) {
   useEffect(() => {
     const leave = () => {
       const view = viewRef.current
-      if (!view || !dirtyRef.current || leftRef.current) return
+      if (!view || !(dirtyRef.current || cursorMovedRef.current) || leftRef.current) return
       leftRef.current = true
       onLeaveRef.current(serializeEditorState(view), fileIdRef.current)
     }
@@ -208,7 +245,9 @@ export function Editor(props: EditorProps) {
     saver.flush()
     fileIdRef.current = fileId
     setDirty(false)
+    cursorMovedRef.current = false
     view.setState(makeState(initialState()))
+    reveal(view)
   }, [fileId])
 
   // one compartment, one effect — nothing can drift out of sync with the props

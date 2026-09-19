@@ -55,6 +55,8 @@ is named in the prop's doc comment; keep the two in sync.
   - The default `onLeave` writes localStorage even if the consumer overrides
     `onSave`/`onLoad`. Harmless, but a consumer with a custom store should
     override `onLeave` too.
+- **Cursor.** Restored from the snapshot and focused on load (`autofocus`).
+  Cursor moves are saved by `onLeave` only, not `onSave`.
 - **Snapshots.** `SerializedState` is `EditorState.toJSON(stateFields)`.
   `stateFields` must stay constant: `fromJSON` throws if a listed field isn't in
   the extensions, which is why `codeFolding()` is unconditional in

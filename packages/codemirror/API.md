@@ -21,8 +21,9 @@ All optional.
 | `languages` | `BUILTIN_LANGUAGES` | Language pack. Hoist custom maps to module scope. |
 | `state` | `onLoad(fileId)` | Snapshot to load, `{ doc: string, ... }`. |
 | `onLoad` | localStorage | `(fileId) => state \| undefined` |
+| `autofocus` | `true` | Focus on mount and file switch, with the restored cursor scrolled into view. |
 | `onSave` | localStorage | `(state, fileId) => void`, debounced 30s. |
-| `onLeave` | localStorage | `(state, fileId) => void`, sync. Fires when the tab is hidden or closed with unsaved edits. |
+| `onLeave` | localStorage | `(state, fileId) => void`, sync. Fires when the tab is hidden or closed with unsaved edits or cursor moves. |
 | `onDirtyChange` | — | `(dirty, fileId) => void` |
 | `onViewReady` | — | Receives the `EditorView`. |
 | `className` | — | Container class. |
