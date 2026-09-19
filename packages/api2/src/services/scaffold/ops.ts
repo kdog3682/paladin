@@ -10,7 +10,7 @@ import type {
 } from "./types"
 
 /** Writes land first, then installs, then everything that depends on an install. */
-export const BASH_ORDER: BashOp["purpose"][] = ["install", "test", "demo", "script", "build"]
+export const BASH_ORDER: BashOp["purpose"][] = ["install", "test", "demo", "example", "script", "build"]
 
 export const isWrite = (op: FsOp): op is WriteOp => op.kind === "write"
 export const isBash = (op: FsOp): op is BashOp => op.kind === "bash"

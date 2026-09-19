@@ -1,6 +1,6 @@
 import { groupOps } from "./groupOps"
 import { parseFileContent } from "./parseFileContent"
-import { readSources } from "../utils/readSources"
+import { readSources } from "./readSources"
 import type { FsOp, PathResolutionOpts, Project } from "../types"
 
 /**

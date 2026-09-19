@@ -5,14 +5,16 @@ import { join } from "node:path"
 import { isBash, isWrite } from "./ops"
 import { ScaffoldService } from "./scaffold"
 import type { ApplyResult } from "./types"
-import {clip} from "@paladin/utils"
 
 const base = mkdtempSync(join(tmpdir(), "scaffold-"))
-const scaffold = new ScaffoldService({ pathResolution: { base }, emit: () => {} })
+const scaffold = new ScaffoldService({
+  pathResolution: { base },
+  emit: () => {},
+  postProcessorOptions: { updateBarrel: {} },
+})
 
 afterAll(() => rmSync(base, { recursive: true, force: true }))
 
-// two files, one importing the other, so the runner has something to trace
 const source = `
 // @acme/widget/src/add.ts
 export const add = (a: number, b: number) => a + b
@@ -26,47 +28,56 @@ test("add sums", () => {
 })
 `
 
-const writes = (result: ApplyResult) => result.filter(isWrite)
-const commands = (result: ApplyResult) => result.filter(isBash)
+/** Every op of the result, paired with its unit — paths are relative to the unit's dir. */
+const all = (result: ApplyResult) => result.units.flatMap((unit) => unit.ops.map((op) => ({ unit, op })))
+const writes = (result: ApplyResult) => all(result).filter((entry) => isWrite(entry.op))
+const commands = (result: ApplyResult) => all(result).map((entry) => entry.op).filter(isBash)
 const find = (result: ApplyResult, suffix: string) =>
-  writes(result).find((op) => op.path.endsWith(suffix))
+  all(result)
+    .map((entry) => entry.op)
+    .filter(isWrite)
+    .find((op) => op.path.endsWith(suffix))
 
-let barrelPath = ""
+const unitDir = join(base, "acme", "packages", "widget")
 
 test("writes the unit, exports it, and runs its tests", async () => {
   const result = (await scaffold.process(source))!
-  await clip(result)
 
-  const add = find(result, "src/add.ts")
-  expect(add?.applied).toBe(true)
+  expect(result.name).toBe("acme")
+  expect(result.isNew).toBe(true)
+  expect(result.units.map((unit) => unit.dir)).toEqual([unitDir])
+
+  expect(find(result, "src/add.ts")?.applied).toBe(true)
 
   // updateBarrel appended an export for the new module
   const barrel = find(result, "src/index.ts")!
-  barrelPath = barrel.path
   expect(barrel.mode).toBe("append")
-  expect(readFileSync(barrelPath, "utf8")).toContain('export * from "./add"')
+  expect(readFileSync(join(unitDir, "src/index.ts"), "utf8")).toContain('export * from "./add"')
+
+  // hydrateBoilerplate laid down the new unit's manifest
+  expect(find(result, "package.json")?.applied).toBe(true)
 
   // the runner turned the test file into a command, and apply ran it
-  const spec = find(result, "add.test.ts")!
   const run = commands(result).find((op) => op.purpose === "test")!
-  expect(run.args).toEqual(["bun", "test", spec.path])
+  expect(run.args.slice(0, 2)).toEqual(["bun", "test"])
+  expect(run.args).toContain(join(unitDir, "src/test/add.test.ts"))
   expect(run.result?.exitCode).toBe(0)
 
   // one op per path — nothing was written twice
-  const paths = writes(result).map((op) => op.path)
+  const paths = writes(result).map((entry) => entry.op).filter(isWrite).map((op) => op.path)
   expect(new Set(paths).size).toBe(paths.length)
 })
 
-test("second pass touches nothing but still runs the tests", async () => {
+test("second pass writes nothing but still runs the tests", async () => {
   const result = (await scaffold.process(source))!
-  // await clip(result)
 
-  // identical input, so the source files come back as skips
+  // identical input: the files come back as skips, which never reach the result
   expect(find(result, "src/add.ts")).toBeUndefined()
-  expect(result.some((op) => op.kind === "skip" && op.path.endsWith("src/add.ts"))).toBe(true)
+  expect(writes(result)).toEqual([])
+  expect(result.summary).toMatchObject({ created: 0, updated: 0, failed: 0 })
 
   // the barrel isn't appended to a second time
-  const barrel = readFileSync(barrelPath, "utf8").split("\n")
+  const barrel = readFileSync(join(unitDir, "src/index.ts"), "utf8").split("\n")
   expect(barrel.filter((line) => line.includes('"./add"'))).toHaveLength(1)
 
   // unchanged files still get their tests run

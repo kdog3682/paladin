@@ -1,1 +1,1 @@
-export * from "./commands/foobar"
+export { ScaffoldService } from "./services/scaffold/scaffold"

@@ -9,7 +9,6 @@ import { hydrateBoilerplate } from "./hydrateBoilerplate"
 import { plan } from "./plan/plan"
 import { postProcessors } from "./postProcessors"
 import { CodeRunner } from "./runner"
-import { print } from "./print"
 import type { ScaffoldEmit } from "./emit"
 import type { PostProcessorOptions } from "./postProcessors/types"
 import type { Registration, RunOptions } from "./runner"
@@ -94,7 +93,7 @@ export class ScaffoldService {
 
     const result = await applyOperations(project)
     if (this.opts.git?.init) await this.git.init(project.dir)
-    this.opts.emit(print(result))
+    this.opts.emit(result)
     return result
   }
 

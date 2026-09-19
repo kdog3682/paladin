@@ -8,7 +8,7 @@ describe("dispatch", () => {
   test("calls the named command with kwargs", async () => {
     const scaffold = new ScaffoldService(opts)
     const result = await dispatch(scaffold, "foobar", { hello: true })
-    expect(result).toEqual({ sessions: 0, hello: true })
+    expect(result).toEqual({ hello: true })
   })
 
   test("throws for an unknown command", async () => {

@@ -1,153 +1,165 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { afterAll, describe, expect, test } from "bun:test"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import type { File } from "./types"
+import { CodeRunner, runnableKind } from "./runner"
+import { skip, write } from "./ops"
+import type { BashOp } from "./types"
 
-const actual = await import("@paladin/utils")
+const cwd = "/p"
 
-const runs: string[][] = []
-
-mock.module("@paladin/utils", () => ({
-  ...actual,
-  bash: async (args: string[]) => {
-    runs.push(args)
-    return { stdout: "", stderr: "", exitCode: 0, args }
-  },
-}))
-
-const { CodeRunner } = await import("./runner")
-
+/** import resolution reads the disk, so files that get imported must really exist */
 const root = mkdtempSync(join(tmpdir(), "runner-test-"))
+afterAll(() => rmSync(root, { recursive: true, force: true }))
 
-function P(path: string): string {
-  return join(root, path)
+function real(rel: string): string {
+  const path = join(root, rel)
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, "")
+  return path
 }
 
-function file(path: string, status: File["status"], content = ""): File {
-  const abs = P(path)
-  mkdirSync(dirname(abs), { recursive: true })
-  writeFileSync(abs, content)
-  return { path: abs, status, content }
-}
+const w = (path: string, content = "") => write("test", path, content)
+const s = (path: string, content = "") => skip("test", path, "unchanged", content)
+const argsOf = (ops: BashOp[]) => ops.map((op) => op.args)
 
-beforeEach(() => {
-  runs.length = 0
-})
+describe("runnableKind", () => {
+  test("pattern kinds win, then classify() for the default registrations", () => {
+    expect(runnableKind("/p/src/a.examples.ts")).toBe("example")
+    expect(runnableKind("/x/packages/recast/src/specs/rename.ts")).toBe("recast-spec")
+    expect(runnableKind("/x/packages/codemod/src/transforms/rename.ts")).toBe("codemod")
+    expect(runnableKind("/p/src/a.test.ts")).toBe("test")
+  })
 
-afterAll(() => {
-  mock.module("@paladin/utils", () => actual)
+  test("plain source is not runnable", () => {
+    expect(runnableKind("/p/src/a.ts")).toBeNull()
+  })
 })
 
 describe("CodeRunner", () => {
-  test("runs a runnable file, changed or not", async () => {
+  test("runs a runnable whether it was written or skipped, in one grouped command", () => {
+    const ops = new CodeRunner().run([w("/p/src/a.test.ts"), s("/p/src/b.test.ts")], { cwd })
+
+    expect(argsOf(ops)).toEqual([["bun", "test", "/p/src/a.test.ts", "/p/src/b.test.ts"]])
+    expect(ops[0]).toMatchObject({ kind: "bash", cwd, purpose: "test", strict: false, source: "codeRunner" })
+  })
+
+  test("ignores source files that are skipped or unknown", () => {
+    const ops = new CodeRunner().run([s("/p/src/a.ts"), w("/p/src/never-indexed.ts")], { cwd })
+    expect(ops).toEqual([])
+  })
+
+  test("reruns the runnable that imports a written source file", () => {
+    const [a, test] = [real("src/a.ts"), join(root, "src/a.test.ts")]
     const runner = new CodeRunner()
-    const results = await runner.run([
-      file("/p/src/a.test.ts", "created"),
-      file("/p/src/b.test.ts", "unchanged"),
+    runner.run([w(test, 'import { a } from "./a"')], { cwd })
+
+    const ops = runner.run([w(a)], { cwd })
+
+    expect(argsOf(ops)).toEqual([["bun", "test", test]])
+  })
+
+  test("a skipped source file does not drag in its importers", () => {
+    const [a, test] = [real("src/a.ts"), join(root, "src/a.test.ts")]
+    const runner = new CodeRunner()
+    runner.run([w(test, 'import { a } from "./a"')], { cwd })
+
+    expect(runner.run([s(a)], { cwd })).toEqual([])
+  })
+
+  test("drops imports that a rewritten runnable no longer has", () => {
+    const [a, b, test] = [real("src/a.ts"), real("src/b.ts"), join(root, "src/a.test.ts")]
+    const runner = new CodeRunner()
+    runner.run([w(test, 'import { a } from "./a"')], { cwd })
+    runner.run([w(test, 'import { b } from "./b"')], { cwd })
+
+    expect(runner.run([w(a)], { cwd })).toEqual([])
+    expect(argsOf(runner.run([w(b)], { cwd }))).toEqual([["bun", "test", test]])
+  })
+
+  test("ignores package imports when indexing", () => {
+    const runner = new CodeRunner()
+    const hono = real("src/hono.ts")
+    runner.run([w("/p/src/a.test.ts", 'import { Hono } from "hono"')], { cwd })
+
+    expect(runner.run([w(hono)], { cwd })).toEqual([])
+  })
+
+  test("disabled ids are left out", () => {
+    const ops = new CodeRunner().run([w("/p/src/a.test.ts")], { cwd, disabled: ["test-ts"] })
+    expect(ops).toEqual([])
+  })
+
+  test("a registration with enabled: false never matches", () => {
+    const runner = new CodeRunner([
+      { id: "test-ts", matches: { kind: "test" }, command: "bun test", enabled: false },
+    ])
+    expect(runner.run([w("/p/src/a.test.ts")], { cwd })).toEqual([])
+  })
+
+  test("a later registration wins only when kind and ext both match", () => {
+    const runner = new CodeRunner().register({
+      matches: { kind: "test", ext: "ts" },
+      command: "vitest",
+    })
+
+    const ops = runner.run([w("/p/src/a.test.ts"), w("/p/src/b.test.tsx")], { cwd })
+
+    expect(argsOf(ops)).toEqual([
+      ["vitest", "/p/src/a.test.ts"],
+      ["bun", "test", "--preload", "./happydom.ts", "/p/src/b.test.tsx"],
+    ])
+  })
+
+  test("registering an id again replaces the earlier registration", () => {
+    const runner = new CodeRunner().register({
+      id: "test-ts",
+      matches: { kind: "test", ext: "ts" },
+      command: "vitest",
+      grouped: true,
+    })
+
+    expect(argsOf(runner.run([w("/p/src/a.test.ts")], { cwd }))).toEqual([["vitest", "/p/src/a.test.ts"]])
+  })
+
+  test("<paths> places the paths, options are appended only when accepted", () => {
+    const runner = new CodeRunner([
+      {
+        id: "lint",
+        matches: { kind: "test" },
+        command: "lint <paths> --fix",
+        acceptsOptions: true,
+        options: { a: 1 },
+      },
     ])
 
-    expect(results.map((result) => result.path)).toEqual([P("/p/src/a.test.ts"), P("/p/src/b.test.ts")])
-    expect(results.every((result) => result.ok)).toBe(true)
-    expect(runs).toEqual([
-      ["bun", "test", P("/p/src/a.test.ts")],
-      ["bun", "test", P("/p/src/b.test.ts")],
-    ])
+    const ops = runner.run([w("/p/src/a.test.ts")], { cwd, scopedRunOptions: { lint: { b: 2 } } })
+
+    expect(argsOf(ops)).toEqual([["lint", "/p/src/a.test.ts", "--fix", "--opts", '{"a":1,"b":2}']])
   })
 
-  test("ignores source files that are unchanged or unknown", async () => {
-    const runner = new CodeRunner()
-    const results = await runner.run([
-      file("/p/src/a.ts", "unchanged"),
-      file("/p/src/never-indexed.ts", "modified"),
-    ])
+  test("@owner/pkg tokens resolve to the package's directory", () => {
+    const ops = new CodeRunner().run([w("/x/packages/recast/src/specs/rename.ts")], {
+      cwd,
+      pathResolution: { base: "/base" },
+    })
 
-    expect(results).toEqual([])
-    expect(runs).toEqual([])
+    expect(ops).toHaveLength(1)
+    expect(ops[0]!.args.slice(0, 2)).toEqual(["bun", "run"])
+    expect(ops[0]!.args[2]).toBe("/base/paladin/packages/recast/src/runner.ts")
+    expect(ops[0]!.args[3]).toBe("/x/packages/recast/src/specs/rename.ts")
+    expect(ops[0]!.purpose).toBe("script")
   })
 
-  test("reruns the runnable that imports a changed source file", async () => {
-    const runner = new CodeRunner()
-    file("/p/src/a.ts", "unchanged")
-    await runner.run([file("/p/src/a.test.ts", "created", 'import { a } from "./a"')])
-    runs.length = 0
+  test("a package with a test script runs it instead of its test files", () => {
+    const manifest = JSON.stringify({ scripts: { test: "bun test --bail" } })
 
-    const results = await runner.run([file("/p/src/a.ts", "modified")])
-
-    expect(results.map((result) => result.path)).toEqual([P("/p/src/a.test.ts")])
-    expect(runs).toEqual([["bun", "test", P("/p/src/a.test.ts")]])
-  })
-
-  test("drops imports that a reindexed runnable no longer has", async () => {
-    const runner = new CodeRunner()
-    file("/p/src/a.ts", "unchanged")
-    file("/p/src/b.ts", "unchanged")
-    await runner.run([file("/p/src/a.test.ts", "created", 'import { a } from "./a"')])
-    await runner.run([file("/p/src/a.test.ts", "modified", 'import { b } from "./b"')])
-    runs.length = 0
-
-    const results = await runner.run([file("/p/src/a.ts", "modified")])
-
-    expect(results).toEqual([])
-  })
-
-  test("ignores package imports when indexing", async () => {
-    const runner = new CodeRunner()
-    await runner.run([file("/p/src/a.test.ts", "created", 'import { Hono } from "hono"')])
-    runs.length = 0
-
-    const results = await runner.run([file("/p/src/hono.ts", "modified")])
-
-    expect(results).toEqual([])
-  })
-
-  test("skips by basename or path suffix", async () => {
-    const runner = new CodeRunner()
-    const results = await runner.run(
-      [file("/p/src/a.test.ts", "created"), file("/p/src/b.test.ts", "created")],
-      { skip: ["a.test.ts"] },
+    const ops = new CodeRunner().run(
+      [w("/p/packages/a/package.json", manifest), w("/p/packages/a/src/x.test.ts")],
+      { cwd },
     )
 
-    expect(results.map((result) => result.path)).toEqual([P("/p/src/b.test.ts")])
-  })
-
-  test("a later registration wins only when kind and ext both match", async () => {
-    const runner = new CodeRunner()
-    runner.register({ matches: { kind: "test", ext: "ts" }, command: "vitest <path>" })
-
-    await runner.run([file("/p/src/a.test.ts", "created"), file("/p/src/b.test.tsx", "created")])
-
-    expect(runs).toEqual([
-      ["vitest", P("/p/src/a.test.ts")],
-      ["bun", "test", P("/p/src/b.test.tsx")],
-    ])
-  })
-
-  test("reports a failing run without throwing", async () => {
-    const runner = new CodeRunner()
-    runner.register({
-      matches: { kind: "script" },
-      handler: async () => ({ stdout: "", stderr: "boom\n", exitCode: 1, args: [] }),
-    })
-
-    const [result] = await runner.run([file("/p/src/a.script.ts", "created")])
-
-    expect(result?.ok).toBe(false)
-    expect(result?.error).toBe("boom")
-  })
-
-  test("reports a thrown handler as a failed result", async () => {
-    const runner = new CodeRunner()
-    runner.register({
-      matches: { kind: "demo" },
-      handler: async () => {
-        throw new Error("nope")
-      },
-    })
-
-    const [result] = await runner.run([file("/p/src/a.demo.ts", "created")])
-
-    expect(result?.ok).toBe(false)
-    expect(result?.error).toBe("nope")
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({ args: ["bun", "run", "test"], cwd: "/p/packages/a", purpose: "test" })
   })
 })

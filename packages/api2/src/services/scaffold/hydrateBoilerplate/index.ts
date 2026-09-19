@@ -3,7 +3,7 @@ import { extname, join } from "node:path"
 import { pathOf, write } from "../ops"
 import type { FsOp, Project, Unit } from "../types"
 
-type UnitType = "astro" | "react" | "typescript"
+type UnitType = "astro" | "react" | "react-peer" | "typescript"
 
 const TEMPLATES = join(import.meta.dir, "templates")
 const SOURCE = "hydrateBoilerplate"

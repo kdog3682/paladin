@@ -1,10 +1,9 @@
 import { clip } from "@paladin/utils"
 import type { ApplyResult, ExampleResult } from "./types"
 
-/* every example run in the result: carried on a bash op, or passed in directly */
-function examplesOf(result: ApplyResult, examples?: ExampleResult): ExampleResult[] {
+/* every example run in the result, carried on the bash op that ran it */
+function examplesOf(result: ApplyResult): ExampleResult[] {
   const runs: ExampleResult[] = []
-  if (examples?.files) runs.push(examples)
   for (const unit of result.units) {
     for (const op of unit.ops) {
       if (op.kind !== "bash") continue
@@ -16,9 +15,9 @@ function examplesOf(result: ApplyResult, examples?: ExampleResult): ExampleResul
 }
 
 /* item errors and display() failures from a run of the examples */
-function errorsOf(result: ApplyResult, examples?: ExampleResult): string {
+function errorsOf(result: ApplyResult): string {
   const blocks: string[] = []
-  for (const run of examplesOf(result, examples)) {
+  for (const run of examplesOf(result)) {
     for (const file of run.files) {
       for (const item of file.items ?? []) {
         if (item.error) blocks.push(`${file.relpath}#${item.name}\n${item.error}`)
@@ -30,9 +29,9 @@ function errorsOf(result: ApplyResult, examples?: ExampleResult): string {
 }
 
 /* artifacts written by display(), plus any emitted by a bash op */
-function artifactsOf(result: ApplyResult, examples?: ExampleResult): string[] {
+function artifactsOf(result: ApplyResult): string[] {
   const paths: string[] = []
-  for (const run of examplesOf(result, examples)) {
+  for (const run of examplesOf(result)) {
     for (const file of run.files) {
       if (file.artifactPath) paths.push(file.artifactPath)
     }
@@ -67,20 +66,19 @@ function bashOf(result: ApplyResult): string {
 }
 
 /* clip the error if the run failed, else the artifacts, else the bash output, else nothing */
-export function print(result: ApplyResult, examples?: ExampleResult): null {
+export function print(result: ApplyResult): void {
   const errors = errorsOf(result, examples)
   if (errors) {
     clip(errors)
-    return null
+    return
   }
 
   const artifacts = artifactsOf(result, examples)
   if (artifacts.length) {
     for (const path of artifacts) clip(path)
-    return null
+    return
   }
 
   const text = bashOf(result)
   if (text) clip(text)
-  return null
 }

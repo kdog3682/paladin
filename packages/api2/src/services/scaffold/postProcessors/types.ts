@@ -14,10 +14,18 @@ export interface UpdateBarrelOptions {
   /** `foobar.index.ts` — a name carrying an `.index` suffix. */
   treatNamedIndexAsEntry?: boolean
 
+  /** `src/foobar.ts` beside the barrel, or `src/foobar/index.ts` one folder down. */
+  fileRelativeToBarrelIndex?: boolean
+
   /**
-   * Packages the rules above apply to, as a run of whole path segments or a glob
-   * (`packages/utils`, `packages/*`). A unit outside this list is left alone.
-   * Omit or leave empty to apply the rules to every unit.
+   * Every source file under these paths is an entry, however deep and whatever it
+   * is named. For flat category layouts (`fs/`, `path/`) where the file name is the export.
+   */
+  alwaysBarrel?: string[]
+
+  /**
+   * Scope gate: packages the rules above apply to, as a run of whole path segments
+   * or a glob. Empty means every unit.
    */
   matches?: string[]
 }
@@ -26,4 +34,5 @@ export interface PostProcessorOptions {
   updateBarrel?: UpdateBarrelOptions
 }
 
+/** Reads a unit's ops and adds more. Never touches disk. */
 export type PostProcessor = (unit: Unit, opts: PostProcessorOptions) => FsOp[] | Promise<FsOp[]>

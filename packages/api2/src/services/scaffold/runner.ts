@@ -38,6 +38,8 @@ export interface Registration {
   acceptsOptions?: boolean
   /** Baseline options, overlaid by `scopedRunOptions[id]`. Ignored unless accepted. */
   options?: Record<string, unknown>
+  /** Off means the registration never matches. On by default. */
+  enabled?: boolean
 }
 
 export interface RunOptions {
@@ -272,7 +274,7 @@ export class CodeRunner {
   private match(kind: string, ext: string): Registration | null {
     for (let i = this.registrations.length - 1; i >= 0; i--) {
       const registration = this.registrations[i]
-      if (!registration) continue
+      if (!registration || registration.enabled === false) continue
 
       const { matches } = registration
       if (matches.kind !== kind) continue

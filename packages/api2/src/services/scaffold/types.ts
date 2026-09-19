@@ -13,14 +13,21 @@ export interface OpMeta {
 
 export type FsOp =
   /** `merge` deep-merges JSON on both sides, and falls back to codeMerge for source. */
-  | (OpMeta & { kind: "write"; path: string; content: string; mode: WriteMode })
+  | (OpMeta & {
+      kind: "write"
+      path: string
+      content: string
+      mode: WriteMode
+      /** Set by apply: whether the file didn't exist before. */
+      created?: boolean
+    })
   | (OpMeta & {
       kind: "bash"
       args: string[]
       cwd: string
       /** A non-zero exit stops every command queued behind it. */
       strict: boolean
-      purpose: "install" | "test" | "demo" | "script" | "build"
+      purpose: "install" | "test" | "demo" | "example" | "script" | "build"
       result?: BashOpResult
     })
   /** Directories go through rmDir, which refuses anything holding a git repo. */
@@ -87,3 +94,14 @@ export interface ApplyResult {
   summary: ApplySummary
 }
 
+
+/** What an example run (`@paladin/exemplar`) reports on stdout; print reads it back off the bash op. */
+export interface ExampleResult {
+  files: {
+    relpath: string
+    artifactPath: string | null
+    /** Stack or message when display() threw. */
+    displayError?: string
+    items?: { name: string; error?: string }[]
+  }[]
+}

@@ -1,10 +1,8 @@
 import { deleteShadowedFiles } from "./deleteShadowedFiles"
 import { updateBarrel } from "./updateBarrel"
-import type { FsOp, Unit } from "../types"
-
-/** Reads a unit's ops and adds more. Never touches disk. */
-export type PostProcessor = (unit: Unit) => FsOp[] | Promise<FsOp[]>
+import type { PostProcessor } from "./types"
 
 export const postProcessors: PostProcessor[] = [deleteShadowedFiles, updateBarrel]
 
+export type { PostProcessor, PostProcessorOptions, UpdateBarrelOptions } from "./types"
 export { deleteShadowedFiles, updateBarrel }

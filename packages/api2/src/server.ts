@@ -27,9 +27,7 @@ const { upgradeWebSocket, websocket } = createBunWebSocket<WebSocket>()
 
 const broadcast = createBroadcast<ScaffoldMessage | ErrorMessage>()
 
-const scaffold = new ScaffoldService({
-  // emit: (kind, payload) => broadcast.send({ kind, payload }),
-})
+const scaffold = new ScaffoldService()
 
 function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

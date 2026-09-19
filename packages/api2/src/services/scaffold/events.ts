@@ -1,18 +1,10 @@
-import type { RunResult } from "./runner"
-import type { PostProcessResult, Project } from "./types"
+import type { ApplyResult } from "./types"
 
 export interface ScaffoldEvents {
-  processResult: PostProcessResult
-  project: Project
-  runResults: RunResult[]
+  result: ApplyResult
 }
 
 export interface ScaffoldMessage<K extends keyof ScaffoldEvents = keyof ScaffoldEvents> {
   kind: K
   payload: ScaffoldEvents[K]
 }
-
-export type ScaffoldEmit = <K extends keyof ScaffoldEvents>(
-  kind: K,
-  payload: ScaffoldEvents[K],
-) => void
