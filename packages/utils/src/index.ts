@@ -39,6 +39,7 @@ export * from "./string/pascalCase"
 
 export * from "./clipboard/clipBuffer"
 export * from "./clipboard/clip"
+export * from "./clipboard/openInBrowser"
 
 export * from "./path/matchesAnyPath"
 export * from "./path/classify"
