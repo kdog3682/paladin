@@ -1,4 +1,4 @@
-import { Node, type Identifier, type ImportSpecifier, type SourceFile } from "ts-morph"
+import { Node, type Identifier, type SourceFile } from "ts-morph"
 import { isExported } from "./declarations"
 import { getExportableNode } from "./getExportableNode"
 import { addNamedImport, getImportsOf, removeImportSpecifier } from "./imports"
@@ -59,23 +59,14 @@ export function retargetReferences(from: NamedDeclaration, to: NamedDeclaration,
   return touched
 }
 
-/* imports the target, making a newly added binding type-only when asked; a binding that was already there keeps its form */
+/* addNamedImport only reuses declarations of the same type-only-ness, so a binding already
+   imported the other way (value vs type) is checked here to avoid importing the name twice */
 function importTarget(file: SourceFile, target: SourceFile, name: string, alias: string | undefined, isTypeOnly: boolean, index?: number) {
   const existing = getImportsOf(file, target)
     .flatMap(decl => decl.getNamedImports())
     .find(spec => spec.getName() === name && spec.getAliasNode()?.getText() === alias)
   if (existing) return
-  const spec = addNamedImport(file, target, name, alias, isTypeOnly, index)
-  if (isTypeOnly) markTypeOnly(spec)
-}
-
-/* `import type { X }` when the declaration holds only this binding, `import { a, type X }` otherwise */
-function markTypeOnly(spec: ImportSpecifier) {
-  const decl = spec.getImportDeclaration()
-  if (decl.isTypeOnly() || spec.isTypeOnly()) return
-  const lone = decl.getNamedImports().length === 1 && !decl.getDefaultImport() && !decl.getNamespaceImport()
-  if (lone) decl.setIsTypeOnly(true)
-  else spec.setIsTypeOnly(true)
+  addNamedImport(file, target, name, { alias, isTypeOnly, insertIndex: index })
 }
 
 function rename(ids: Identifier[], name: string) {
