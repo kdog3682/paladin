@@ -67,13 +67,13 @@ function bashOf(result: ApplyResult): string {
 
 /* clip the error if the run failed, else the artifacts, else the bash output, else nothing */
 export function print(result: ApplyResult): void {
-  const errors = errorsOf(result, examples)
+  const errors = errorsOf(result)
   if (errors) {
     clip(errors)
     return
   }
 
-  const artifacts = artifactsOf(result, examples)
+  const artifacts = artifactsOf(result)
   if (artifacts.length) {
     for (const path of artifacts) clip(path)
     return
