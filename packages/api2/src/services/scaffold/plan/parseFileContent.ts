@@ -41,10 +41,22 @@ function toOp(marker: Marker, path: string, current: string | null, body: string
   return write(SOURCE, path, body)
 }
 
+/** A package.json carries its own address: the `name` field, resolved like `@scope/pkg/package.json`. */
+function packageJsonPath(content: string, opts: PathResolutionOpts): string | null {
+  let name: unknown
+  try {
+    name = JSON.parse(content)?.name
+  } catch {
+    return null
+  }
+  if (typeof name !== "string" || !name.startsWith("@")) return null
+  return resolveScopedPath(`${name}/package.json`, opts)
+}
+
 /**
  * Reads the path header off the first line of a file's content (after an optional
  * shebang), resolves it against opts, and checks the disk to decide what should
- * happen to it. Returns null when there's no usable header.
+ * happen to it. Returns null when there's no usable header (a package.json falls back to its name).
  */
 export function parseFileContent(content: string, opts: PathResolutionOpts): FsOp | null {
   if (content.trim() === "") return null
@@ -57,7 +69,13 @@ export function parseFileContent(content: string, opts: PathResolutionOpts): FsO
   if (line === undefined) return null
 
   const match = line.match(COMMENT_RE)
-  if (!match) return null
+  if (!match) {
+    // no header to go by, but a package.json can be placed from its name
+    const path = packageJsonPath(content, opts)
+    if (!path) return null
+    const current = existsSync(path) ? readFileSync(path, "utf8") : null
+    return toOp(null, path, current, content)
+  }
 
   const header = match[1]!.trim()
   const rawPath = header.replace(MARKER_RE, "").trim()

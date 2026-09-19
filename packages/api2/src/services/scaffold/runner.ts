@@ -1,4 +1,4 @@
-import { extname, join } from "node:path"
+import { basename, dirname, extname, join } from "node:path"
 import { classify, collectImports, resolveRelativePath, resolveScopedPath } from "@paladin/utils"
 import { bashOp, contentOf, isSkip, isWrite } from "./ops"
 import type { BashOp, FsOp, PathResolutionOpts, SkipOp, WriteOp } from "./types"
@@ -119,6 +119,19 @@ function importsOf(path: string, content: string): Set<string> {
   return new Set(paths)
 }
 
+/** The package's `test` script, when this op is a package.json that has one. */
+function testScriptOf(op: WriteOp | SkipOp): string | null {
+  if (basename(op.path) !== "package.json") return null
+  const content = contentOf(op)
+  if (content === null) return null
+  try {
+    const script = JSON.parse(content)?.scripts?.test
+    return typeof script === "string" && script.trim() ? script : null
+  } catch {
+    return null
+  }
+}
+
 function acceptsOptions(registration: Registration): boolean {
   return registration.acceptsOptions ?? registration.command.includes("<opts>")
 }
@@ -205,12 +218,17 @@ export class CodeRunner {
       for (const runnable of this.importers(op.path)) targets.add(runnable)
     }
 
+    // a package that declares its own test script runs that, not bun test on each file
+    const packageTests = touched.flatMap((op) => (testScriptOf(op) ? [dirname(op.path)] : []))
+    const inPackageTests = (path: string) => packageTests.some((dir) => path.startsWith(dir + "/"))
+
     const disabled = new Set(opts.disabled ?? [])
     const groups = new Map<Registration, string[]>()
 
     for (const path of targets) {
       const kind = runnableKind(path)
       if (!kind) continue
+      if (kind === "test" && inPackageTests(path)) continue
 
       const registration = this.match(kind, extname(path).slice(1))
       if (!registration) continue
@@ -234,6 +252,10 @@ export class CodeRunner {
           }),
         )
       }
+    }
+
+    for (const dir of packageTests) {
+      out.push(bashOp(SOURCE, ["bun", "run", "test"], "test", { cwd: dir }))
     }
 
     return out
