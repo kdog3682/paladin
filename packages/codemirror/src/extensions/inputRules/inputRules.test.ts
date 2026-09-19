@@ -3,17 +3,10 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import type { SelectionRange } from '@codemirror/state'
 import { inputRuleTransaction, splitCursor } from './apply'
 import { resolveConfig, type ResolvedConfig } from './config'
-import { abbrevs } from './abbrevs'
-import { punctuationAbbrevSource, punctuationRules, punctuationSwaps } from './presets/punctuation'
-import { HORIZONTAL_RULE, markdownRules } from './presets/markdown'
-import { bracketRules, bracketWraps } from './presets/brackets'
+import { packedInputRules } from './index'
+import { HORIZONTAL_RULE } from './presets/markdown'
 
-const config = resolveConfig({
-  swaps: punctuationSwaps,
-  wraps: bracketWraps,
-  rules: [...punctuationRules, ...markdownRules, ...bracketRules],
-  abbrevs: abbrevs(punctuationAbbrevSource),
-})
+const config = resolveConfig(packedInputRules)
 
 /* '|' is a cursor, '«…»' a selection */
 function parse(spec: string): EditorState {

@@ -3,12 +3,15 @@ import { cleanup, render } from '@testing-library/react'
 import { foldEffect } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 import { Editor, type EditorProps } from './editor'
-import { defaultExtensions } from '../extensions'
+import { defaultExtensions } from '../defaultExtensions'
 import { FONT_STACKS, FONT_VAR } from '../fonts'
 import type { LanguageMap } from '../languages'
 import { serializeEditorState } from '../state'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+})
 
 const LANGUAGES: LanguageMap = {
   // wrapLines differs between the two so a file switch can't quietly lose it
@@ -298,5 +301,33 @@ describe('defaultExtensions options', () => {
       state: { doc: 'one\ntwo\nthree', folds: [4, 7] },
     })
     expect(serializeEditorState(h.view).folds).toEqual([4, 7])
+  })
+})
+
+describe('defaults', () => {
+  const bare = () => render(<Editor onSaveDebounceDelay={DEBOUNCE} />)
+
+  test('opens in txflow with the default language pack', () => {
+    const r = bare()
+    expect(r.container.textContent).toContain('start writing')
+  })
+
+  test('saves to localStorage under the scratchpad fileId, and restores it', async () => {
+    let view: EditorView | undefined
+    const first = render(<Editor onSaveDebounceDelay={DEBOUNCE} onViewReady={(v) => (view = v)} />)
+    type(view!, 'kept')
+    await tick()
+    expect(JSON.parse(localStorage.getItem('paladin:editor:scratchpad')!).doc).toBe('kept')
+    first.unmount()
+
+    let again: EditorView | undefined
+    render(<Editor onViewReady={(v) => (again = v)} />)
+    expect(again!.state.doc.toString()).toBe('kept')
+  })
+
+  test('a given state wins over what onLoad would return', () => {
+    localStorage.setItem('paladin:editor:scratchpad', JSON.stringify({ doc: 'stored' }))
+    const h = mount({ fileId: 'scratchpad', state: { doc: 'explicit' } })
+    expect(h.view.state.doc.toString()).toBe('explicit')
   })
 })

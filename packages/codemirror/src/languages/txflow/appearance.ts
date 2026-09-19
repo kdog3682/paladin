@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view'
-import { FONT_FAMILY } from '../fonts'
+import { FONT_FAMILY } from '../../fonts'
 
 /**
  * The txflow writing surface: generous margins, tight leading, no gutters.
@@ -21,7 +21,7 @@ import { FONT_FAMILY } from '../fonts'
 export const TXFLOW_APPEARANCE = EditorView.theme({
   '&': {
     fontFamily: FONT_FAMILY,
-    fontSize: '14px',
+    fontSize: '12px',
     backgroundColor: '#ffffff',
     color: '#000000',
   },

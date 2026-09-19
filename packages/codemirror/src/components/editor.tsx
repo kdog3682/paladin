@@ -3,7 +3,14 @@ import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, placeholder } from '@codemirror/view'
 import { defaultExtensions } from '../defaultExtensions'
 import { DEFAULT_FONT, type FontKey, fontExtension } from '../fonts'
-import { type LanguageMap, type ResolvedLanguage, resolveLanguage } from '../languages'
+import {
+  BUILTIN_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  type LanguageMap,
+  type ResolvedLanguage,
+  resolveLanguage,
+} from '../languages'
+import { DEFAULT_FILE_ID, loadFromLocalStorage, saveToLocalStorage } from '../persistence'
 import {
   type SerializedState,
   normalizeSnapshot,
@@ -13,13 +20,20 @@ import {
 import { useDebounced, useLatest } from '../useDebounced'
 
 export type EditorProps = {
-  /** Identifies the file being edited; passed back on every onSave and onDirtyChange. */
-  fileId: string
-  /** Snapshot to load. Read on mount and whenever fileId changes. */
+  /** Identifies the file being edited; passed back on every onSave and onDirtyChange. Defaults to 'scratchpad'. */
+  fileId?: string
+  /**
+   * Snapshot to load. Read on mount and whenever fileId changes. Defaults to
+   * whatever `onLoad` returns for the fileId (localStorage, out of the box).
+   */
   state?: SerializedState
-  /** Key into `languages`. Unknown keys fall back to plain text with the default appearance. */
-  language: string
-  /** Language registry. Hoist it to module scope; a new object per render reconfigures the editor. */
+  /** Key into `languages`. Unknown keys fall back to plain text with the default appearance. Defaults to 'txflow'. */
+  language?: string
+  /**
+   * Language registry. Defaults to BUILTIN_LANGUAGES, the default language pack.
+   * To add languages, spread it: `{ ...BUILTIN_LANGUAGES, python: { support: python() } }`.
+   * Hoist it to module scope; a new object per render reconfigures the editor.
+   */
   languages?: LanguageMap
   /**
    * Monospace family. Overrides whatever the language spec prefers, so this is
@@ -28,7 +42,17 @@ export type EditorProps = {
   font?: FontKey
   /** Editing behaviour. Defaults to `defaultExtensions()`; pass `defaultExtensions({ lineNumbers: true })` to tune it. */
   baseExtensions?: Extension[]
-  /** Called (debounced) with the serialized state and the file it belongs to. */
+  /**
+   * Fetches the snapshot for a file when no `state` is given, on mount and on
+   * every fileId change. Defaults to restoring what the default `onSave` wrote
+   * to localStorage. Return undefined for an empty document.
+   */
+  onLoad?: (fileId: string) => SerializedState | undefined
+  /**
+   * Called (debounced) with the serialized state and the file it belongs to.
+   * Defaults to saving to localStorage; pass your own to persist elsewhere,
+   * and `onLoad` to read it back.
+   */
   onSave?: (state: SerializedState, fileId: string) => void
   /** Debounce window for onSave, in ms. Defaults to 30_000. */
   onSaveDebounceDelay?: number
@@ -50,6 +74,7 @@ function buildLanguageConfig(lang: ResolvedLanguage, font?: FontKey): Extension 
     placeholder(lang.placeholder),
     lang.support ?? [],
     lang.appearance ?? [],
+    lang.extensions ?? [],
     fontExtension(font ?? lang.font ?? DEFAULT_FONT),
     lang.wrapLines ? EditorView.lineWrapping : [],
   ]
@@ -57,13 +82,14 @@ function buildLanguageConfig(lang: ResolvedLanguage, font?: FontKey): Extension 
 
 export function Editor(props: EditorProps) {
   const {
-    fileId,
+    fileId = DEFAULT_FILE_ID,
     state,
-    language,
-    languages,
+    language = DEFAULT_LANGUAGE,
+    languages = BUILTIN_LANGUAGES,
     font,
     baseExtensions,
-    onSave,
+    onLoad = loadFromLocalStorage,
+    onSave = saveToLocalStorage,
     onSaveDebounceDelay = 30_000,
     onDirtyChange,
     onViewReady,
@@ -79,6 +105,7 @@ export function Editor(props: EditorProps) {
   const langRef = useLatest(resolveLanguage(language, languages))
   const fontRef = useLatest(font)
   const stateRef = useLatest(state)
+  const onLoadRef = useLatest(onLoad)
   const onSaveRef = useLatest(onSave)
   const onDirtyChangeRef = useLatest(onDirtyChange)
   const onViewReadyRef = useLatest(onViewReady)
@@ -87,6 +114,9 @@ export function Editor(props: EditorProps) {
   // default here would reconfigure the editor on every render
   const baseRef = useRef<Extension[] | null>(null)
   if (!baseRef.current) baseRef.current = baseExtensions ?? defaultExtensions()
+
+  // an explicit `state` wins; otherwise ask onLoad for the current file
+  const initialState = () => stateRef.current ?? onLoadRef.current(fileIdRef.current)
 
   const setDirty = (next: boolean) => {
     if (dirtyRef.current === next) return
@@ -97,7 +127,7 @@ export function Editor(props: EditorProps) {
   const saver = useDebounced(() => {
     const view = viewRef.current
     if (!view) return
-    onSaveRef.current?.(serializeEditorState(view), fileIdRef.current)
+    onSaveRef.current(serializeEditorState(view), fileIdRef.current)
     setDirty(false)
   }, onSaveDebounceDelay)
 
@@ -124,7 +154,7 @@ export function Editor(props: EditorProps) {
   // create the view once
   useEffect(() => {
     const view = new EditorView({
-      state: makeState(stateRef.current),
+      state: makeState(initialState()),
       parent: containerRef.current!,
     })
     viewRef.current = view
@@ -143,7 +173,7 @@ export function Editor(props: EditorProps) {
     saver.flush()
     fileIdRef.current = fileId
     setDirty(false)
-    view.setState(makeState(stateRef.current))
+    view.setState(makeState(initialState()))
   }, [fileId])
 
   // one compartment, one effect — nothing can drift out of sync with the props
