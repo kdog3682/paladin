@@ -17,7 +17,7 @@ How a dropped file becomes files on disk. Code: `src/services/scaffold/`. The ru
 **Nothing touches disk until the last step.** Every stage only appends `FsOp`s to `unit.ops`, so each stage sees the world as it is plus what the earlier stages intend.
 
 1. **plan** (`plan/`) — `readSources` (zip via fflate, a single file, or a text blob split on path-comment headers) → `parseFileContent` (one op per file) → `groupOps` (ops → `Project` → `Unit[]`).
-2. **per unit, in order** — `postProcessors` → `hydrateBoilerplate` → `resolveDependencies` → `CodeRunner.run`.
+2. **per unit, in order** (ops whose path has `.fixture.` or a `fixtures/` segment skip this step entirely and go straight to apply; a unit holding only fixtures gets no boilerplate) — `postProcessors` → `hydrateBoilerplate` → `resolveDependencies` → `CodeRunner.run`.
 3. **apply** (`apply.ts`) — `mergeOps` folds and orders everything, then executes it.
 4. optional `git init`, then `emit(result)`. `defaultEmit` is `print` (`print.ts`), which copies errors, artifacts, or command output to the clipboard via `clip`. Pass `emit` to override.
 

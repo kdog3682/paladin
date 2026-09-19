@@ -19,6 +19,14 @@ export const isSkip = (op: FsOp): op is SkipOp => op.kind === "skip"
 export const isDeprecated = (op: FsOp): op is DeprecatedOp => op.kind === "deprecated"
 export const isPathOp = (op: FsOp): op is PathOp => !isBash(op)
 
+const FIXTURE_PATH = /\.fixture\.|(^|\/)fixtures\//
+
+/** Fixtures are test data: written as-is, never barrelled, hydrated, dependency-scanned or run. */
+export const isFixtureOp = (op: FsOp): boolean => {
+  const path = pathOf(op)
+  return path !== null && FIXTURE_PATH.test(path)
+}
+
 /** The path an op addresses, or null for bash — its target lives in the args. */
 export function pathOf(op: FsOp): string | null {
   return isBash(op) ? null : op.path

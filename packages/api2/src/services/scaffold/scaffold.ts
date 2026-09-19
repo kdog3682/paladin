@@ -6,6 +6,7 @@ import { resolveDependencies } from "./deps/resolveDependencies"
 import { VersionCache } from "./deps/versions"
 import { defaultEmit } from "./emit"
 import { hydrateBoilerplate } from "./hydrateBoilerplate"
+import { isFixtureOp } from "./ops"
 import { plan } from "./plan/plan"
 import { postProcessors } from "./postProcessors"
 import { CodeRunner } from "./runner"
@@ -76,6 +77,16 @@ export class ScaffoldService {
     if (!project) return null
 
     for (const unit of project.units) {
+      // fixtures skip every stage below and go straight to apply
+      const fixtures = unit.ops.filter(isFixtureOp)
+      if (fixtures.length) {
+        unit.ops = unit.ops.filter((op) => !isFixtureOp(op))
+        if (!unit.ops.length) {
+          unit.ops = fixtures
+          continue
+        }
+      }
+
       for (const processor of postProcessors) {
         unit.ops.push(...(await processor(unit, postProcessorOptions)))
       }
@@ -89,6 +100,7 @@ export class ScaffoldService {
           pathResolution,
         }),
       )
+      unit.ops.push(...fixtures)
     }
 
     const result = await applyOperations(project)

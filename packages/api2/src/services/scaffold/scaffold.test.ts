@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { isBash, isWrite } from "./ops"
@@ -82,4 +82,22 @@ test("second pass writes nothing but still runs the tests", async () => {
 
   // unchanged files still get their tests run
   expect(commands(result).find((op) => op.purpose === "test")?.result?.exitCode).toBe(0)
+})
+
+test("fixtures are written as-is, without barrel, boilerplate, deps or runs", async () => {
+  const result = (await scaffold.process(`
+// @acme/gadget/src/test/fixtures/sample.test.ts
+import { nope } from "not-a-real-dep"
+test("would fail", () => {})
+
+// @acme/gadget/src/thing.fixture.ts
+export const thing = 1
+`))!
+
+  const dir = join(base, "acme", "packages", "gadget")
+  expect(readFileSync(join(dir, "src/test/fixtures/sample.test.ts"), "utf8")).toContain("not-a-real-dep")
+  expect(readFileSync(join(dir, "src/thing.fixture.ts"), "utf8")).toContain("thing")
+  expect(existsSync(join(dir, "package.json"))).toBe(false)
+  expect(existsSync(join(dir, "src/index.ts"))).toBe(false)
+  expect(commands(result)).toEqual([])
 })
