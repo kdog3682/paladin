@@ -1,92 +1,39 @@
-import { existsSync } from 'node:fs'
-import type { Project } from 'ts-morph'
-import { extractSymbol } from './codemods/extractSymbol'
-import { remapSymbol } from './codemods/remapSymbol'
-import { renameFile } from './codemods/renameFile'
-import { renameSymbol } from './codemods/renameSymbol'
-import { createProject, loadCodemod, resolveProjectDir } from './run'
+import { join } from 'node:path'
+import { projectRoot } from './project'
+import { runSpec } from './run'
+import type { Spec } from './types'
 
-export type Action = { action: string } & Record<string, unknown>
-export type Spec = { dir: string; actions: Action[]; dry?: boolean }
+const USAGE = [
+  "usage: bun src/cli.ts '<json spec>'",
+  '',
+  '{ "dir": "./src", "actions": [{ "action": "renameSymbol", "args": ["Foo", "Bar"] }] }'
+].join('\n')
 
-function requireString(action: Action, ...keys: string[]) {
-  for (const key of keys) {
-    const value = action[key]
-    if (typeof value === 'string') return value
+// Sanity check is opt-in per package: define a `sanity` script and the CLI runs it after
+// applying actions, so a refactor that silently breaks something is caught immediately
+// instead of surfacing later. No script, no check.
+async function runSanity(dir: string) {
+  const pkg = Bun.file(join(dir, 'package.json'))
+  if (!(await pkg.exists())) return null
+
+  let scripts: Record<string, string> | undefined
+  try {
+    ;({ scripts } = (await pkg.json()) as { scripts?: Record<string, string> })
+  } catch {
+    return null
   }
-  throw new Error(`${action.action}: missing required field "${keys[0]}"`)
-}
 
-function optionalString(action: Action, key: string) {
-  const value = action[key]
-  return typeof value === 'string' ? value : undefined
-}
+  if (!scripts?.sanity) return null
 
-// Named-field actions map onto the same commands the `test.ts` preamble drives
-// positionally (src/codemods/<name>.ts). Anything not listed here falls back to
-// loadCodemod + a plain `args` array, so new codemods work without touching this file.
-const ACTIONS: Record<string, (project: Project, action: Action) => unknown> = {
-  renameSymbol: (project, action) =>
-    renameSymbol(
-      project,
-      requireString(action, 'symbol', 'from'),
-      requireString(action, 'to'),
-      optionalString(action, 'file')
-    ),
-  renameFile: (project, action) => renameFile(project, requireString(action, 'file', 'from'), requireString(action, 'to')),
-  remapSymbol: (project, action) => remapSymbol(project, requireString(action, 'from'), requireString(action, 'to')),
-  extractSymbol: (project, action) =>
-    extractSymbol(
-      project,
-      requireString(action, 'file'),
-      requireString(action, 'symbol'),
-      requireString(action, 'newFile', 'to'),
-      optionalString(action, 'newName')
-    ),
-}
-
-async function runAction(project: Project, action: Action) {
-  const handler = ACTIONS[action.action]
-  if (handler) return handler(project, action)
-
-  const fn = await loadCodemod(action.action)
-  const args = Array.isArray(action.args) ? action.args : []
-  return fn(project, ...args)
-}
-
-export async function runSpec(spec: Spec) {
-  const project = createProject(spec.dir)
-
-  for (const action of spec.actions) await runAction(project, action)
-
-  const touched = project.getSourceFiles().filter(file => !file.isSaved())
-  if (!spec.dry) await project.save()
-
-  return { project, touched }
-}
-
-// Sanity check is opt-in per project: drop a sanity.test.ts in the target dir and the
-// CLI runs it after applying actions, so a refactor that silently breaks something is
-// caught immediately instead of surfacing later.
-async function runSanityTest(dir: string) {
-  const path = `${dir}/sanity.test.ts`
-  if (!existsSync(path)) return null
-
-  console.log(`\nrunning sanity.test.ts`)
-  const proc = Bun.spawn(['bun', 'test', path], { stdout: 'inherit', stderr: 'inherit', cwd: dir })
+  console.log('\nbun run sanity')
+  const proc = Bun.spawn(['bun', 'run', 'sanity'], { cwd: dir, stdout: 'inherit', stderr: 'inherit' })
   return (await proc.exited) === 0
 }
 
 if (import.meta.main) {
   const raw = process.argv[2]
   if (!raw) {
-    console.error(
-      [
-        "usage: bun src/cli.ts '<json spec>'",
-        '',
-        '{ "dir": "./src", "actions": [{ "action": "renameSymbol", "symbol": "Foo", "to": "Bar" }] }'
-      ].join('\n')
-    )
+    console.error(USAGE)
     process.exit(1)
   }
 
@@ -98,6 +45,6 @@ if (import.meta.main) {
 
   if (spec.dry) process.exit(0)
 
-  const sanity = await runSanityTest(resolveProjectDir(spec.dir))
+  const sanity = await runSanity(projectRoot(spec.dir ?? '.'))
   if (sanity === false) process.exit(1)
 }

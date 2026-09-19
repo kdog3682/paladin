@@ -1,47 +1,11 @@
-import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { isAbsolute, join, resolve } from 'node:path'
-import { Project } from 'ts-morph'
+import type { Project } from 'ts-morph'
+import { createProject } from './project'
+import type { Action, Codemod, Spec } from './types'
 import { withoutInsertedSemicolons } from './utils/semicolons'
-
-const PROJECTS = join(homedir(), 'projects')
 
 const toCamelCase = (name: string) => name.replace(/[-_.]+(.)/g, (_, c: string) => c.toUpperCase())
 
-const sourceGlobs = (dir: string) => [
-  `${dir}/**/*.{ts,tsx}`,
-  `!${dir}/**/node_modules/**`,
-  `!${dir}/**/dist/**`,
-  `!${dir}/**/build/**`,
-  `!${dir}/**/*.d.ts`
-]
-
-export function resolveProjectDir(spec: string) {
-  if (spec.startsWith('~')) return join(homedir(), spec.slice(1))
-  if (isAbsolute(spec) || spec.startsWith('.')) return resolve(spec)
-
-  const [repo, ...rest] = spec.split('/')
-  const root = join(PROJECTS, repo)
-  if (rest.length === 0) return root
-
-  const candidates = [join(root, 'packages', ...rest), join(root, 'apps', ...rest), join(root, ...rest)]
-  return candidates.find(existsSync) ?? candidates[0]
-}
-
-export function createProject(spec: string) {
-  const dir = resolveProjectDir(spec)
-  if (!existsSync(dir)) throw new Error(`no such project: ${spec} -> ${dir}`)
-
-  const tsConfigFilePath = join(dir, 'tsconfig.json')
-  const project = existsSync(tsConfigFilePath) ? new Project({ tsConfigFilePath }) : new Project()
-
-  if (project.getSourceFiles().length === 0) project.addSourceFilesAtPaths(sourceGlobs(dir))
-  if (project.getSourceFiles().length === 0) throw new Error(`no source files found in ${dir}`)
-
-  return project
-}
-
-export async function loadCodemod(name: string) {
+export async function loadCodemod(name: string): Promise<Codemod> {
   const url = new URL(`./codemods/${name}.ts`, import.meta.url)
 
   let mod: Record<string, unknown>
@@ -53,59 +17,36 @@ export async function loadCodemod(name: string) {
 
   for (const key of [name, toCamelCase(name), 'default']) {
     const value = mod[key]
-    if (typeof value === 'function') return value as (project: Project, ...args: unknown[]) => unknown
+    if (typeof value === 'function') return value as Codemod
   }
 
   const exported = Object.values(mod).filter(value => typeof value === 'function')
-  if (exported.length === 1) return exported[0] as (project: Project, ...args: unknown[]) => unknown
+  if (exported.length === 1) return exported[0] as Codemod
 
   throw new Error(`codemod "${name}" must export a function named "${name}"`)
 }
 
-export type CommandInvocation = { command: string; args: unknown[] }
-
-export async function runCommands(commands: CommandInvocation[], project: Project | string) {
-  const target = typeof project === 'string' ? createProject(project) : project
-
-  await withoutInsertedSemicolons(target, async () => {
-    for (const { command, args } of commands) {
-      const fn = await loadCodemod(command)
-      await fn(target, ...args)
-    }
-  })
-
-  return target
+export async function runAction(project: Project, action: Action) {
+  const codemod = await loadCodemod(action.action)
+  return codemod(project, ...(action.args ?? []))
 }
 
-export async function run(names: string[], project: Project | string) {
-  const target = typeof project === 'string' ? createProject(project) : project
-
-  await withoutInsertedSemicolons(target, async () => {
-    for (const name of names) {
-      const codemod = await loadCodemod(name)
-      await codemod(target)
-    }
+export async function runActions(project: Project, actions: Action[]) {
+  await withoutInsertedSemicolons(project, async () => {
+    for (const action of actions) await runAction(project, action)
   })
 
-  return target
+  return project
 }
 
-if (import.meta.main) {
-  const args = process.argv.slice(2)
-  const names = args.filter(arg => !arg.startsWith('-'))
-  const dry = args.includes('--dry')
-  const spec = args.find(arg => arg.startsWith('--project='))?.slice('--project='.length) ?? '.'
+/** Bare codemod names are the degenerate case of an action: no arguments. */
+export const toActions = (names: string[]): Action[] => names.map(action => ({ action }))
 
-  if (names.length === 0) {
-    console.error('usage: bun src/run.ts <codemod> [...codemods] [--project=mathpen/manim] [--dry]')
-    process.exit(1)
-  }
+export async function runSpec(spec: Spec, project = createProject(spec.dir ?? '.')) {
+  await runActions(project, spec.actions)
 
-  const project = await run(names, spec)
   const touched = project.getSourceFiles().filter(file => !file.isSaved())
+  if (!spec.dry) await project.save()
 
-  if (dry) for (const file of touched) console.log(file.getFilePath())
-  else await project.save()
-
-  console.log(`${touched.length} file(s) ${dry ? 'would change' : 'changed'}`)
+  return { project, touched }
 }
