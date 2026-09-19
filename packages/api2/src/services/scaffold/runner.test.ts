@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { CodeRunner, runnableKind } from "./runner"
+import { CodeRunner } from "./runner"
 import { skip, write } from "./ops"
 import type { BashOp } from "./types"
 
@@ -22,19 +22,6 @@ function real(rel: string): string {
 const w = (path: string, content = "") => write("test", path, content)
 const s = (path: string, content = "") => skip("test", path, "unchanged", content)
 const argsOf = (ops: BashOp[]) => ops.map((op) => op.args)
-
-describe("runnableKind", () => {
-  test("pattern kinds win, then classify() for the default registrations", () => {
-    expect(runnableKind("/p/src/a.examples.ts")).toBe("example")
-    expect(runnableKind("/x/packages/recast/src/specs/rename.ts")).toBe("recast-spec")
-    expect(runnableKind("/x/packages/codemod/src/transforms/rename.ts")).toBe("codemod")
-    expect(runnableKind("/p/src/a.test.ts")).toBe("test")
-  })
-
-  test("plain source is not runnable", () => {
-    expect(runnableKind("/p/src/a.ts")).toBeNull()
-  })
-})
 
 describe("CodeRunner", () => {
   test("runs a runnable whether it was written or skipped, in one grouped command", () => {
@@ -149,6 +136,15 @@ describe("CodeRunner", () => {
     expect(ops[0]!.args[2]).toBe("/base/paladin/packages/recast/src/runner.ts")
     expect(ops[0]!.args[3]).toBe("/x/packages/recast/src/specs/rename.ts")
     expect(ops[0]!.purpose).toBe("script")
+  })
+
+  test("App.tsx runs through webrun", () => {
+    const ops = new CodeRunner().run([w("/p/src/App.tsx")], { cwd, pathResolution: { base: "/base" } })
+
+    expect(ops).toHaveLength(1)
+    expect(ops[0]!.args.slice(0, 2)).toEqual(["bun", "run"])
+    expect(ops[0]!.args[2]).toEndWith("/webrun/src/webrun.ts")
+    expect(ops[0]!.args[3]).toBe("/p/src/App.tsx")
   })
 
   test("a package with a test script runs it instead of its test files", () => {

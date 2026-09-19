@@ -1,5 +1,6 @@
-import { basename, dirname, extname, join } from "node:path"
-import { classify, collectImports, resolveRelativePath, resolveScopedPath } from "@paladin/utils"
+import { basename, dirname } from "node:path"
+import { collectImports, resolveRelativePath, resolveScopedPath } from "@paladin/utils"
+import { kindOf, matches, matchesAny, type Matcher } from "./matcher"
 import { bashOp, contentOf, isSkip, isWrite } from "./ops"
 import type { BashOp, FsOp, PathResolutionOpts, SkipOp, WriteOp } from "./types"
 
@@ -7,12 +8,6 @@ const SOURCE = "codeRunner"
 
 /** Trails the paths, so the path list stays variadic. withArgv reads it back. */
 const OPTS_FLAG = "--opts"
-
-export interface Matcher {
-  /** Compared against `classify(path)`. The registered kinds are what make a file runnable. */
-  kind: string
-  ext?: string
-}
 
 export interface Registration {
   /** Registering the same id again replaces the earlier one, and keys `scopedRunOptions`. */
@@ -84,33 +79,20 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     command: `bun run @paladin/codemod/test.ts`,
     purpose: "test",
   },
-]
-
-const DEFAULT_KINDS = new Set(DEFAULT_REGISTRATIONS.map((registration) => registration.matches.kind))
-
-/**
- * Path patterns matched directly, ahead of classify(). classify() only
- * knows the kinds in rules.json, so anything runnable that lives outside
- * that scheme (a suffix like `.examples.ts`, a directory like recast's
- * specs/) needs an entry here instead.
- */
-const PATTERN_KINDS: { kind: string; pattern: RegExp }[] = [
-  { kind: "example", pattern: /\.examples\.\w+$/ },
-  { kind: "recast-spec", pattern: /(^|\/)packages\/recast\/src\/specs\// },
-  // a transform, a command, or a file of the corpus they are tested against (classify() calls those "corpus")
   {
-    kind: "codemod",
-    pattern: /(^|\/)packages\/codemod\/(src\/(transforms|commands)\/[^/]+|corpus\/[^/]+\/(output))\.ts$/,
+    id: "webrun",
+    matches: { basename: "App.tsx" },
+    command: `bun run @paladin/webrun/webrun.ts`,
+    purpose: "demo",
   },
 ]
 
 /** Whether `path` is runnable under the default registrations, independent of any CodeRunner instance. */
-export function runnableKind(path: string): string | null {
-  for (const { kind, pattern } of PATTERN_KINDS) {
-    if (pattern.test(path)) return kind
-  }
-  const kind = classify(path)
-  return DEFAULT_KINDS.has(kind) ? kind : null
+export function isRunnable(path: string): boolean {
+  return matchesAny(
+    DEFAULT_REGISTRATIONS.map((registration) => registration.matches),
+    path,
+  )
 }
 
 function importsOf(path: string, content: string): Set<string> {
@@ -147,7 +129,7 @@ function payloadOf(registration: Registration, opts: RunOptions): string | null 
 }
 
 function purposeOf(registration: Registration): BashOp["purpose"] {
-  return registration.purpose ?? (registration.matches.kind as BashOp["purpose"])
+  return registration.purpose ?? ((registration.matches.kind ?? "script") as BashOp["purpose"])
 }
 
 function toArgs(registration: Registration, paths: string[], opts: RunOptions): string[] {
@@ -205,13 +187,13 @@ export class CodeRunner {
 
     // index first, so a changed file can find importers that appear later in the batch
     for (const op of touched) {
-      if (!runnableKind(op.path)) continue
+      if (!isRunnable(op.path)) continue
       const content = contentOf(op)
       if (content !== null) this.imports.set(op.path, importsOf(op.path, content))
     }
 
     for (const op of touched) {
-      if (runnableKind(op.path)) {
+      if (isRunnable(op.path)) {
         targets.add(op.path)
         continue
       }
@@ -228,11 +210,10 @@ export class CodeRunner {
     const groups = new Map<Registration, string[]>()
 
     for (const path of targets) {
-      const kind = runnableKind(path)
-      if (!kind) continue
+      const kind = kindOf(path)
       if (kind === "test" && inPackageTests(path)) continue
 
-      const registration = this.match(kind, extname(path).slice(1))
+      const registration = this.match(path, kind)
       if (!registration) continue
       if (registration.id && disabled.has(registration.id)) continue
 
@@ -271,15 +252,12 @@ export class CodeRunner {
     return out
   }
 
-  private match(kind: string, ext: string): Registration | null {
+  private match(path: string, kind: string | null): Registration | null {
     for (let i = this.registrations.length - 1; i >= 0; i--) {
       const registration = this.registrations[i]
       if (!registration || registration.enabled === false) continue
 
-      const { matches } = registration
-      if (matches.kind !== kind) continue
-      if (matches.ext && matches.ext !== ext) continue
-      return registration
+      if (matches(registration.matches, path, kind)) return registration
     }
     return null
   }

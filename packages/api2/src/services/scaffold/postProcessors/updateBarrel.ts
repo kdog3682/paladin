@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { basename, dirname, extname, join, relative, sep } from "node:path"
 import { matchesAnyPath } from "@paladin/utils"
 import { append, isWrite } from "../ops"
-import { runnableKind } from "../runner"
+import { isRunnable } from "../runner"
 import type { PostProcessorOptions } from "./types"
 import type { FsOp, Unit, WriteOp } from "../types"
 
@@ -178,7 +178,7 @@ function exportable(ctx: BarrelContext, op: FsOp): op is WriteOp {
 
   if (!isWrite(op) || op.mode !== "write") return false
   if (op.path === barrel || existsSync(op.path)) return false
-  if (runnableKind(op.path)) return false
+  if (isRunnable(op.path)) return false
   if (!SOURCE_EXT.test(op.path)) return false
   if (!isEntry(op.path)) return false
   if (isOwned(op.path)) return false

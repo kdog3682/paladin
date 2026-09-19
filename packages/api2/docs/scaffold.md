@@ -55,7 +55,7 @@ The returned `ApplyResult` groups ops per unit; paths and cwds are relative to t
 ## Stages
 
 - `postProcessors/updateBarrel.ts` — appends `export * from "./x"` to `src/index.ts` for **new** source files that count as entries. Rules and options are in `postProcessors/types.ts`; scope comes from `DEFAULT_OPTIONS.postProcessorOptions` in `scaffold.ts` (`matches` currently `packages/utils`, `packages/ui`; empty `matches` means every unit).
-  Never barrels runnable files (`runnableKind`), `src/test/`, non-`src/` files, or files under a folder that already owns an entry.
+  Never barrels runnable files (`isRunnable`), `src/test/`, non-`src/` files, or files under a folder that already owns an entry.
 - `postProcessors/deleteShadowedFiles.ts` — deletes `foo/` when the unit now owns `foo.ts` without writing under it, and `foo.ts` when the unit writes into `foo/`.
 - `hydrateBoilerplate/` — for a new project or unit, writes files from `templates/*.tpl` (blocks separated by `===`, path, `===`; `{{PROJECT_NAME}}`, `{{PACKAGE_NAME}}`). The unit template is picked by extension: `.astro` → `astro`; `.tsx`/`.jsx` → `react` for units named `web`/`web2`, else `react-peer`; otherwise `typescript`. Never overwrites an existing path or one the project's ops already claim.
 - `deps/resolveDependencies.ts` — scans imports of written `.ts`/`.tsx`, emits a `merge` op on the unit's `package.json` for undeclared deps (test files → `devDependencies`), a `merge` op for versions newly learned into the cache file (`npm-dependencies.json` at the repo root, `deps/versions.ts`), and a strict `bun install` at the project root.

@@ -269,7 +269,7 @@ export async function examples() {
   // writes still applied
 
   await scaffold.process(RUNNABLE_MAIN)
-  // an entrypoint rather than a spec — runnableKind keeps it out of the barrel
+  // an entrypoint rather than a spec — isRunnable keeps it out of the barrel
   // and hands it to whichever registration claims it
 
   await scaffold.process(FRESH_PROJECT)
