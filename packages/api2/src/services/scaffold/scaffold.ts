@@ -1,4 +1,6 @@
 // @paladin/api2/src/services/scaffold/scaffold.ts
+import { readdir, rm } from "node:fs/promises"
+import { join } from "node:path"
 import { GitService } from "../git"
 import { applyOperations } from "./apply"
 import { dispatch } from "./commands"
@@ -26,6 +28,8 @@ export interface ScaffoldServiceOptions {
   codeRunner: CodeRunnerOptions
   postProcessorOptions: PostProcessorOptions
   git?: { init?: boolean }
+  /** Empties `dir` (the directory itself stays) every `clearAfter` completed runs. Off unless set. */
+  scratch?: { dir: string; clearAfter: number }
 }
 
 export const DEFAULT_OPTIONS: ScaffoldServiceOptions = {
@@ -51,6 +55,7 @@ export class ScaffoldService {
   private readonly codeRunner: CodeRunner
   private readonly versions: VersionCache
   private git = new GitService()
+  private runs = 0
 
   constructor(opts: Partial<ScaffoldServiceOptions> = {}) {
     this.opts = {
@@ -74,7 +79,10 @@ export class ScaffoldService {
     const { pathResolution, codeRunner, postProcessorOptions } = this.opts
 
     const project = await plan(input, pathResolution)
-    if (!project) return null
+    if (!project) {
+      await this.countRun()
+      return null
+    }
 
     for (const unit of project.units) {
       // fixtures skip every stage below and go straight to apply
@@ -106,7 +114,22 @@ export class ScaffoldService {
     const result = await applyOperations(project)
     if (this.opts.git?.init) await this.git.init(project.dir)
     this.opts.emit(result)
+    await this.countRun()
     return result
+  }
+
+  /** Every `process` call counts, even one that plans nothing; when the count hits `clearAfter` the scratch dir is emptied and the count restarts. */
+  private async countRun() {
+    const scratch = this.opts.scratch
+    if (!scratch || ++this.runs < scratch.clearAfter) return
+    this.runs = 0
+    try {
+      for (const name of await readdir(scratch.dir)) {
+        await rm(join(scratch.dir, name), { recursive: true, force: true })
+      }
+    } catch (error) {
+      console.error(`could not clear ${scratch.dir}`, error)
+    }
   }
 
   async dispatch(method: string, kwargs?: unknown) {

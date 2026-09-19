@@ -27,7 +27,9 @@ const { upgradeWebSocket, websocket } = createBunWebSocket<WebSocket>()
 
 const broadcast = createBroadcast<ScaffoldMessage | ErrorMessage>()
 
-const scaffold = new ScaffoldService()
+const scaffold = new ScaffoldService({
+  scratch: { dir: process.env.DOWNLOAD_DIR!, clearAfter: 20 },
+})
 
 function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

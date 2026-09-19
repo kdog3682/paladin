@@ -21,7 +21,9 @@ How a dropped file becomes files on disk. Code: `src/services/scaffold/`. The ru
 3. **apply** (`apply.ts`) — `mergeOps` folds and orders everything, then executes it.
 4. optional `git init`, then `emit(result)`. `defaultEmit` is `print` (`print.ts`), which copies errors, artifacts, or command output to the clipboard via `clip`. Pass `emit` to override.
 
-Options (`ScaffoldServiceOptions`): `pathResolution` (`base` defaults to `~/projects`, `relativeTo`, `npmCachePath`), `emit`, `codeRunner`, `postProcessorOptions`, `git`.
+Options (`ScaffoldServiceOptions`): `pathResolution` (`base` defaults to `~/projects`, `relativeTo`, `npmCachePath`), `emit`, `codeRunner`, `postProcessorOptions`, `git`, `scratch`.
+
+`scratch: { dir, clearAfter }` (off by default; `server.ts` sets `DOWNLOAD_DIR`, 20): the service counts `process` calls in memory, and once the count reaches `clearAfter` it deletes everything inside `dir` after that run and starts counting again. The count is lost on restart.
 
 ## Input format
 

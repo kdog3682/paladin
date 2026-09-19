@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test"
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { isBash, isWrite } from "./ops"
@@ -100,4 +100,30 @@ export const thing = 1
   expect(existsSync(join(dir, "package.json"))).toBe(false)
   expect(existsSync(join(dir, "src/index.ts"))).toBe(false)
   expect(commands(result)).toEqual([])
+})
+
+test("clears the scratch dir every `clearAfter` runs", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "scaffold-scratch-"))
+  const service = new ScaffoldService({
+    pathResolution: { base },
+    emit: () => {},
+    postProcessorOptions: { updateBarrel: {} },
+    scratch: { dir, clearAfter: 2 },
+  })
+  const notes = "<!-- @acme/notes/notes.md -->\n# notes\n"
+  writeFileSync(join(dir, "a.txt"), "a")
+  mkdirSync(join(dir, "sub"))
+
+  await service.process(notes)
+  expect(readdirSync(dir).sort()).toEqual(["a.txt", "sub"])
+
+  await service.process(notes)
+  expect(readdirSync(dir)).toEqual([])
+  expect(existsSync(dir)).toBe(true)
+
+  writeFileSync(join(dir, "b.txt"), "b")
+  await service.process(notes)
+  expect(readdirSync(dir)).toEqual(["b.txt"])
+
+  rmSync(dir, { recursive: true, force: true })
 })
