@@ -7,8 +7,14 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "bun test"
+  },
   "dependencies": {
-    "@paladin/utils": "workspace:*"
+    "@paladin/utils": "workspace:*",
+    "puppeteer": "^24.37.5"
+  },
+  "bin": {
+    "web-probe": "src/probe/cli.ts"
   }
 }
