@@ -11,7 +11,7 @@ export const CACHE_DIR = join(
 
 export const STATE_FILE = join(CACHE_DIR, "state.json")
 
-export const STATE_VERSION = 2
+export const STATE_VERSION = 3
 
 /**
  * the state file outlives the binary that wrote it, so a field added in a later
@@ -42,6 +42,7 @@ function coerce(raw: unknown): WebrunState | null {
     mode: it.mode === "passthrough" ? "passthrough" : "virtual",
     startedAt: typeof it.startedAt === "number" ? it.startedAt : Date.now(),
     runs: typeof it.runs === "number" ? it.runs : 1,
+    logOffset: typeof it.logOffset === "number" ? it.logOffset : 0,
   }
 }
 

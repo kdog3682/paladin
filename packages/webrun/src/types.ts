@@ -25,6 +25,8 @@ export type WebrunState = {
   startedAt: number
   /** how many webrun calls this server has served, including the one that started it */
   runs: number
+  /** bytes of the log already reported, so a report only shows errors logged since */
+  logOffset: number
 }
 
 export type WebrunOpts = {

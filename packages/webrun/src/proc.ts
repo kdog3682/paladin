@@ -80,6 +80,47 @@ export async function tail(log: string, lines = 12) {
   }
 }
 
+// vite stamps every log entry with a wall-clock time; anything else is a continuation
+const ENTRY_START = /^\s*\d{1,2}:\d{2}:\d{2}(\s?[AP]M)?\s/i
+const ANSI = /\x1b\[[0-9;]*m/g
+
+/**
+ * error entries written to the log at or after byte `from`, newest last, plus
+ * the log's current size to resume from next time. a running server keeps
+ * serving after a bad import or transform, so these never show up as a failed
+ * start — they only exist in the log. repeats (vite re-logs on every request)
+ * are collapsed.
+ */
+export async function newErrors(log: string, from = 0, max = 3, lines = 10) {
+  let buf: Buffer
+  try {
+    buf = await readFile(log)
+  } catch {
+    return { errors: [], size: from }
+  }
+  // a log shorter than the offset was replaced underneath us — read it whole
+  const text = buf.subarray(from <= buf.length ? from : 0).toString("utf8").replace(ANSI, "")
+
+  const entries: string[][] = []
+  for (const line of text.split("\n")) {
+    if (ENTRY_START.test(line) || !entries.length) entries.push([line])
+    else entries[entries.length - 1].push(line)
+  }
+
+  const seen = new Set<string>()
+  const found: string[] = []
+  for (const entry of entries.reverse()) {
+    while (entry.length && !entry[entry.length - 1].trim()) entry.pop()
+    if (!entry.length || !/error/i.test(entry[0])) continue
+    const key = entry.join("\n").replace(ENTRY_START, "")
+    if (seen.has(key)) continue
+    seen.add(key)
+    found.push(entry.slice(0, lines).join("\n"))
+    if (found.length >= max) break
+  }
+  return { errors: found.reverse(), size: buf.length }
+}
+
 export async function spawnVite(layout: Layout, port: number) {
   const bin = findBin(layout.project, "vite")
   if (!bin) throw new Error(`vite is not installed in ${layout.project}`)

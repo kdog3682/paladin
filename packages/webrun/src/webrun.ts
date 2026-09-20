@@ -2,7 +2,7 @@ import { openInBrowser } from "@paladin/utils"
 import { existsSync } from "node:fs"
 import { relative, resolve } from "node:path"
 import { plan } from "./detect"
-import { DEFAULT_PORT, alive, isUp, kill, spawnVite, tail, waitPortFree, waitReady } from "./proc"
+import { DEFAULT_PORT, alive, isUp, newErrors, kill, spawnVite, tail, waitPortFree, waitReady } from "./proc"
 import { clearState, readState, writeState } from "./state"
 import { scaffold } from "./scaffold"
 import type { WebrunOpts, WebrunState } from "./types"
@@ -34,7 +34,7 @@ function uptime(since: number) {
 }
 
 /** what a reused server prints instead of stealing focus with another browser tab */
-export function formatReport(state: WebrunState) {
+export function formatReport(state: WebrunState, errs: string[] = []) {
   const rows: [string, string][] = [
     ["app", short(state.app)],
     ["url", state.url],
@@ -47,9 +47,14 @@ export function formatReport(state: WebrunState) {
     ["log", existsSync(state.log) ? short(state.log) : `${short(state.log)} (missing)`],
   ]
   const width = Math.max(...rows.map(([k]) => k.length))
-  return ["webrun · already running", ...rows.map(([k, v]) => `  ${k.padEnd(width)}  ${v}`)].join(
-    "\n",
-  )
+  const lines = ["webrun · already running", ...rows.map(([k, v]) => `  ${k.padEnd(width)}  ${v}`)]
+
+  // the server can be up and still be erroring — those only land in the log
+  if (errs.length) {
+    lines.push("", `new errors in ${short(state.log)}`)
+    for (const err of errs) lines.push(...err.split("\n").map((l) => `  ${l}`))
+  }
+  return lines.join("\n")
 }
 
 /**
@@ -82,10 +87,12 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
 
     // already serving this exact app — reuse it and say so
     if (state?.app === app && state.port === port && alive(state.pid) && (await isUp(state.url))) {
-      const reused: WebrunState = { ...state, runs: state.runs + 1 }
+      // only what's been logged since the last report
+      const { errors, size } = await newErrors(state.log, state.logOffset)
+      const reused: WebrunState = { ...state, runs: state.runs + 1, logOffset: size }
       await writeState(reused)
       if (opts.open) await openUrl(reused.url)
-      else console.log(formatReport(reused))
+      else console.log(formatReport(reused, errors))
       return reused.url
     }
 
@@ -117,6 +124,7 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       mode: layout.mode,
       startedAt: Date.now(),
       runs: 1,
+      logOffset: 0,
     })
 
     if (!(await waitReady(url, started.pid, timeout))) {

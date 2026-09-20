@@ -1,4 +1,5 @@
 import type { WebrunOpts } from "./types"
+import { newErrors } from "./proc"
 import { formatReport, webrun, webstatus, webstop } from "./webrun"
 
 const USAGE = [
@@ -21,7 +22,9 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (flags.has("--status")) {
     const state = await webstatus()
-    console.log(state ? formatReport(state) : "webrun · nothing running")
+    // a peek: shows what's new since the last report without consuming it
+    const { errors } = state ? await newErrors(state.log, state.logOffset) : { errors: [] }
+    console.log(state ? formatReport(state, errors) : "webrun · nothing running")
     return
   }
 
