@@ -4,7 +4,7 @@ import { foldEffect } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 import { Editor, type EditorProps } from './editor'
 import { defaultExtensions } from '../defaultExtensions'
-import { FONT_STACKS, FONT_VAR } from '../fonts'
+import { FONT_STACKS } from '../fonts'
 import type { LanguageMap } from '../languages'
 import { serializeEditorState } from '../state'
 
@@ -17,7 +17,7 @@ const LANGUAGES: LanguageMap = {
   // wrapLines differs between the two so a file switch can't quietly lose it
   flat: { wrapLines: false, placeholder: 'flat' },
   prose: { wrapLines: true, placeholder: 'prose' },
-  scripty: { font: 'ncm-mono', placeholder: 'scripty' },
+  scripty: { placeholder: 'scripty' },
 }
 
 const DEBOUNCE = 10
@@ -105,26 +105,27 @@ describe('mounting', () => {
   })
 })
 
-/** The family the editor is actually asking for, read off the custom property. */
+const unquoted = (family: string) => family.replace(/["']/g, '').trim()
+
+/** The family the editor is actually rendering its text in. Quotes are stripped: computed style may swap or drop them. */
 function fontOf(h: Handle) {
-  const root = h.container.querySelector('.cm-editor') as HTMLElement
-  return getComputedStyle(root).getPropertyValue(FONT_VAR).trim()
+  const scroller = h.container.querySelector('.cm-scroller') as HTMLElement
+  return unquoted(getComputedStyle(scroller).fontFamily)
 }
+
+const stack = (key: keyof typeof FONT_STACKS) => unquoted(FONT_STACKS[key])
 
 describe('font selection', () => {
   test('defaults to inconsolata', () => {
     const h = mount()
-    expect(fontOf(h)).toBe(FONT_STACKS.inconsolata)
+    expect(fontOf(h)).toBe(stack('inconsolata'))
   })
 
-  test('a language can prefer a family', () => {
-    const h = mount({ language: 'scripty' })
-    expect(fontOf(h)).toBe(FONT_STACKS['ncm-mono'])
-  })
-
-  test('the prop overrides the language preference', () => {
-    const h = mount({ language: 'scripty', font: 'inconsolata' })
-    expect(fontOf(h)).toBe(FONT_STACKS.inconsolata)
+  test('applies to every language', () => {
+    const h = mount({ language: 'scripty', font: 'ncm-mono' })
+    expect(fontOf(h)).toBe(stack('ncm-mono'))
+    h.update({ language: 'prose' })
+    expect(fontOf(h)).toBe(stack('ncm-mono'))
   })
 
   test('switches without remounting the view', () => {
@@ -133,14 +134,14 @@ describe('font selection', () => {
 
     h.update({ font: 'ncm-mono' })
 
-    expect(fontOf(h)).toBe(FONT_STACKS['ncm-mono'])
+    expect(fontOf(h)).toBe(stack('ncm-mono'))
     expect(h.view).toBe(before)
   })
 
   test('survives a file switch', () => {
     const h = mount({ fileId: 'a.txt', font: 'ncm-mono' })
     h.update({ fileId: 'b.txt' })
-    expect(fontOf(h)).toBe(FONT_STACKS['ncm-mono'])
+    expect(fontOf(h)).toBe(stack('ncm-mono'))
   })
 })
 

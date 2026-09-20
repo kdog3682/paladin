@@ -1,5 +1,4 @@
 import { type Extension } from '@codemirror/state'
-import { type FontKey } from '../fonts'
 
 export type LanguageSpec = {
   /** CodeMirror language support, eg `python()`. Omit for plain text. */
@@ -14,11 +13,6 @@ export type LanguageSpec = {
    * the editor's `baseExtensions`, which every language gets.
    */
   extensions?: Extension
-  /**
-   * Font this language prefers. The editor's `font` prop overrides it, so treat
-   * this as a default rather than a lock.
-   */
-  font?: FontKey
   /** Soft-wrap long lines. Defaults to true. */
   wrapLines?: boolean
   /** Shown when the document is empty. Defaults to `start typing in <key>`. */
@@ -33,4 +27,4 @@ export type LanguageMap = Record<string, LanguageSpec>
 
 /** A spec with every default filled in. */
 export type ResolvedLanguage = Required<Pick<LanguageSpec, 'wrapLines' | 'placeholder'>> &
-  Pick<LanguageSpec, 'support' | 'appearance' | 'extensions' | 'font'>
+  Pick<LanguageSpec, 'support' | 'appearance' | 'extensions'>

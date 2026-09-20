@@ -1,5 +1,4 @@
 import { EditorView } from '@codemirror/view'
-import { FONT_FAMILY } from '../../fonts'
 
 /**
  * The txflow writing surface: generous margins, tight leading, no gutters.
@@ -12,23 +11,24 @@ import { FONT_FAMILY } from '../../fonts'
  * - `color` repeated on `&` and `.cm-content` — it inherits.
  * - `lineHeight` repeated on `.cm-content` and `.cm-line` — likewise.
  * - `height: 100%` on `.cm-scroller` — only did anything because of the 100vh.
- * - the hardcoded font family — it now comes from the `font` option through a
- *   custom property, so the same appearance works in either family.
+ * - the hardcoded font family — the editor's `font` prop owns it, so this
+ *   appearance works in any family.
  * - autocomplete tooltip rules — nothing here enables `autocompletion()`, so
  *   they styled an element that never mounted. Restore them in whichever
  *   language spec turns completion on.
  */
 export const TXFLOW_APPEARANCE = EditorView.theme({
   '&': {
-    fontFamily: FONT_FAMILY,
     fontSize: '12px',
     backgroundColor: '#ffffff',
     color: '#000000',
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-content': {
-    padding: '40px 48px',
-    lineHeight: '1.35',
+    /* controls the margin around the editor */
+    padding: '10px 10px', 
+    /* the line-height between lines */
+    lineHeight: '1.15',
   },
   '.cm-line': { padding: '0' },
   '.cm-cursor': {
@@ -36,13 +36,7 @@ export const TXFLOW_APPEARANCE = EditorView.theme({
     borderLeftWidth: '2px',
   },
   '.cm-selectionBackground': {
+    /* the !important is needed for some reason*/
     backgroundColor: '#dbeafe !important',
-  },
-  '&.cm-focused .cm-selectionBackground': {
-    backgroundColor: '#bfdbfe !important',
-  },
-  '.cm-placeholder': {
-    color: '#94a3b8',
-    fontStyle: 'italic',
   },
 })

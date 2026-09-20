@@ -29,7 +29,6 @@ export function resolveLanguage(
     support: spec.support,
     appearance: spec.appearance ?? DEFAULT_APPEARANCE,
     extensions: spec.extensions,
-    font: spec.font,
     wrapLines: spec.wrapLines ?? true,
     placeholder: spec.placeholder ?? `start typing in ${key}`,
   }

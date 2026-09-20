@@ -7,5 +7,4 @@ export const TXFLOW: LanguageSpec = {
   extensions: TXFLOW_EXTENSIONS,
   wrapLines: true,
   placeholder: 'start writing',
-  font: 'ncm-mono',
 }

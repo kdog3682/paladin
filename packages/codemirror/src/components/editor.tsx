@@ -36,8 +36,9 @@ export type EditorProps = {
    */
   languages?: LanguageMap
   /**
-   * Monospace family. Overrides whatever the language spec prefers, so this is
-   * where a user-level font setting belongs. Defaults to 'inconsolata'.
+   * Monospace family, applied to whichever appearance the language uses. Fonts
+   * belong to the editor, not the language; change it at any time and the
+   * editor restyles without remounting. Defaults to 'inconsolata'.
    */
   font?: FontKey
   /** Editing behaviour. Defaults to `defaultExtensions()`; pass `defaultExtensions({ lineNumbers: true })` to tune it. */
@@ -59,8 +60,8 @@ export type EditorProps = {
    * Called synchronously when the user leaves the page: the tab is hidden or the
    * page is closing. Only fires if there are unsaved edits or cursor moves, once
    * per burst of them. It does not replace `onSave`, which still runs on its own schedule
-   * if the user comes back. Defaults to saving to localStorage; a custom one
-   * must be synchronous (eg `navigator.sendBeacon`), since the page may not
+   * if the user comes back. Defaults to `onSave` (so localStorage unless that is
+   * overridden); a custom one must be synchronous (eg `navigator.sendBeacon`), since the page may not
    * outlive it.
    */
   onLeave?: (state: SerializedState, fileId: string) => void
@@ -91,16 +92,15 @@ const FILL_CONTAINER = EditorView.theme({
 
 /**
  * Everything the config compartment holds. The font is resolved here rather
- * than baked into an appearance, so the same appearance works in either family:
- * an explicit prop wins, then the language's preference, then the default.
+ * than baked into an appearance, so the same appearance works in any family.
  */
-function buildLanguageConfig(lang: ResolvedLanguage, font?: FontKey): Extension {
+function buildLanguageConfig(lang: ResolvedLanguage, font: FontKey = DEFAULT_FONT): Extension {
   return [
     placeholder(lang.placeholder),
     lang.support ?? [],
     lang.appearance ?? [],
     lang.extensions ?? [],
-    fontExtension(font ?? lang.font ?? DEFAULT_FONT),
+    fontExtension(font),
     lang.wrapLines ? EditorView.lineWrapping : [],
     FILL_CONTAINER,
   ]
@@ -116,7 +116,7 @@ export function Editor(props: EditorProps) {
     baseExtensions,
     onLoad = loadFromLocalStorage,
     onSave = saveToLocalStorage,
-    onLeave = saveToLocalStorage,
+    onLeave,
     autofocus = true,
     onSaveDebounceDelay = 30_000,
     onDirtyChange,
@@ -140,7 +140,7 @@ export function Editor(props: EditorProps) {
   const stateRef = useLatest(state)
   const onLoadRef = useLatest(onLoad)
   const onSaveRef = useLatest(onSave)
-  const onLeaveRef = useLatest(onLeave)
+  const onLeaveRef = useLatest(onLeave ?? onSave)
   const onDirtyChangeRef = useLatest(onDirtyChange)
   const onViewReadyRef = useLatest(onViewReady)
   const autofocusRef = useLatest(autofocus)

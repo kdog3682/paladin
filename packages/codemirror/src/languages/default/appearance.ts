@@ -1,7 +1,6 @@
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorView } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
-import { FONT_FAMILY } from '../../fonts'
 
 const color = {
   fg: '#1f2328',
@@ -18,7 +17,6 @@ const color = {
 
 const theme = EditorView.theme({
   '&': {
-    fontFamily: FONT_FAMILY,
     fontSize: '12px',
     backgroundColor: '#ffffff',
     color: color.fg,

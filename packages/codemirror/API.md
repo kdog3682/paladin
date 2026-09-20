@@ -23,7 +23,7 @@ All optional.
 | `onLoad` | localStorage | `(fileId) => state \| undefined` |
 | `autofocus` | `true` | Focus on mount and file switch, with the restored cursor scrolled into view. |
 | `onSave` | localStorage | `(state, fileId) => void`, debounced 30s. |
-| `onLeave` | localStorage | `(state, fileId) => void`, sync. Fires when the tab is hidden or closed with unsaved edits or cursor moves. |
+| `onLeave` | `onSave` | `(state, fileId) => void`, sync. Fires when the tab is hidden or closed with unsaved edits or cursor moves. |
 | `onDirtyChange` | — | `(dirty, fileId) => void` |
 | `onViewReady` | — | Receives the `EditorView`. |
 | `className` | — | Container class. |
