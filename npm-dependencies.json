@@ -500,5 +500,6 @@
   "@codemirror/autocomplete": "^6.20.3",
   "@lezer/common": "^1.5.2",
   "@lezer/generator": "^1.8.0",
-  "@lezer/lr": "^1.4.10"
+  "@lezer/lr": "^1.4.10",
+  "sonner": "^2.0.8"
 }
