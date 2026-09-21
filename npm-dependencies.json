@@ -501,5 +501,6 @@
   "@lezer/common": "^1.5.2",
   "@lezer/generator": "^1.8.0",
   "@lezer/lr": "^1.4.10",
-  "sonner": "^2.0.8"
+  "sonner": "^2.0.8",
+  "react-hotkeys-hook": "^5.3.3"
 }
