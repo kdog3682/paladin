@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { homedir } from "node:os"
-import { collectImports } from "@paladin/utils/collectImports"
+import { collectImports } from "./ast/collectImports"
 
 const PROJECTS = join(homedir(), "projects")
 const EXTS = [".ts", ".tsx"]
