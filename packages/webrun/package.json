@@ -15,6 +15,6 @@
     "puppeteer": "^24.37.5"
   },
   "bin": {
-    "web-probe": "src/probe/cli.ts"
+    "webrun": "src/cli.ts"
   }
 }

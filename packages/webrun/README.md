@@ -7,9 +7,13 @@ the tab that's already open switches to it.
 ```
 webrun <path/to/App.tsx | path/to/name.examples.tsx> [--open] [--no-open] [--report] [--virtual] [--passthrough] [--no-user-config]
 webrun --status | --stop
+webrun [target] --click <sel> --expect <sel> --text <sel> --preview ...   # probe
 ```
 
-`web-probe` drives the served page in headless Chrome: `web-probe --help`.
+Any action flag (or `--preview`) also drives the page in headless Chrome and reports what it saw
+(`webrun --help` lists them all). With a path the app is served first (without opening a tab unless
+`--open`), with no target the running server is probed, with an `http(s)://` url that page is probed
+as is. Actions run in the order given; exit 1 if one fails.
 
 ## Behaviour
 

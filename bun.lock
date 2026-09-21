@@ -355,7 +355,7 @@
       "name": "@paladin/webrun",
       "version": "0.1.0",
       "bin": {
-        "web-probe": "src/probe/cli.ts",
+        "webrun": "src/cli.ts",
       },
       "dependencies": {
         "@paladin/utils": "workspace:*",

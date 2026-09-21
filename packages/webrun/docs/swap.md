@@ -84,7 +84,7 @@ Start with which path ran. In place prints `webrun · swapped to <file>`; a rest
 - **Swapped, but the tab shows the old app** — the tab isn't connected. `curl
   http://127.0.0.1:35737/__webrun/clients` should be ≥ 1. A stale transform would show as the old
   app after a reload; check that `/main.tsx` (`curl` it) names the new file.
-- **Restarted, tab didn't follow** — the vite-client limits above. Refresh. `web-probe --reload
+- **Restarted, tab didn't follow** — the vite-client limits above. Refresh. `webrun --reload
   <ms>` can hold a page open to check it from a script.
 - **Blank page** — `react-dom/client does not provide an export named 'createRoot'` means React
   wasn't pre-bundled; the config's `optimizeDeps.include` is what prevents it.
@@ -93,7 +93,7 @@ Watching it happen:
 
 ```
 webrun src/test/fixtures/hello/App.tsx --no-open
-web-probe --text body --reload 10000 --text body &
+webrun --text body --reload 10000 --text body &
 webrun src/test/fixtures/gallery/Card.examples.tsx
 wait
 ```
