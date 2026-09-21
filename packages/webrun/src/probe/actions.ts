@@ -17,6 +17,19 @@ export const ACTIONS = {
     eg: "'document.title'",
     help: "evaluate an expression in the page (may be async)",
   },
+  text: {
+    seq: true,
+    arg: "sel",
+    eg: "body",
+    help: "print the text of every element matching the selector (fails if none match)",
+  },
+  reload: {
+    seq: true,
+    arg: "ms",
+    eg: "10000",
+    parse: int({ min: 0 }),
+    help: "wait up to ms for the page to reload itself, e.g. while another terminal swaps the app (fails if it doesn't)",
+  },
   sleep: {
     seq: true,
     arg: "ms",

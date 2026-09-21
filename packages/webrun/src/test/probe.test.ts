@@ -82,4 +82,45 @@ describe("probe", () => {
     expect(text).not.toContain("script")
     expect(r.preview!.length).toBeLessThan(20)
   }, 30_000)
+
+  test("text reads every match", async () => {
+    const r = await probe({
+      url: page(`<ul><li>one</li><li> two   words </li></ul>`),
+      actions: [{ text: "li" }, { text: "#missing" }],
+    })
+    expect(r.actions[0].detail).toBe("one | two words")
+    expect(r.actions[1].status).toBe("fail")
+    expect(r.actions[1].detail).toContain("matched nothing")
+  }, 30_000)
+
+  test("reload waits for the page to replace itself", async () => {
+    // a real server: chrome refuses script navigations of a data: url. the first
+    // response reloads itself after goto and its settle are done, so the reload
+    // lands while the action waits; every later response is the "new" page
+    let hits = 0
+    const server = Bun.serve({
+      port: 0,
+      hostname: "127.0.0.1",
+      fetch: () => {
+        hits++
+        const body = hits === 1 ? "<h1>first</h1><script>setTimeout(() => location.reload(), 1800)</script>" : "<h1>second</h1>"
+        return new Response(body, { headers: { "content-type": "text/html" } })
+      },
+    })
+    try {
+      const r = await probe({ url: server.url.href, actions: [{ reload: 5000 }, { text: "h1" }] })
+      expect(r.ok).toBe(true)
+      expect(r.actions[0].detail).toMatch(/^reloaded after \d+ms$/)
+      expect(r.actions[1].detail).toBe("second")
+    } finally {
+      server.stop(true)
+    }
+  }, 30_000)
+
+  test("reload fails when nothing reloads the page", async () => {
+    const r = await probe({ url: page("<p>still</p>"), actions: [{ reload: 400 }, { text: "p" }] })
+    expect(r.ok).toBe(false)
+    expect(r.actions[0].detail).toContain("did not reload within 400ms")
+    expect(r.actions[1].status).toBe("skipped")
+  }, 30_000)
 })

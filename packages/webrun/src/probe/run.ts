@@ -79,6 +79,32 @@ async function expectSelector(page: Page, spec: string, timeout: number) {
   return `×${n}${text ? ` "${clip(text)}"` : ""}`
 }
 
+/** the visible text of every match, one entry per element */
+async function readText(page: Page, sel: string) {
+  const texts = await page.$$eval(sel, (els) =>
+    els.map((el) => ((el as HTMLElement).innerText ?? el.textContent ?? "").trim().replace(/\s+/g, " ")),
+  )
+  if (!texts.length) throw new Error(`${sel} matched nothing`)
+  return clip(texts.join(" | "), 400)
+}
+
+/**
+ * wait for the page to navigate on its own. this is the ordinary way to check a
+ * swap: hold the page open here, change the served app from another terminal,
+ * and see whether the tab followed. it waits out the network afterwards so what
+ * the next action sees is the new page, not a half-loaded one.
+ */
+async function awaitReload(page: Page, ms: number) {
+  const started = Date.now()
+  try {
+    await page.waitForNavigation({ waitUntil: "networkidle0", timeout: ms })
+  } catch {
+    throw new Error(`the page did not reload within ${ms}ms`)
+  }
+  await sleep(SETTLE)
+  return `reloaded after ${Date.now() - started}ms`
+}
+
 /** runs one action, records it in `out`, and rethrows on failure so the caller can skip the rest */
 async function runAction(page: Page, action: Action, timeout: number, out: ActionResult[]) {
   const did = async (label: string, fn: () => Promise<string | void>, settle = false) => {
@@ -98,6 +124,8 @@ async function runAction(page: Page, action: Action, timeout: number, out: Actio
   if ("keypress" in action) return did(`keypress ${action.keypress}`, () => press(page, action.keypress), true)
   if ("sleep" in action) return did(`sleep ${action.sleep}ms`, () => sleep(action.sleep))
   if ("expect" in action) return did(`expect ${action.expect}`, () => expectSelector(page, action.expect, timeout))
+  if ("text" in action) return did(`text ${action.text}`, () => readText(page, action.text))
+  if ("reload" in action) return did(`reload ${action.reload}ms`, () => awaitReload(page, action.reload))
   if ("eval" in action)
     return did(`eval ${clip(action.eval)}`, async () => {
       const r = await page.evaluate(`(async () => (${action.eval}))()`)
@@ -161,6 +189,9 @@ export async function probe({ url, actions = [], timeout = 2000, preview = false
       }
     }
     at = "load"
+
+    // a reload can have replaced the page since the title was first read
+    result.title = await page.title()
 
     if (preview) result.preview = await page.evaluate(readOutline, PREVIEW_MAX_LINES)
     result.fonts = await page.evaluate(readFonts)
