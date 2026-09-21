@@ -1,6 +1,6 @@
 import { join, extname } from 'path'
 import { existsSync, readFileSync } from 'fs'
-import { collectImports } from '@paladin/utils/collectImports'
+import { collectImports } from '@paladin/utils'
 import { expandHome } from '../../utils/path'
 import type { FileEntry } from './types'
 
