@@ -2,7 +2,7 @@ import { openInBrowser } from "@paladin/utils"
 import { existsSync } from "node:fs"
 import { relative, resolve } from "node:path"
 import { plan } from "./detect"
-import { DEFAULT_PORT, alive, clientCount, isUp, newErrors, kill, spawnVite, tail, waitPortFree, waitReady } from "./proc"
+import { DEFAULT_PORT, alive, clientCount, isUp, newErrors, kill, recentActions, spawnVite, tail, waitPortFree, waitReady } from "./proc"
 import { clearState, readState, writeState } from "./state"
 import { configMatches, scaffold } from "./scaffold"
 import type { WebrunOpts, WebrunState } from "./types"
@@ -34,7 +34,7 @@ function uptime(since: number) {
 }
 
 /** what a reused server prints instead of stealing focus with another browser tab */
-export function formatReport(state: WebrunState, errs: string[] = []) {
+export function formatReport(state: WebrunState, errs: string[] = [], recent: string[] = []) {
   const rows: [string, string][] = [
     ["app", state.app],
     ["url", state.url],
@@ -48,6 +48,8 @@ export function formatReport(state: WebrunState, errs: string[] = []) {
   ]
   const width = Math.max(...rows.map(([k]) => k.length))
   const lines = ["webrun · already running", ...rows.map(([k, v]) => `  ${k.padEnd(width)}  ${v}`)]
+  // the last few log entries hang off the log row, aligned under its value
+  for (const action of recent) lines.push(`  ${"".padEnd(width)}    ${action}`)
 
   // the server can be up and still be erroring — those only land in the log
   if (errs.length) {
@@ -97,7 +99,7 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       const reused: WebrunState = { ...state, runs: state.runs + 1, logOffset: size }
       await writeState(reused)
       if (opts.open) await openUrl(reused.url)
-      else if (opts.report) console.log(formatReport(reused, errors))
+      else if (opts.report) console.log(formatReport(reused, errors, await recentActions(reused.log)))
       return reused.url
     }
 

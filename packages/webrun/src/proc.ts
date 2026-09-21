@@ -95,6 +95,51 @@ export async function tail(log: string, lines = 12) {
 const ENTRY_START = /^\s*\d{1,2}:\d{2}:\d{2}(\s?[AP]M)?\s/i
 const ANSI = /\x1b\[[0-9;]*m/g
 
+const base = (p: string) => p.slice(p.lastIndexOf("/") + 1)
+
+/** one vite log entry as `time what target`, e.g. `12:44:38 reload HelpPalette.tsx` */
+function condense(entry: string) {
+  const [, time = "", rest = ""] = entry.match(/^\s*(\d{1,2}:\d{2}:\d{2})(?:\s?[AP]M)?\s+(.*)$/i) ?? []
+  const msg = rest.replace(/^\[vite\]\s*/, "").trim()
+  const hmr = msg.match(/^hmr update\s+(.*)$/)
+  if (hmr) {
+    const files = hmr[1].split(/,\s*/).map(base).filter((f) => f !== "styles.css")
+    return `${time} hmr ${files.join(" ") || "styles.css"}`
+  }
+  const reload = msg.match(/^page reload\s+(.*)$/)
+  if (reload) return `${time} reload ${base(reload[1])}`
+  const deps = msg.match(/new dependencies optimized:\s*(.*)$/)
+  if (deps) return `${time} deps ${deps[1]}`
+  if (/optimized dependencies changed/.test(msg)) return `${time} deps changed`
+  return `${time} ${msg.length > 70 ? `${msg.slice(0, 69)}…` : msg}`
+}
+
+/**
+ * the last `max` things the server did, condensed to one line each, oldest
+ * first. consecutive repeats (an hmr update per keystroke) fold into `×N`.
+ */
+export async function recentActions(log: string, max = 5) {
+  let text: string
+  try {
+    text = (await readFile(log, "utf8")).replace(ANSI, "")
+  } catch {
+    return []
+  }
+  const out: { line: string; key: string; n: number }[] = []
+  for (const line of text.split("\n")) {
+    if (!ENTRY_START.test(line)) continue
+    const condensed = condense(line)
+    // the time is what changes between repeats, so it can't be part of the key
+    const key = condensed.replace(/^\S+\s/, "")
+    const last = out[out.length - 1]
+    if (last?.key === key) {
+      last.line = condensed
+      last.n++
+    } else out.push({ line: condensed, key, n: 1 })
+  }
+  return out.slice(-max).map((e) => (e.n > 1 ? `${e.line} ×${e.n}` : e.line))
+}
+
 /**
  * error entries written to the log at or after byte `from`, newest last, plus
  * the log's current size to resume from next time. a running server keeps

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { helpText, runArgv, type Spec } from "@paladin/utils"
 import type { WebrunOpts } from "./types"
-import { newErrors } from "./proc"
+import { newErrors, recentActions } from "./proc"
 import { ACTIONS } from "./probe/actions"
 import { formatReport as formatProbe, probe } from "./probe/run"
 import { formatReport, webrun, webstatus, webstop } from "./webrun"
@@ -37,7 +37,7 @@ export function main(argv = process.argv.slice(2)) {
     if (kwargs.status) {
       const state = await webstatus()
       const { errors } = state ? await newErrors(state.log, state.logOffset) : { errors: [] }
-      console.log(state ? formatReport(state, errors) : "webrun · nothing running")
+      console.log(state ? formatReport(state, errors, await recentActions(state.log)) : "webrun · nothing running")
       return
     }
 
