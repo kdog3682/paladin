@@ -94,7 +94,7 @@ function HelpSection({ group }: { group: HelpGroup }) {
   return (
     <section className="min-w-0">
       <h3 className="mb-1 text-xs font-medium">{group.name}</h3>
-      <ul className="divide-y divide-(color:--border)/30">
+      <ul className="divide-y-[0.5px]">
         {group.items.map((item, i) => (
           <HelpRow key={`${item.title}-${i}`} item={item} />
         ))}
