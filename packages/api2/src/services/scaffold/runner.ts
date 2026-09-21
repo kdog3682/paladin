@@ -60,6 +60,12 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     enabled: false, // TODO
   },
   {
+    id: "tsx-example",
+    matches: { kind: "example", ext: 'tsx' },
+    command: `bun run @paladin/webrun/cli.ts`,
+    purpose: "example",
+  },
+  {
     id: "example",
     matches: { kind: "example" },
     command: `bun run @paladin/exemplar/cli.ts`,
