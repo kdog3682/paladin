@@ -48,7 +48,7 @@ test("classifies each import by where it actually lives", async () => {
   const { gained } = await resolve(
     `
 // @mathpen/manim/src/index.ts
-import { collectImports } from "@paladin/utils/collectImports"
+import { collectImports } from "@paladin/utils"
 import { render } from "@mathpen/core"
 import { self } from "@mathpen/manim"
 import { z } from "zod"
