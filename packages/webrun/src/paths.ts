@@ -13,6 +13,9 @@ export const CONFIG_NAMES = [
 /** tried in order when a relative import omits its extension */
 export const EXTS = [".tsx", ".ts", ".jsx", ".js", ".mjs", ".mts"]
 
+/** `Button.examples.tsx` — a file of exported example functions rather than an app */
+export const isExamples = (path: string) => /\.examples\.[jt]sx?$/.test(path)
+
 /** single-quote a path for `sh -c` */
 export const q = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`
 

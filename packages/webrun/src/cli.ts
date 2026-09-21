@@ -3,7 +3,10 @@ import { newErrors } from "./proc"
 import { formatReport, webrun, webstatus, webstop } from "./webrun"
 
 const USAGE = [
-  "usage: webrun <path/to/App.tsx> [options]",
+  "usage: webrun <path/to/App.tsx | path/to/name.examples.tsx> [options]",
+  "",
+  "  a name.examples.tsx renders every exported function in it as an example,",
+  "  in place of whatever was running. #<name> in the url isolates one.",
   "",
   "  --open              open the browser even on a reused server",
   "  --no-open           never open the browser",

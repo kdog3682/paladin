@@ -2,9 +2,9 @@ import { openInBrowser } from "@paladin/utils"
 import { existsSync } from "node:fs"
 import { relative, resolve } from "node:path"
 import { plan } from "./detect"
-import { DEFAULT_PORT, alive, isUp, newErrors, kill, spawnVite, tail, waitPortFree, waitReady } from "./proc"
+import { DEFAULT_PORT, alive, clientCount, isUp, newErrors, kill, spawnVite, tail, waitPortFree, waitReady } from "./proc"
 import { clearState, readState, writeState } from "./state"
-import { scaffold } from "./scaffold"
+import { configMatches, scaffold } from "./scaffold"
 import type { WebrunOpts, WebrunState } from "./types"
 
 function short(path: string) {
@@ -67,7 +67,10 @@ export function formatReport(state: WebrunState, errs: string[] = []) {
  *
  * the first run of a given server opens the browser. later calls against the
  * same live server reuse it and print a report instead — pass `open` to force
- * either way. a different app swaps the server out and counts as a first run.
+ * either way. a different app in the same project is swapped in on the running
+ * server and the open tab reloads onto it; one in another project replaces the
+ * server (a first run), and a tab still open on the old one stops a second from
+ * opening.
  *
  * tears down anything *this call* started if it fails. returns the url, or null
  * on failure (errors are the only thing logged).
@@ -96,7 +99,38 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       return reused.url
     }
 
-    // different app, or a dead/stale server — take the old one down first
+    const layout = await plan(app, opts)
+
+    // a live server on this port, and the new app would run on the very config it
+    // has loaded (same project, both through the generated shell): keep it. the
+    // entry is rewritten and the open tab told to reload — no restart, so it
+    // lands in a blink
+    if (
+      state &&
+      state.port === port &&
+      state.workdir === layout.workdir &&
+      state.mode === "virtual" &&
+      layout.mode === "virtual" &&
+      alive(state.pid) &&
+      (await isUp(state.url)) &&
+      (await configMatches(layout))
+    ) {
+      const tabs = await clientCount(state.url)
+      await scaffold(layout, app)
+      if ((await fetch(new URL("__webrun/reload", state.url))).ok) {
+        await writeState({ ...state, app, runs: state.runs + 1 })
+        if (opts.open === true || (opts.open !== false && !tabs)) await openUrl(state.url)
+        else console.log(`webrun · swapped to ${short(app)}`)
+        return state.url
+      }
+    }
+
+    // different project, or a dead/stale server — take the old one down first.
+    // a tab left open on it is not counted on to follow (vite's own reconnect is
+    // unreliable), but is enough to not open a second one
+    let tabOpen = false
+    if (state && state.port === port && alive(state.pid)) tabOpen = ((await clientCount(state.url)) ?? 0) > 0
+
     if (state && alive(state.pid)) {
       await kill(state.pid, settle)
       // state.json is the only record of this server — never drop it while it may still be running
@@ -104,7 +138,6 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     }
     await clearState()
 
-    const layout = await plan(app, opts)
     await scaffold(layout, app)
 
     if (!(await waitPortFree(port, 2_000))) throw new Error(`port ${port} is in use by another process`)
@@ -132,7 +165,7 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       throw new Error(why || `vite failed to start on port ${port}`)
     }
 
-    if (opts.open !== false) await openUrl(url)
+    if (opts.open === true || (opts.open !== false && !tabOpen)) await openUrl(url)
     return url
   } catch (err) {
     // only tear down what this call started. clearing state without killing

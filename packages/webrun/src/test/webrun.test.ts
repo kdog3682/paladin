@@ -128,27 +128,54 @@ describe("webrun", () => {
   )
 
   test(
-    "swap: a different app kills the old server and starts a fresh one",
+    "examples: a name.examples.tsx renders each exported function, in source order",
+    async () => {
+      const before = await state()
+      const url = await webrun(join(fixtures, "gallery", "Card.examples.tsx"), opts)
+
+      // swapped in on the same port, always through the generated shell
+      expect(url).toBe(before.url)
+      const after = await state()
+      expect(after.mode).toBe("virtual")
+
+      // same project as hello, so the running server is kept and only the entry
+      // changes underneath it
+      expect(after.pid).toBe(before.pid)
+      expect(after.app).toContain("Card.examples.tsx")
+
+      // the server can say how many tabs are attached (none here)
+      expect(await (await fetchModule(url!, "/__webrun/clients")).text()).toBe("0")
+
+      const main = await (await fetchModule(url!, "/main.tsx")).text()
+      expect(main).toContain("Card.examples.tsx")
+      expect(main).toContain("?raw")
+
+      // the entry must compile, and the example file must resolve through it
+      const ex = await fetchModule(url!, "/@fs" + join(fixtures, "gallery", "Card.examples.tsx"))
+      expect(ex.status).toBe(200)
+    },
+    60_000,
+  )
+
+  test(
+    "swap: another app in the same project is swapped in on the running server",
     async () => {
       const before = await state()
 
       const url = await webrun(bye, opts)
 
-      // same fixed port, new process
+      // same port and the same process — nothing restarted
       expect(url).toBe(before.url)
       const after = await state()
       expect(after.app).toBe(bye)
-      expect(after.url).toBe(url)
-      expect(after.pid).not.toBe(before.pid)
+      expect(after.pid).toBe(before.pid)
       expect(alive(after.pid)).toBe(true)
 
-      // the old one is genuinely gone — this is what catches a pid mismatch,
-      // e.g. if we'd cached a wrapper's pid instead of vite's own
-      expect(await waitDead(before.pid)).toBe(true)
-
-      // and the replacement is actually serving
-      const html = await (await fetch(url!)).text()
-      expect(html).toContain(`<div id="root">`)
+      // yet the entry now mounts the new app: the module graph was flushed, so
+      // this is not a stale transform of the previous one
+      const main = await (await fetchModule(url!, "/main.tsx")).text()
+      expect(main).toContain("bye/App.tsx")
+      expect(main).not.toContain("Card.examples.tsx")
     },
     60_000,
   )
@@ -156,7 +183,13 @@ describe("webrun", () => {
   test(
     "passthrough: an app reachable from the project's index.html runs as the project does",
     async () => {
+      const before = await state()
       const url = await webrun(project, opts)
+
+      // a different project can't reuse the server: new process, old one gone
+      const replaced = await state()
+      expect(replaced.pid).not.toBe(before.pid)
+      expect(await waitDead(before.pid)).toBe(true)
 
       const s = await state()
       expect(s.mode).toBe("passthrough")

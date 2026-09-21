@@ -39,6 +39,35 @@ function hasTailwind(plugins: any[], config: any) {
   return plugins.some((p) => String(p?.name ?? "").includes("tailwindcss"))
 }
 
+/**
+ * the hooks webrun drives a running server through.
+ *
+ * /__webrun/reload swaps the served app in place: webrun has just rewritten the
+ * entry in the scratch dir, which vite never sees change (node_modules is not
+ * watched), so drop every cached transform and tell each tab to reload.
+ *
+ * /__webrun/clients is how many tabs are attached over the hmr socket, so a
+ * swap that has to restart the server knows whether one is open. -1 when vite
+ * can't say.
+ */
+function control(): any {
+  return {
+    name: "webrun:control",
+    configureServer(server: any) {
+      server.middlewares.use("/__webrun/reload", (_req: any, res: any) => {
+        server.moduleGraph.invalidateAll()
+        server.ws.send({ type: "full-reload", path: "*" })
+        res.setHeader("content-type", "text/plain")
+        res.end("ok")
+      })
+      server.middlewares.use("/__webrun/clients", (_req: any, res: any) => {
+        res.setHeader("content-type", "text/plain")
+        res.end(String(server.ws?.clients?.size ?? -1))
+      })
+    },
+  }
+}
+
 export default defineConfig(async (env) => {
   const raw = (await theirs(env)) ?? {}
 
@@ -52,7 +81,7 @@ export default defineConfig(async (env) => {
 
   // only fill in what they are missing — mergeConfig concatenates, so anything
   // added here sits alongside theirs rather than replacing it
-  const extra: any[] = []
+  const extra: any[] = [control()]
   if (!hasReact(plugins)) extra.push(react())
   {{tailwindExtra}}
 
@@ -62,6 +91,10 @@ export default defineConfig(async (env) => {
     cacheDir: {{cacheDir}},
     clearScreen: false,
     plugins: extra,
+    // the shell lives under node_modules/.webrun, which vite's dependency scan
+    // skips — so nothing would be pre-bundled and react-dom/client would be
+    // served as raw commonjs, with no `createRoot` export
+    optimizeDeps: { include: ["react", "react-dom", "react-dom/client", "react/jsx-dev-runtime"] },
     server: {
       host: "127.0.0.1",
       open: false,

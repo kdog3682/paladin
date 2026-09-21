@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import { CONFIG_NAMES, findPkg, findUp, findUpWithin, real, resolveModule } from "./paths"
+import { CONFIG_NAMES, findPkg, findUp, findUpWithin, isExamples, real, resolveModule } from "./paths"
 import type { Layout, Mode, WebrunOpts } from "./types"
 
 /** the module-type script tags in an index.html, in document order */
@@ -63,7 +63,9 @@ export async function entryMounts(htmlPath: string, app: string) {
 export async function plan(app: string, opts: WebrunOpts = {}): Promise<Layout> {
   const appDir = dirname(app)
   const project = findUp(appDir, "package.json") ?? appDir
-  const workdir = join(project, "node_modules", ".webrun", Bun.hash(app).toString(36))
+  // keyed by project, not app: every app in a project shares one scratch dir and
+  // so one generated config, which is what lets a swap reuse the running server
+  const workdir = join(project, "node_modules", ".webrun", Bun.hash(project).toString(36))
 
   // both live at the project root in a normal app, but a nested example dir may
   // carry its own pair — search up from the app, not down from the package
@@ -71,8 +73,13 @@ export async function plan(app: string, opts: WebrunOpts = {}): Promise<Layout> 
     opts.userConfig === false ? null : findUpWithin(appDir, CONFIG_NAMES, project)
   const htmlPath = findUpWithin(appDir, ["index.html"], project)
 
+  // an examples file is never what a project's index.html mounts, so it always
+  // gets the generated gallery shell — whatever was running before it
+  const kind = isExamples(app) ? "examples" : "app"
+
   let mode: Mode = "virtual"
-  if (opts.mode) mode = opts.mode
+  if (kind === "examples") mode = "virtual"
+  else if (opts.mode) mode = opts.mode
   else if (htmlPath && (await entryMounts(htmlPath, app))) mode = "passthrough"
 
   // passthrough roots at the html's own dir, which is what vite would use
@@ -81,13 +88,13 @@ export async function plan(app: string, opts: WebrunOpts = {}): Promise<Layout> 
   // the git root catches monorepos: a sibling workspace package resolves through
   // a symlink to a real path outside `project`, which vite would 403 on
   const workspace = findUp(project, ".git")
-  const allow = [
-    ...new Set([project, appDir, workdir, root, workspace].filter(Boolean) as string[]),
-  ]
+  // appDir is always inside project, so it is not listed — it would make the
+  // config differ per app
+  const allow = [...new Set([project, workdir, root, workspace].filter(Boolean) as string[])]
 
   // gated here rather than in the config, so a project without tailwind never
   // generates an import that would blow the config up on load
   const tailwind = findPkg(project, "@tailwindcss/vite")
 
-  return { root, workdir, project, userConfig, allow, tailwind, mode }
+  return { root, workdir, project, userConfig, allow, tailwind, mode, kind }
 }

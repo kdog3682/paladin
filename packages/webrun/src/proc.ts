@@ -60,6 +60,17 @@ export async function isUp(url: string) {
   }
 }
 
+/** tabs connected to a webrun server, or null when it can't be asked (down, or vite too old to say) */
+export async function clientCount(url: string) {
+  try {
+    const res = await fetch(new URL("__webrun/clients", url), { signal: AbortSignal.timeout(1_000) })
+    const n = Number(await res.text())
+    return res.ok && Number.isInteger(n) && n >= 0 ? n : null
+  } catch {
+    return null
+  }
+}
+
 export async function waitReady(url: string, pid: number, timeout: number) {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {

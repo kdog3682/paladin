@@ -1,0 +1,86 @@
+import { Component, StrictMode, isValidElement, useEffect, useState } from "react"
+import type { ReactNode } from "react"
+import { createRoot } from "react-dom/client"
+{{styles}}
+import * as mod from {{entry}}
+import source from {{source}}
+
+const fns = mod as unknown as Record<string, unknown>
+
+// namespace keys come back alphabetical; the file's own order is what the author
+// wrote the examples in, so take that first and append anything the regex missed
+// (`export const x = () => ...`)
+const declared = [...String(source).matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((m) => m[1]!)
+const names = [...new Set([...declared, ...Object.keys(fns)])].filter(
+  (name) => name !== "default" && typeof fns[name] === "function",
+)
+
+const hashName = () => decodeURIComponent(location.hash.slice(1))
+
+class Boundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+  render() {
+    const { error } = this.state
+    return error ? <pre style={{ color: "#b91c1c", whiteSpace: "pre-wrap", margin: 0 }}>{error.stack ?? String(error)}</pre> : this.props.children
+  }
+}
+
+// the example is called *inside* a component so it can use hooks, and anything
+// that isn't renderable (an object, an array of them) is shown as json
+function Run({ name }: { name: string }) {
+  const out = (fns[name] as () => unknown)()
+  if (out == null || typeof out === "boolean" || typeof out === "string" || typeof out === "number" || isValidElement(out)) {
+    return <>{out as ReactNode}</>
+  }
+  if (Array.isArray(out) && out.every((x) => isValidElement(x) || typeof x === "string" || typeof x === "number")) {
+    return <>{out as ReactNode[]}</>
+  }
+  return <pre style={{ margin: 0 }}>{JSON.stringify(out, null, 2)}</pre>
+}
+
+function Example({ name, solo }: { name: string; solo: boolean }) {
+  return (
+    <section data-example={name} style={{ border: "1px solid #d4d4d8", borderRadius: 8, marginBottom: 16 }}>
+      <header style={{ padding: "6px 12px", borderBottom: "1px solid #e4e4e7", fontFamily: "ui-monospace, monospace", fontSize: 13 }}>
+        {solo ? name : <a href={"#" + encodeURIComponent(name)}>{name}</a>}
+      </header>
+      <div style={{ padding: 12 }}>
+        <Boundary key={name}>
+          <Run name={name} />
+        </Boundary>
+      </div>
+    </section>
+  )
+}
+
+function Gallery() {
+  const [picked, setPicked] = useState(hashName)
+  useEffect(() => {
+    const sync = () => setPicked(hashName())
+    addEventListener("hashchange", sync)
+    return () => removeEventListener("hashchange", sync)
+  }, [])
+
+  const solo = names.includes(picked) ? picked : null
+  return (
+    <main style={{ maxWidth: 960, margin: "0 auto", padding: 16, fontFamily: "system-ui, sans-serif" }}>
+      <h1 style={{ fontSize: 14, fontFamily: "ui-monospace, monospace", margin: "0 0 16px" }}>
+        {"{{title}}"} · {names.length} example{names.length === 1 ? "" : "s"}
+        {solo && <> · <a href="#">all</a></>}
+      </h1>
+      {names.length === 0 && <p>no exported functions in {"{{title}}"}</p>}
+      {(solo ? [solo] : names).map((name) => (
+        <Example key={name} name={name} solo={solo !== null} />
+      ))}
+    </main>
+  )
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <Gallery />
+  </StrictMode>,
+)

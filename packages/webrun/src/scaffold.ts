@@ -47,11 +47,11 @@ export function render(source: string, vars: Record<string, string>) {
   })
 }
 
-/** the merged config, written into the scratch dir in both modes */
-async function writeConfig(layout: Layout) {
+/** the merged config for a layout — the same layout always renders the same text */
+async function renderConfig(layout: Layout) {
   const { root, workdir, userConfig, allow, tailwind } = layout
 
-  const source = render(await template("vite.config.tmpl"), {
+  return render(await template("vite.config.tmpl"), {
     tailwindImport: tailwind ? `import tailwind from "@tailwindcss/vite"` : "",
     tailwindExtra: tailwind
       ? "if (!hasTailwind(plugins, base)) extra.push(tailwind())"
@@ -65,19 +65,40 @@ async function writeConfig(layout: Layout) {
     cacheDir: JSON.stringify(join(workdir, ".vite")),
     allow: JSON.stringify(allow),
   })
+}
 
-  await writeFile(join(workdir, "vite.config.ts"), source)
+const configPath = (layout: Layout) => join(layout.workdir, "vite.config.ts")
+
+/**
+ * would this layout run on the config a server already has loaded? if so an app
+ * can be swapped in place — same root, same plugins, same access — instead of
+ * restarting vite.
+ */
+export async function configMatches(layout: Layout) {
+  const current = await Bun.file(configPath(layout)).text().catch(() => null)
+  return current === (await renderConfig(layout))
+}
+
+/**
+ * written into the scratch dir in both modes. left alone when unchanged: vite
+ * watches its own config and restarts itself on any write, identical or not.
+ */
+async function writeConfig(layout: Layout) {
+  if (await configMatches(layout)) return
+  await writeFile(configPath(layout), await renderConfig(layout))
 }
 
 /**
  * the index.html + entry pair we serve when the project has none that fits.
  *
+ * an `.examples.tsx` target gets the gallery entry instead of the app entry.
  * the stylesheet only exists when tailwind does — an unconditional
  * `@import "tailwindcss"` would 500 the page in a project that never had it.
  */
 async function writeShell(layout: Layout, app: string) {
-  const { workdir, tailwind } = layout
+  const { workdir, tailwind, kind } = layout
   const rel = relative(workdir, app).replaceAll("\\", "/")
+  const entry = rel.startsWith(".") ? rel : "./" + rel
   const title = basename(app)
 
   await writeFile(join(workdir, "index.html"), render(await template("index.html.tmpl"), { title }))
@@ -88,10 +109,13 @@ async function writeShell(layout: Layout, app: string) {
 
   await writeFile(
     join(workdir, "main.tsx"),
-    render(await template("main.tsx.tmpl"), {
+    render(await template(kind === "examples" ? "examples.tsx.tmpl" : "main.tsx.tmpl"), {
       title,
       styles: tailwind ? `import "./styles.css"` : "",
-      entry: JSON.stringify(rel.startsWith(".") ? rel : "./" + rel),
+      entry: JSON.stringify(entry),
+      // the raw source, only to recover declaration order — a module namespace
+      // enumerates alphabetically, which would scramble the examples
+      source: JSON.stringify(entry + "?raw"),
     }),
   )
 }
