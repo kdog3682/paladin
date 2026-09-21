@@ -35,6 +35,10 @@ const NAMED: Record<string, KeyInput> = {
   pagedown: "PageDown",
 }
 
+// puppeteer resolves these characters to their numpad keys (code NumpadDivide),
+// which no app listening for the main-row key (code Slash) will match
+const MAIN_ROW: Record<string, KeyInput> = { "/": "Slash", "-": "Minus" }
+
 export type KeyCombo = { modifiers: KeyInput[]; key: KeyInput }
 
 /** "cmd+alt+shift+f" -> modifiers to hold, then the key to press. a trailing "+" is the plus key ("ctrl++") */
@@ -49,6 +53,6 @@ export function parseCombo(combo: string): KeyCombo {
     if (!m) throw new Error(`unknown modifier "${p}" in "${combo}" (cmd, ctrl, alt, shift)`)
     return m
   })
-  const key = NAMED[last.toLowerCase()] ?? (last.length === 1 ? last.toLowerCase() : last)
+  const key = NAMED[last.toLowerCase()] ?? MAIN_ROW[last] ?? (last.length === 1 ? last.toLowerCase() : last)
   return { modifiers, key: key as KeyInput }
 }

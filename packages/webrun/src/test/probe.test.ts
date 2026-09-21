@@ -24,6 +24,10 @@ describe("parseCombo", () => {
   test("plus key", () => {
     expect(parseCombo("ctrl++")).toEqual({ modifiers: ["Control"], key: "+" })
   })
+  test("slash and minus press the main-row keys, not the numpad", () => {
+    expect(parseCombo("ctrl+/")).toEqual({ modifiers: ["Control"], key: "Slash" })
+    expect(parseCombo("ctrl+-").key).toBe("Minus")
+  })
   test("rejects unknown modifiers", () => {
     expect(() => parseCombo("hyper+f")).toThrow(/unknown modifier/)
   })
