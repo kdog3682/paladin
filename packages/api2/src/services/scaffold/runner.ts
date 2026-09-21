@@ -46,6 +46,15 @@ export interface RunOptions {
   pathResolution?: PathResolutionOpts
 }
 
+/**
+ * The first registration whose `matches` holds wins, so list specific ones before
+ * general ones (`tsx-example` before `example`).
+ *
+ * To make a new kind runnable, add a registration here. `matches` may use `basename`
+ * alone, and a kind that `classify()` doesn't know needs a `PATTERN_KINDS` entry in
+ * matcher.ts. `isRunnable` is shared, so `updateBarrel` already keeps such files out of
+ * the barrel. A new `purpose` goes in `BashOp["purpose"]` (types.ts) and `BASH_ORDER` (ops.ts).
+ */
 export const DEFAULT_REGISTRATIONS: Registration[] = [
   { id: "test-ts", matches: { kind: "test", ext: "ts" }, command: "bun test", grouped: true },
   { id: "test-tsx", matches: { kind: "test", ext: "tsx" }, command: "bun test --preload ./happydom.ts", grouped: true },

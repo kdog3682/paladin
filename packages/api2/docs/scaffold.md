@@ -1,6 +1,6 @@
 # Scaffold pipeline
 
-How a dropped file becomes files on disk. Code: `src/services/scaffold/`. The runner stage has its own doc: [runner.md](./runner.md).
+How a dropped file becomes files on disk. Code: `src/services/scaffold/`.
 
 ## Entry points
 
