@@ -34,6 +34,18 @@ describe("parseCombo", () => {
 })
 
 describe("probe", () => {
+  test("rule tells a generated class from one no stylesheet mentions", async () => {
+    const url = page(`<style>@layer utilities { .p-1 { padding: 1px } .a\\/30 { color: red } }</style><div class="p-1 p-10 a/30 gone">x</div>`)
+    const r = await probe({ url, actions: [{ rule: "p-1" }, { rule: ".a/30" }, { rule: "gone" }, { rule: "p-2" }] })
+    const [p1, slash, gone, none] = r.actions
+    expect(p1.status).toBe("ok")
+    expect(p1.detail).toContain("1 rule")
+    expect(slash.status).toBe("ok")
+    expect(gone.status).toBe("fail")
+    expect(gone.detail).toContain("on ×1 (div) and no stylesheet rule mentions it")
+    // a failed action skips the rest, so p-2 never runs
+    expect(none.status).toBe("skipped")
+  })
   test("press then expect, chained", async () => {
     const r = await probe({
       url: APP,

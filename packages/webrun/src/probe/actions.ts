@@ -29,6 +29,12 @@ export const ACTIONS = {
     eg: "'kbd => font-size,border-color'",
     help: "print computed styles of the matches (first 5); `sel => prop,prop` picks the properties, default is font, color, background, border, size, padding",
   },
+  rule: {
+    seq: true,
+    arg: "class",
+    eg: "'divide-border/30'",
+    help: "why a class does nothing: how many elements carry it and which stylesheet rules mention it (fails if none do, i.e. it was never generated)",
+  },
   reload: {
     seq: true,
     arg: "ms",

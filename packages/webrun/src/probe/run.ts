@@ -125,6 +125,45 @@ async function readStyle(page: Page, spec: string) {
 }
 
 /**
+ * is a class on the page, and does any stylesheet have a rule for it. the two
+ * halves separate "never generated" (elements carry it, no rule mentions it,
+ * which is what a tailwind class it doesn't know looks like) from "generated
+ * but overridden" (there is a rule, so go read the computed style).
+ */
+async function readRule(page: Page, spec: string) {
+  const cls = spec.trim().replace(/^\./, "")
+  const { n, tag, rules, skipped } = await page.evaluate((cls) => {
+    const needle = `.${CSS.escape(cls)}`
+    // followed by anything that ends a class name, so `.p-1` doesn't match `.p-10`
+    const hit = new RegExp(`${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`)
+    const rules: string[] = []
+    let skipped = 0
+    const walk = (list: CSSRuleList, sheet: string) => {
+      for (const r of Array.from(list)) {
+        if (r instanceof CSSStyleRule && hit.test(r.selectorText)) rules.push(`[${sheet}] ${r.cssText}`)
+        // @layer, @media, @supports and nested style rules all keep their children here
+        else if ("cssRules" in r) walk((r as CSSGroupingRule).cssRules, sheet)
+      }
+    }
+    for (const s of Array.from(document.styleSheets)) {
+      const name = s.href ? new URL(s.href).pathname : "inline"
+      try {
+        walk(s.cssRules, name)
+      } catch {
+        skipped++
+      }
+    }
+    const els = document.getElementsByClassName(cls)
+    return { n: els.length, tag: els[0]?.tagName.toLowerCase() ?? "", rules, skipped }
+  }, cls)
+
+  const on = n ? `on ×${n} (${tag}${n > 1 ? "…" : ""})` : "on no element"
+  const cross = skipped ? ` (${skipped} cross-origin sheet${skipped > 1 ? "s" : ""} unreadable)` : ""
+  if (!rules.length) throw new Error(`.${cls} is ${on} and no stylesheet rule mentions it${cross}`)
+  return clip(`.${cls} is ${on}; ${rules.length} rule${rules.length > 1 ? "s" : ""}${cross}: ${rules.slice(0, 3).map((r) => r.replace(/\s+/g, " ")).join(" | ")}`, 600)
+}
+
+/**
  * wait for the page to navigate on its own. this is the ordinary way to check a
  * swap: hold the page open here, change the served app from another terminal,
  * and see whether the tab followed. it waits out the network afterwards so what
@@ -162,6 +201,7 @@ async function runAction(page: Page, action: Action, timeout: number, out: Actio
   if ("expect" in action) return did(`expect ${action.expect}`, () => expectSelector(page, action.expect, timeout))
   if ("text" in action) return did(`text ${action.text}`, () => readText(page, action.text))
   if ("style" in action) return did(`style ${action.style}`, () => readStyle(page, action.style))
+  if ("rule" in action) return did(`rule ${action.rule}`, () => readRule(page, action.rule))
   if ("reload" in action) return did(`reload ${action.reload}ms`, () => awaitReload(page, action.reload))
   if ("eval" in action)
     return did(`eval ${clip(action.eval)}`, async () => {
