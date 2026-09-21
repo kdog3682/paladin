@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync, readFileSync, realpathSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 
 export const CONFIG_NAMES = [
@@ -91,4 +91,35 @@ export function resolveModule(from: string, spec: string) {
     ...EXTS.map((e) => join(base, "index" + e)),
   ]
   return candidates.find((c) => existsSync(c)) ?? null
+}
+
+/**
+ * source dirs of the workspace packages `project` depends on. tailwind skips
+ * node_modules and only scans the project, so classes used by a sibling package
+ * (which node_modules links to a real path outside the project) get no css.
+ */
+export function workspaceSources(project: string) {
+  let deps: string[] = []
+  try {
+    const pkg = JSON.parse(readFileSync(join(project, "package.json"), "utf8"))
+    deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies })
+  } catch {}
+
+  const root = real(project)
+  const dirs = new Set<string>()
+  for (const name of deps) {
+    for (let dir = project; ; dir = dirname(dir)) {
+      const link = join(dir, "node_modules", name)
+      if (existsSync(link)) {
+        const target = real(link)
+        if (!target.includes("/node_modules/") && !target.startsWith(root + "/")) {
+          const src = join(target, "src")
+          dirs.add(existsSync(src) ? src : target)
+        }
+        break
+      }
+      if (dirname(dir) === dir) break
+    }
+  }
+  return [...dirs]
 }

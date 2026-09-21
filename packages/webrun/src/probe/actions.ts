@@ -23,6 +23,12 @@ export const ACTIONS = {
     eg: "body",
     help: "print the text of every element matching the selector (fails if none match)",
   },
+  style: {
+    seq: true,
+    arg: "sel",
+    eg: "'kbd => font-size,border-color'",
+    help: "print computed styles of the matches (first 5); `sel => prop,prop` picks the properties, default is font, color, background, border, size, padding",
+  },
   reload: {
     seq: true,
     arg: "ms",

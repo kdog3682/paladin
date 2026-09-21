@@ -71,6 +71,7 @@ function Gallery() {
         {"{{title}}"} · {names.length} example{names.length === 1 ? "" : "s"}
         {solo && <> · <a href="#">all</a></>}
       </h1>
+      <p style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: "#888", margin: "-12px 0 16px" }}>{"{{dir}}"}</p>
       {names.length === 0 && <p>no exported functions in {"{{title}}"}</p>}
       {(solo ? [solo] : names).map((name) => (
         <Example key={name} name={name} solo={solo !== null} />

@@ -88,6 +88,42 @@ async function readText(page: Page, sel: string) {
   return clip(texts.join(" | "), 400)
 }
 
+const STYLE_DEFAULTS = [
+  "font-size",
+  "color",
+  "background-color",
+  "border",
+  "width",
+  "height",
+  "padding",
+  "display",
+]
+
+/** `sel => a,b` → the selector and the css properties (kebab-case) */
+function splitProps(spec: string) {
+  const i = spec.lastIndexOf("=>")
+  if (i < 0) return { sel: spec.trim(), props: [] as string[] }
+  const props = spec.slice(i + 2).split(",").map((p) => p.trim()).filter(Boolean)
+  return { sel: spec.slice(0, i).trim(), props }
+}
+
+/** the computed style of each match, so "did my class actually apply" is one call */
+async function readStyle(page: Page, spec: string) {
+  const { sel, props } = splitProps(spec)
+  const rows = await page.$$eval(
+    sel,
+    (els, wanted) =>
+      els.slice(0, 5).map((el) => {
+        const c = getComputedStyle(el)
+        const label = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 20)
+        return `"${label}" ${wanted.map((p) => `${p}: ${c.getPropertyValue(p)}`).join("; ")}`
+      }),
+    props.length ? props : STYLE_DEFAULTS,
+  )
+  if (!rows.length) throw new Error(`${sel} matched nothing`)
+  return clip(rows.join(" | "), 600)
+}
+
 /**
  * wait for the page to navigate on its own. this is the ordinary way to check a
  * swap: hold the page open here, change the served app from another terminal,
@@ -125,6 +161,7 @@ async function runAction(page: Page, action: Action, timeout: number, out: Actio
   if ("sleep" in action) return did(`sleep ${action.sleep}ms`, () => sleep(action.sleep))
   if ("expect" in action) return did(`expect ${action.expect}`, () => expectSelector(page, action.expect, timeout))
   if ("text" in action) return did(`text ${action.text}`, () => readText(page, action.text))
+  if ("style" in action) return did(`style ${action.style}`, () => readStyle(page, action.style))
   if ("reload" in action) return did(`reload ${action.reload}ms`, () => awaitReload(page, action.reload))
   if ("eval" in action)
     return did(`eval ${clip(action.eval)}`, async () => {

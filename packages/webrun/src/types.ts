@@ -62,6 +62,8 @@ export type Layout = {
   allow: string[]
   /** `@tailwindcss/vite` is installed, so the generated config can wire it up */
   tailwind: boolean
+  /** sibling workspace packages the project depends on, which tailwind must scan too */
+  sources: string[]
   mode: Mode
   /** `examples` when the target is a `<name>.examples.tsx` gallery instead of an app */
   kind: "app" | "examples"

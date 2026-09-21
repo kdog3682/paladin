@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises"
-import { basename, join, relative } from "node:path"
+import { basename, dirname, join, relative } from "node:path"
 import type { Layout } from "./types"
 
 const TEMPLATE_DIR = join(import.meta.dir, "templates")
@@ -96,17 +96,22 @@ async function writeConfig(layout: Layout) {
  * `@import "tailwindcss"` would 500 the page in a project that never had it.
  */
 async function writeShell(layout: Layout, app: string) {
-  const { workdir, tailwind, kind, project } = layout
+  const { workdir, tailwind, kind, project, sources } = layout
   const rel = relative(workdir, app).replaceAll("\\", "/")
   const entry = rel.startsWith(".") ? rel : "./" + rel
   const title = basename(app)
+  // relative to the project's parent so the project itself is named: ui/src/components
+  const dir = relative(dirname(project), dirname(app)).replaceAll("\\", "/")
 
-  await writeFile(join(workdir, "index.html"), render(await template("index.html.tmpl"), { title }))
+  await writeFile(join(workdir, "index.html"), render(await template("index.html.tmpl"), { title: `${title} — ${dir}` }))
 
   if (tailwind) {
     await writeFile(
       join(workdir, "styles.css"),
-      render(await template("styles.css.tmpl"), { project: JSON.stringify(project) }),
+      render(await template("styles.css.tmpl"), {
+        project: JSON.stringify(project),
+        sources: sources.map((s) => `@source ${JSON.stringify(s)};`).join("\n"),
+      }),
     )
   }
 
@@ -114,6 +119,7 @@ async function writeShell(layout: Layout, app: string) {
     join(workdir, "main.tsx"),
     render(await template(kind === "examples" ? "examples.tsx.tmpl" : "main.tsx.tmpl"), {
       title,
+      dir,
       styles: tailwind ? `import "./styles.css"` : "",
       entry: JSON.stringify(entry),
       // the raw source, only to recover declaration order — a module namespace

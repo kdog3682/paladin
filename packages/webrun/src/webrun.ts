@@ -36,7 +36,7 @@ function uptime(since: number) {
 /** what a reused server prints instead of stealing focus with another browser tab */
 export function formatReport(state: WebrunState, errs: string[] = []) {
   const rows: [string, string][] = [
-    ["app", short(state.app)],
+    ["app", state.app],
     ["url", state.url],
     ["mode", state.mode],
     ["pid", String(state.pid)],
