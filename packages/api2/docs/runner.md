@@ -10,7 +10,7 @@
    Pattern kinds: `example` (`*.examples.*`), `recast-spec` (`packages/recast/src/specs/`), `codemod` (transforms/commands under `packages/codemod/`, and corpus `output.ts`). Anything runnable outside `rules.json`'s scheme needs a `PATTERN_KINDS` entry or a `basename` matcher.
 2. **Targets.** Every `write` **or `skip`** of a runnable is a target, so unchanged files rerun. A written non-runnable also targets the runnables that import it (`imports` map, updated from each runnable's content whenever it is written or skipped; local imports only, resolved on disk via `resolveRelativePath`). A skipped source drags in nothing.
 3. **Package tests.** A written/skipped `package.json` with a `scripts.test` emits `bun run test` with cwd at that package and suppresses per-file `test` runs beneath it.
-4. **Registrations.** Targets are grouped by their matching registration. The **last registered** match wins, where every field set on `matches` (`kind` against `kindOf(path)`, `ext`, `basename`) must hold (`matches()` in `matcher.ts`). Ids in `disabled` and registrations with `enabled: false` are skipped. `grouped` → one command over all matched paths; otherwise one command per path.
+4. **Registrations.** Targets are grouped by their matching registration. The **first registered** match wins, so list specific registrations before general ones, where every field set on `matches` (`kind` against `kindOf(path)`, `ext`, `basename`) must hold (`matches()` in `matcher.ts`). Ids in `disabled` and registrations with `enabled: false` are skipped. `grouped` → one command over all matched paths; otherwise one command per path.
 
 ## Registration
 
@@ -43,6 +43,7 @@ Command building (`toArgs`):
 | `demo` | demo | `bun run` | |
 | `story` | story, `tsx` | `bun run @paladin/storylite` | `enabled: false` (TODO) |
 | `example` | example | `bun run @paladin/exemplar/cli.ts` | grouped, accepts options, purpose `example` |
+| `tsx-example` | example, `tsx` | `bun run @paladin/webrun/cli.ts` | purpose `example`; registered before `example` so it wins for `*.examples.tsx` |
 | `recast-spec` | recast-spec | `bun run @paladin/recast/runner.ts` | purpose `script`; see [runners/recast-spec.md](./runners/recast-spec.md) |
 | `webrun` | basename `App.tsx` | `bun run @paladin/webrun/cli.ts` | purpose `demo` |
 | `codemod` | codemod | `bun run @paladin/codemod/test.ts` | purpose `test`; see `packages/codemod/README.md` |

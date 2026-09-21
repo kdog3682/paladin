@@ -61,7 +61,7 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
   },
   {
     id: "tsx-example",
-    matches: { kind: "example", ext: 'tsx' },
+    matches: { kind: "example", ext: "tsx" },
     command: `bun run @paladin/webrun/cli.ts`,
     purpose: "example",
   },
@@ -259,10 +259,8 @@ export class CodeRunner {
   }
 
   private match(path: string, kind: string | null): Registration | null {
-    for (let i = this.registrations.length - 1; i >= 0; i--) {
-      const registration = this.registrations[i]
-      if (!registration || registration.enabled === false) continue
-
+    for (const registration of this.registrations) {
+      if (registration.enabled === false) continue
       if (matches(registration.matches, path, kind)) return registration
     }
     return null

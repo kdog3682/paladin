@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { CodeRunner } from "./runner"
+import { CodeRunner, DEFAULT_REGISTRATIONS } from "./runner"
 import { skip, write } from "./ops"
 import type { BashOp } from "./types"
 
@@ -29,6 +29,16 @@ describe("CodeRunner", () => {
 
     expect(argsOf(ops)).toEqual([["bun", "test", "/p/src/a.test.ts", "/p/src/b.test.ts"]])
     expect(ops[0]).toMatchObject({ kind: "bash", cwd, purpose: "test", strict: false, source: "codeRunner" })
+  })
+
+  test("*.examples.tsx goes to webrun, other *.examples.* to exemplar", () => {
+    const ops = new CodeRunner().run([w("/p/src/a.examples.tsx"), w("/p/src/b.examples.ts")], { cwd })
+
+    expect(ops).toHaveLength(2)
+    expect(ops[0]!.args.at(-2)).toMatch(/webrun\/src\/cli\.ts$/)
+    expect(ops[0]!.args.at(-1)).toBe("/p/src/a.examples.tsx")
+    expect(ops[1]!.args.some((arg) => /exemplar\/src\/cli\.ts$/.test(arg))).toBe(true)
+    expect(ops[1]!.args).toContain("/p/src/b.examples.ts")
   })
 
   test("ignores source files that are skipped or unknown", () => {
@@ -84,11 +94,11 @@ describe("CodeRunner", () => {
     expect(runner.run([w("/p/src/a.test.ts")], { cwd })).toEqual([])
   })
 
-  test("a later registration wins only when kind and ext both match", () => {
-    const runner = new CodeRunner().register({
-      matches: { kind: "test", ext: "ts" },
-      command: "vitest",
-    })
+  test("the first matching registration wins, and only when kind and ext both match", () => {
+    const runner = new CodeRunner([
+      { matches: { kind: "test", ext: "ts" }, command: "vitest" },
+      ...DEFAULT_REGISTRATIONS,
+    ])
 
     const ops = runner.run([w("/p/src/a.test.ts"), w("/p/src/b.test.tsx")], { cwd })
 
