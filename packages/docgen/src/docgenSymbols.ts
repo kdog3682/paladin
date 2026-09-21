@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
-import { collectExports, resolveScopedPath } from "@paladin/utils"
+import { dirname, join } from "node:path"
+import { collectExports, resolveRelativeImport, resolveScopedPath } from "@paladin/utils"
 import { docgen, type DocgenOptions } from "./docgen"
 import type { EntryPoint } from "./entrypoints"
 
@@ -17,6 +17,55 @@ export type IndexedSymbol = {
 
 /** Exported name -> every package location exporting it. */
 export type SymbolIndex = Map<string, IndexedSymbol[]>
+
+type ExportTarget = {
+  /** Absolute path of the declaring file. */
+  file: string
+  /** Declaration name inside that file. */
+  local: string
+}
+
+/** Exported name -> where it is declared. */
+type ExportMap = Map<string, ExportTarget>
+
+/**
+ * Follow a module's exports (named + star re-exports, local declarations and
+ * local export lists) to the files that declare them. Circular re-exports are
+ * tolerated. Only relative specifiers are followed. Default exports are left out.
+ */
+function exportMap(file: string, memo = new Map<string, ExportMap>(), stack = new Set<string>()): ExportMap {
+  const cached = memo.get(file)
+  if (cached) return cached
+  const out: ExportMap = new Map()
+  if (stack.has(file)) return out
+  stack.add(file)
+  const dir = dirname(file)
+  const exports = collectExports(readFileSync(file, "utf8")).filter((e) => e.kind !== "default")
+  const claim = (name: string, target: ExportTarget) => {
+    if (!out.has(name)) out.set(name, target)
+  }
+
+  // first claim wins: re-exports, then local lists and declarations, then star re-exports
+  for (const e of exports) {
+    if (e.kind !== "reexport") continue
+    const target = resolveRelativeImport(dir, e.source!)
+    if (!target) continue
+    claim(e.name, exportMap(target, memo, stack).get(e.local) ?? { file: target, local: e.local })
+  }
+  for (const e of exports) {
+    if (e.kind === "named" || e.kind === "declaration") claim(e.name, { file, local: e.local })
+  }
+  for (const e of exports) {
+    if (e.kind !== "star" || e.name !== "*") continue
+    const target = resolveRelativeImport(dir, e.source!)
+    if (!target) continue
+    for (const [name, value] of exportMap(target, memo, stack)) claim(name, value)
+  }
+
+  stack.delete(file)
+  memo.set(file, out)
+  return out
+}
 
 export type ScopeSpec = {
   /** Scope part of the spec, e.g. `@mathpen`. */
@@ -255,13 +304,14 @@ export function indexPackages(packagesDir: string, only?: string): SymbolIndex {
     .filter(d => d.isDirectory())
     .sort((a, b) => a.name.localeCompare(b.name))
   const index: SymbolIndex = new Map()
+  const memo = new Map<string, ExportMap>()
   for (const dirent of dirents) {
     const pkgDir = join(packagesDir, dirent.name)
     const entry = join(pkgDir, "src/index.ts")
     if (!existsSync(entry)) continue
     const pkg = readPackageName(pkgDir, dirent.name)
     if (only && !matchesPackage(only, dirent.name, pkg)) continue
-    for (const [name, target] of collectExports(entry)) {
+    for (const [name, target] of exportMap(entry, memo)) {
       const hit: IndexedSymbol = { name, local: target.local, file: target.file, package: pkg }
       const bucket = index.get(name)
       if (bucket) bucket.push(hit)
