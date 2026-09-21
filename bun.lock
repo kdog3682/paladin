@@ -157,6 +157,7 @@
       "name": "@paladin/commands",
       "version": "0.1.0",
       "dependencies": {
+        "@paladin/utils": "workspace:*",
         "react-dom": "^18.3.1",
       },
     },
