@@ -10,7 +10,7 @@ Code: `webrun()` in `src/webrun.ts`, `plan()` in `src/detect.ts`, `scaffold.ts`,
 
 `webrun()` reads the state file, plans the layout for the new file, then takes the first that applies:
 
-1. **Reuse** — same app as the running server. No swap; prints a report.
+1. **Reuse** — same app as the running server. No swap; silent unless `--report`.
 2. **In place** — the running server can serve the new file as it is. Server stays, tab reloads.
 3. **Restart** — anything else. Kill, start again on the same port.
 

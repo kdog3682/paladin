@@ -66,8 +66,8 @@ export function formatReport(state: WebrunState, errs: string[] = []) {
  * plugins.
  *
  * the first run of a given server opens the browser. later calls against the
- * same live server reuse it and print a report instead — pass `open` to force
- * either way. a different app in the same project is swapped in on the running
+ * same live server reuse it and stay quiet — pass `open` to force either way,
+ * or `report` to print the server's status and new errors. a different app in the same project is swapped in on the running
  * server and the open tab reloads onto it; one in another project replaces the
  * server (a first run), and a tab still open on the old one stops a second from
  * opening.
@@ -91,11 +91,13 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     // already serving this exact app — reuse it and say so
     if (state?.app === app && state.port === port && alive(state.pid) && (await isUp(state.url))) {
       // only what's been logged since the last report
-      const { errors, size } = await newErrors(state.log, state.logOffset)
+      // the log offset only moves when the errors are shown, so a silent reuse
+      // leaves them for the next report (or `--status`)
+      const { errors, size } = opts.report ? await newErrors(state.log, state.logOffset) : { errors: [], size: state.logOffset }
       const reused: WebrunState = { ...state, runs: state.runs + 1, logOffset: size }
       await writeState(reused)
       if (opts.open) await openUrl(reused.url)
-      else console.log(formatReport(reused, errors))
+      else if (opts.report) console.log(formatReport(reused, errors))
       return reused.url
     }
 

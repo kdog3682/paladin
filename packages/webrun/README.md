@@ -5,7 +5,7 @@ Serves one file with vite and opens it. `webrun path/to/App.tsx` for an app,
 the tab that's already open switches to it.
 
 ```
-webrun <path/to/App.tsx | path/to/name.examples.tsx> [--open] [--no-open] [--virtual] [--passthrough] [--no-user-config]
+webrun <path/to/App.tsx | path/to/name.examples.tsx> [--open] [--no-open] [--report] [--virtual] [--passthrough] [--no-user-config]
 webrun --status | --stop
 ```
 
@@ -13,8 +13,8 @@ webrun --status | --stop
 
 ## Behaviour
 
-- Same file again: the server is reused and a report is printed (url, pid, uptime, new errors from
-  `vite.log`). `--open` opens a tab instead.
+- Same file again: the server is reused, silently. `--report` prints the url, pid, uptime and new
+  errors from `vite.log`; `--open` opens a tab instead.
 - Different file: it replaces what's served, on the same port (`35737`), so the url never changes.
 - State is in `~/.cache/paladin/webrun/state.json`.
 

@@ -10,6 +10,7 @@ const USAGE = [
   "",
   "  --open              open the browser even on a reused server",
   "  --no-open           never open the browser",
+  "  --report            print the server report when an already-running server is reused",
   "  --virtual           force the generated shell",
   "  --passthrough       force the project's own index.html",
   "  --no-user-config    ignore the project's vite config entirely",
@@ -36,6 +37,7 @@ export async function main(argv = process.argv.slice(2)) {
   const opts: WebrunOpts = {}
   if (flags.has("--open")) opts.open = true
   if (flags.has("--no-open")) opts.open = false
+  if (flags.has("--report")) opts.report = true
   if (flags.has("--virtual")) opts.mode = "virtual"
   if (flags.has("--passthrough")) opts.mode = "passthrough"
   if (flags.has("--no-user-config")) opts.userConfig = false

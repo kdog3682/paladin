@@ -41,6 +41,8 @@ export type WebrunOpts = {
    * server opens and a reused one prints a report instead. @default undefined
    */
   open?: boolean
+  /** print the status report (url, pid, new errors) when an already-running server is reused. @default false */
+  report?: boolean
   /** force a mode instead of detecting one. @default detected */
   mode?: Mode
   /** merge the project's own vite config underneath ours. @default true */

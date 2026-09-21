@@ -96,7 +96,7 @@ async function writeConfig(layout: Layout) {
  * `@import "tailwindcss"` would 500 the page in a project that never had it.
  */
 async function writeShell(layout: Layout, app: string) {
-  const { workdir, tailwind, kind } = layout
+  const { workdir, tailwind, kind, project } = layout
   const rel = relative(workdir, app).replaceAll("\\", "/")
   const entry = rel.startsWith(".") ? rel : "./" + rel
   const title = basename(app)
@@ -104,7 +104,10 @@ async function writeShell(layout: Layout, app: string) {
   await writeFile(join(workdir, "index.html"), render(await template("index.html.tmpl"), { title }))
 
   if (tailwind) {
-    await writeFile(join(workdir, "styles.css"), await template("styles.css.tmpl"))
+    await writeFile(
+      join(workdir, "styles.css"),
+      render(await template("styles.css.tmpl"), { project: JSON.stringify(project) }),
+    )
   }
 
   await writeFile(
