@@ -79,7 +79,7 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
     packagesDir = 'packages',
     rootFiles = pkgRootFiles,
     aliases = {
-      '@ui': '@paladin/web/ui',
+      '@ui': '@paladin/ui',
       '@web': '@paladin/web',
       '@utils': '@paladin/utils',
       '@cmd': '@paladin/api2/src/commands',
@@ -89,6 +89,7 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
     },
     routers = [
       ({ pkg, dir, tail }) => {
+        /* inject components/ for web and ui packages */
         if (dir !== 'src') return
         if (!['web', 'ui'].includes(pkg)) return
         if (tail.split('/').includes('components')) return
