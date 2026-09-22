@@ -1,6 +1,6 @@
 import { relative, isAbsolute, basename, dirname, join } from 'path'
 import { expandHome } from '../../utils/path'
-import { resolveScopedPath } from '@paladin/utils'
+import { resolvePath } from './resolve-path'
 import type { ScaffoldOptions, ProjectData, PackageData, FileEntry } from './types'
 
 // matches a leading '// path' or '# path' comment line
@@ -60,9 +60,6 @@ function extractPackageEntry(
 ): Located | null {
   if (segs[pkgIdx] !== 'packages' || segs.length <= pkgIdx + 1) return null
   const pkgName = segs[pkgIdx + 1]
-  if (pkgName == "scripts") {
-    return null
-  }
   return {
     projectName,
     projectDir,
@@ -73,7 +70,6 @@ function extractPackageEntry(
 }
 
 /**
-
  * Given an absolute file path, figure out which project (and optionally
  * package) it belongs to, plus its path relative to that location.
  */
@@ -131,12 +127,9 @@ export function prepare(contents: string[], opts: ScaffoldOptions): ProjectData 
   for (const content of contents) {
     const header = extractHeader(content)
     if (!header) continue
-    if (header.rawPath.startsWith('package.json')) continue
 
-    const abs = resolveScopedPath(header.rawPath, {
-      base: opts.baseProjectDir,
-      relativeTo: opts.activeDir ?? null,
-    })
+    const abs = resolvePath(header.rawPath, opts.baseProjectDir, opts.activeDir ?? null)
+    if (abs === null) continue
 
     const loc = locateInProject(abs, opts)
     located.push({ entry: { path: abs, relpath: loc.relpath, content: header.body }, loc })
