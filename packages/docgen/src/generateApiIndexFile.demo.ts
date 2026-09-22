@@ -23,7 +23,6 @@ const { api, root } = await generateApiIndexFile(spec, {
     "RoundedRectangle",
     "SurroundingRectangle",
     "Square",
-    "Text",
     "Triangle",
   ],
   aliases: { rect: "Rectangle", bezier: "CubicBezier" },

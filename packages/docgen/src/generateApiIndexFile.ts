@@ -8,7 +8,7 @@ import {
   resolveScopedPath,
 } from "@paladin/utils"
 import { parse } from "./parse"
-import type { ClassDoc, MethodDoc, Param } from "./parse.types"
+import type { ClassDoc, FunctionDoc, MethodDoc, Param } from "./parse.types"
 import { resolveTypes, type TypeRequest } from "./resolve-types"
 
 const SAMPLE_MARKERS = [".examples.", ".demo."]
@@ -21,18 +21,18 @@ export type GenerateApiIndexFileOptions = {
   out?: string
   /** Filename markers identifying sample files. Defaults to [".examples.", ".demo."]. */
   markers?: string[]
-  /** Class names to drop from the generated api. */
+  /** Class and function names to drop from the generated api. */
   exclude?: string[]
-  /** Factory names to use instead of the camelCased class name, keyed by factory name. */
+  /** Factory names to use instead of the camelCased class or function name, keyed by factory name. */
   aliases?: Record<string, string>
-  /** Also generate a root index file re-exporting the discovered classes directly (no factory functions). */
+  /** Also generate a root index file re-exporting the discovered classes and functions directly (no factory wrapping). */
   root?: {
     /** Output path for the generated root index, relative to the package root. Defaults to "src/index.ts". */
     out?: string
     /**
      * Extra named exports to add to the root index. Each export's declaring file is discovered by
-     * name — same as the classes — so only the name is needed, not the path. Use `"name as alias"`
-     * to rename an export, same syntax as a TypeScript export clause.
+     * name — same as the classes and functions — so only the name is needed, not the path. Use
+     * `"name as alias"` to rename an export, same syntax as a TypeScript export clause.
      *
      * @example ["fromJSON as deserialize", "toJSON as serialize", "display"]
      */
@@ -41,11 +41,11 @@ export type GenerateApiIndexFileOptions = {
 }
 
 type ApiTarget = {
-  /** Class name as declared in its source file. */
+  /** Class or function name as declared in its source file. */
   name: string
-  /** Absolute path of the file declaring the class. */
+  /** Absolute path of the file declaring the symbol. */
   file: string
-  doc: ClassDoc
+  doc: ClassDoc | FunctionDoc
 }
 
 /** Named export to look for, or null for the module's default export. */
@@ -84,7 +84,7 @@ export async function generateApiIndexFile(
       for (const binding of ref.bindings) {
         if (binding.typeOnly || binding.kind === "namespace") continue
         const wanted: Wanted = binding.kind === "default" ? null : binding.imported ?? binding.name
-        const entry = await findClass(module, wanted)
+        const entry = await findSymbol(module, wanted)
         if (!entry || dropped.has(entry.doc.name)) continue
         found.set(`${entry.file}#${entry.doc.name}`, entry)
       }
@@ -138,7 +138,12 @@ async function buildSymbolIndex(rootDir: string): Promise<Map<string, string>> {
   return index
 }
 
-async function findClass(
+/** Whether a symbol is one `findSymbol` will surface — classes and functions, same as the generated api. */
+function isApiSymbol(symbol: { kind: string }): symbol is ClassDoc | FunctionDoc {
+  return symbol.kind === "class" || symbol.kind === "function"
+}
+
+async function findSymbol(
   file: string,
   wanted: Wanted,
   seen = new Set<string>(),
@@ -148,7 +153,7 @@ async function findClass(
   seen.add(key)
   const doc = await parse(file)
   for (const symbol of doc.symbols) {
-    if (symbol.kind !== "class" || symbol.exportKind === "none") continue
+    if (!isApiSymbol(symbol) || symbol.exportKind === "none") continue
     if (wanted === null) {
       if (symbol.exportKind === "default") return { name: symbol.name, file, doc: symbol }
       continue
@@ -161,14 +166,14 @@ async function findClass(
     if (!module) continue
     if (ref.star) {
       if (wanted === null) continue
-      const entry = await findClass(module, wanted, seen)
+      const entry = await findSymbol(module, wanted, seen)
       if (entry) return entry
       continue
     }
     for (const binding of ref.bindings) {
       if (wanted === null ? binding.exported !== "default" : binding.exported !== wanted) continue
       const next: Wanted = binding.name === "default" ? null : binding.name
-      const entry = await findClass(module, next, seen)
+      const entry = await findSymbol(module, next, seen)
       if (entry) return entry
     }
   }
@@ -190,13 +195,11 @@ function toScopedDir(source: string): string | null {
   }
 }
 
-/** Declaring file of every named type used by a constructor signature, keyed by type name. */
+/** Declaring file of every named type used by a constructor or function signature, keyed by type name. */
 async function resolveTypeImports(targets: ApiTarget[]): Promise<Map<string, string>> {
   const seeds: TypeRequest[] = []
   for (const target of targets) {
-    const ctor = constructorOf(target.doc)
-    if (!ctor) continue
-    for (const param of ctor.params) {
+    for (const param of paramsOf(target.doc)) {
       for (const name of typeNames(param.type)) seeds.push({ name, from: target.file })
     }
   }
@@ -208,6 +211,12 @@ async function resolveTypeImports(targets: ApiTarget[]): Promise<Map<string, str
 
 function constructorOf(doc: ClassDoc): MethodDoc | null {
   return doc.methods.find((method) => method.name === "constructor") ?? null
+}
+
+/** Params to inspect for referenced types: a class's constructor, or a function's own params. */
+function paramsOf(doc: ClassDoc | FunctionDoc): Param[] {
+  if (doc.kind === "function") return doc.params
+  return constructorOf(doc)?.params ?? []
 }
 
 const TYPE_TOKEN = /[A-Za-z_$][\w$]*/g
@@ -249,14 +258,39 @@ function factoryName(target: ApiTarget, context: RenderContext): string {
   return context.factories.get(target.name) ?? camelCase(target.name)
 }
 
+/**
+ * Resolve name collisions across different declaring files by keeping the first target seen for
+ * each key — first match wins — except a class's synthetic factory name yields to an actual
+ * function sharing it (e.g. class `Grid` -> wrapper `grid`, alongside a hand-written `grid()`
+ * recipe function: the real function wins). Needed both for the `api` object, whose keys are
+ * camelCased, and the root index, which re-exports raw names that can collide even more directly
+ * (two unrelated `render` functions in different files, say).
+ */
+function dedupeTargets(targets: ApiTarget[], keyOf: (target: ApiTarget) => string): ApiTarget[] {
+  const byKey = new Map<string, ApiTarget>()
+  for (const target of targets) {
+    const key = keyOf(target)
+    const existing = byKey.get(key)
+    if (!existing || (existing.doc.kind === "class" && target.doc.kind === "function")) {
+      byKey.set(key, target)
+    }
+  }
+  return [...byKey.values()]
+}
+
+function dedupeByFactoryName(targets: ApiTarget[], context: RenderContext): ApiTarget[] {
+  return dedupeTargets(targets, (target) => factoryName(target, context))
+}
+
 type RootRenderContext = {
   dir: string
   outDir: string
   includes: ResolvedInclude[]
 }
 
-function renderRootIndexFile(targets: ApiTarget[], context: RootRenderContext): string {
+function renderRootIndexFile(rawTargets: ApiTarget[], context: RootRenderContext): string {
   const lines: string[] = ["// generated by @paladin/docgen — do not edit", ""]
+  const targets = dedupeTargets(rawTargets, (target) => target.name)
   const values = new Map<string, Set<string>>()
   const add = (file: string, part: string) => {
     if (!isInside(context.dir, file)) return
@@ -282,9 +316,10 @@ function renderRootIndexFile(targets: ApiTarget[], context: RootRenderContext): 
   return lines.join("\n") + "\n"
 }
 
-function renderApiFile(targets: ApiTarget[], context: RenderContext): string {
+function renderApiFile(rawTargets: ApiTarget[], context: RenderContext): string {
   const typeName = pascalCase(API_NAME)
   const lines: string[] = ["// generated by @paladin/docgen — do not edit", ""]
+  const targets = dedupeByFactoryName(rawTargets, context)
   if (targets.length === 0) {
     lines.push(`export const ${API_NAME} = {}`, "", `export type ${typeName} = typeof ${API_NAME}`)
     return lines.join("\n") + "\n"
@@ -299,10 +334,12 @@ function renderApiFile(targets: ApiTarget[], context: RenderContext): string {
     group.set(specifier, names)
   }
   for (const target of targets) {
-    add(values, target.file, target.name)
-    const ctor = constructorOf(target.doc)
-    if (!ctor) continue
-    for (const param of ctor.params) {
+    const factory = factoryName(target, context)
+    const importedAs = target.doc.kind === "function" && factory !== target.name
+      ? `${target.name} as ${factory}`
+      : target.name
+    add(values, target.file, importedAs)
+    for (const param of paramsOf(target.doc)) {
       for (const name of typeNames(param.type)) {
         const file = context.types.get(name)
         if (file) add(typeOnly, file, name)
@@ -318,7 +355,10 @@ function renderApiFile(targets: ApiTarget[], context: RenderContext): string {
     lines.push(`import type { ${wanted.join(", ")} } from "${specifier}"`)
   }
   lines.push("")
+  // Functions are already callable as-is (imported above, aliased if needed) — only classes need a
+  // `new X(...)` factory wrapper.
   for (const target of targets) {
+    if (target.doc.kind !== "class") continue
     const factory = factoryName(target, context)
     const ctor = constructorOf(target.doc)
     const params = ctor
