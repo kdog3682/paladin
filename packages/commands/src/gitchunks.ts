@@ -1,12 +1,9 @@
-#!/usr/bin/env bun
-
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join, posix, resolve } from "node:path"
 import { $ } from "bun"
 import {
   ReportBuilder,
-  argParseRunner,
   collectExports,
   collectImports,
   commitPaths,
@@ -876,7 +873,7 @@ function entryLine(e: GitStatusEntry): string {
 /* split working tree changes into feat / fix / refactor / deprecate / chore commits per package unit */
 export async function parseGitChunks(dir: string, opts: ParseGitChunksOpts = {}): Promise<ReportBuilder> {
   const root = resolve(expandHome(dir))
-  const report = new ReportBuilder(`commit-git-chunks${opts.dry ? " (dry run)" : ""}`)
+  const report = new ReportBuilder(`gitchunks${opts.dry ? " (dry run)" : ""}`)
   report.kv("repo", root)
 
   if (!isGitRepo(root)) return report.error(`not a git repo (no .git in ${root})`)
@@ -920,12 +917,4 @@ export async function parseGitChunks(dir: string, opts: ParseGitChunksOpts = {})
   else if (failed) report.error(`${done} committed, ${failed} failed`)
   else report.ok(`${done} commit(s) created`)
   return report
-}
-
-if (import.meta.main) {
-  argParseRunner(parseGitChunks, {
-    abstract: "split working tree changes into feat / fix / refactor / deprecate / chore commits per package unit",
-    args: [{ name: "dir", help: "git repo root", fallback: "~/projects/mathpen" }],
-    kwargs: [{ name: "dry", alias: "n", help: "print the plan without committing", default: false }],
-  })
 }

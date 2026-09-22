@@ -8,5 +8,8 @@
   "dependencies": {
     "react-dom": "^18.3.1",
     "@paladin/utils": "workspace:*"
+  },
+  "bin": {
+    "gitchunks": "src/gitchunks.cli.ts"
   }
 }

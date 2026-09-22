@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { bash } from "@paladin/utils"
-import { parseGitChunks } from "./commit-git-chunks"
+import { parseGitChunks } from "./gitchunks"
 
 const dirs: string[] = []
 
@@ -26,7 +26,7 @@ function write(dir: string, files: Record<string, string>) {
 
 /* temp repo with `base` committed as the first commit */
 async function makeRepo(base: Record<string, string>): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "commit-git-chunks-"))
+  const dir = mkdtempSync(join(tmpdir(), "gitchunks-"))
   dirs.push(dir)
   await git(dir, "init", "-q")
   await git(dir, "config", "user.email", "test@example.com")
@@ -303,7 +303,7 @@ describe("parseGitChunks", () => {
     const dir = await makeRepo({})
     expect(String(await parseGitChunks(dir))).toContain("OK: working tree clean")
 
-    const plain = mkdtempSync(join(tmpdir(), "commit-git-chunks-plain-"))
+    const plain = mkdtempSync(join(tmpdir(), "gitchunks-plain-"))
     dirs.push(plain)
     expect(String(await parseGitChunks(plain))).toContain("ERROR: not a git repo")
   })
