@@ -80,7 +80,6 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     command: `bun run @paladin/exemplar/cli.ts`,
     purpose: "example",
     grouped: true,
-    acceptsOptions: true,
   },
   {
     id: "recast-spec",

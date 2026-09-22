@@ -11,10 +11,11 @@ serialize and display are resolved from the owning package's own entry point
 (`@scope/name`) unless overridden per call with a spec string.
 
   runExampleFiles(paths, options?)
-    the authoring loop. runs the given files, writes baselines for anything
-    new, and renders the results through the namespace's display hook. pass
-    `update` to accept changed output as the new baseline — without it, changed
-    output is reported and the stored baseline is left alone.
+    the authoring loop. runs the given files and renders the results through
+    the namespace's display hook. pass `snapshot` to write baselines for
+    anything new (off by default), and `update` to also accept changed output
+    as the new baseline — without it, changed output is reported and the
+    stored baseline is left alone.
 
   runTest(pkgdir, options?)
     the ci loop. discovers what to run from the package's snapshot dir, replays
