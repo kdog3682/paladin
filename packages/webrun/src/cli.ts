@@ -65,6 +65,19 @@ export function main(argv = process.argv.slice(2)) {
 
       url = await webrun(target, opts)
       if (!url) return 1
+
+      if (!probing) {
+        // a fresh transform error (a bad import, say) only lands in the log once
+        // something actually requests the module — load the page for real before
+        // reporting, so agents see it here instead of having to run --status
+        await probe({ url }).catch(() => {})
+        const state = await webstatus()
+        if (state) {
+          const { errors } = await newErrors(state.log, state.logOffset)
+          console.log(formatReport(state, errors, await recentActions(state.log)))
+        }
+        return
+      }
     }
     if (!probing) return
 
