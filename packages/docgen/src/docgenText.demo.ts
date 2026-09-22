@@ -3,34 +3,10 @@ import { docgenText } from "./docgenSymbols"
 
 const text = `
 @mathpen/manim
-@mathpen/qgen
 
-use Document and Grid and generateLongArithmetic
+use block, flex, grid, Grid, Flex
 
-to implement a class Worksheet
-
-class Worksheet extends Document {
-
-	layout() {
-	  
-	  return [
-
-	  ]
-	}
-	Q5() {
-	  return new Rectangle()
-	}
-	Q6() {
-	  return ...
-	}
-
-	E1() {
-	  // E stands for Example and Q stands for Question
-	}
-
-}
-
-will need to implement 
+the page is 
 
 
 
@@ -38,6 +14,9 @@ will need to implement
 
 `
 
-const markdown = await docgenText(text)
+const markdown = await docgenText(text, { exclude: [] })
 // console.log(markdown)
 clip(markdown)
+
+
+

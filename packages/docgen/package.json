@@ -8,6 +8,7 @@
     "./documenter": "./documenter.ts"
   },
   "dependencies": {
+    "@paladin/codemod": "workspace:*",
     "@paladin/fcache": "workspace:*",
     "@paladin/utils": "workspace:*",
     "tree-sitter": "^0.22.4",

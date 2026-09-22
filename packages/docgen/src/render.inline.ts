@@ -19,8 +19,8 @@ export type Inliner = {
 type Usage = {
   /** references across every rendered signature */
   count: number
-  /** referenced from an extends or implements clause, where a literal can't stand in */
-  heritage: boolean
+  /** referenced from a class or function signature, or an extends/implements clause. these keep the name */
+  pinned: boolean
 }
 
 const PASSTHROUGH: Inliner = { inlined: new Set(), expand: (text) => text }
@@ -28,8 +28,9 @@ const IDENT = /[A-Za-z_$][\w$]*/y
 
 /**
  * finds the types referenced exactly once across the rendered output and folds them into that one use.
- * generic types, enums, self-referencing or mutually-referencing types, names declared twice,
- * and types used in extends/implements stay standalone.
+ * only type declarations absorb other types: a class or function signature keeps the type's name,
+ * and the type stays standalone. so do generic types, enums, self-referencing or mutually-referencing
+ * types, names declared twice, and types used in extends/implements.
  */
 export function createInliner(result: DocgenResult, opts: InlineOpts, enabled: boolean): Inliner {
   if (!enabled) return PASSTHROUGH
@@ -44,36 +45,42 @@ export function createInliner(result: DocgenResult, opts: InlineOpts, enabled: b
   }
 
   const usage = new Map<string, Usage>()
-  const record = (text: string | undefined, heritage: boolean, self?: string) => {
+  const record = (text: string | undefined, pinned: boolean, self?: string) => {
     if (!text) return
     for (const ident of identifiers(text)) {
       if (ident === self || !byName.has(ident)) continue
-      const entry = usage.get(ident) ?? { count: 0, heritage: false }
+      const entry = usage.get(ident) ?? { count: 0, pinned: false }
       entry.count++
-      entry.heritage ||= heritage
+      entry.pinned ||= pinned
       usage.set(ident, entry)
     }
   }
-  const callable = (typeParams: string[], params: Param[], returns: string | undefined, self?: string) => {
-    for (const typeParam of typeParams) record(typeParam, false, self)
-    for (const param of params) record(param.type, false, self)
-    record(returns, false, self)
+  const callable = (
+    typeParams: string[],
+    params: Param[],
+    returns: string | undefined,
+    pinned: boolean,
+    self?: string,
+  ) => {
+    for (const typeParam of typeParams) record(typeParam, pinned, self)
+    for (const param of params) record(param.type, pinned, self)
+    record(returns, pinned, self)
   }
 
   for (const section of result.files) {
     for (const symbol of section.symbols) {
       if (symbol.kind === "function") {
-        callable(symbol.typeParams, symbol.params, symbol.returns)
+        callable(symbol.typeParams, symbol.params, symbol.returns, true)
         continue
       }
-      for (const typeParam of symbol.typeParams) record(typeParam, false)
+      for (const typeParam of symbol.typeParams) record(typeParam, true)
       record(symbol.extends, true)
       for (const implemented of symbol.implements) record(implemented, true)
       for (const property of symbol.properties) {
-        if (opts.visible(property.visibility) && !property.readonly) record(property.type, false)
+        if (opts.visible(property.visibility) && !property.readonly) record(property.type, true)
       }
       for (const method of symbol.methods) {
-        if (opts.visible(method.visibility)) callable(method.typeParams, method.params, method.returns)
+        if (opts.visible(method.visibility)) callable(method.typeParams, method.params, method.returns, true)
       }
     }
   }
@@ -83,7 +90,7 @@ export function createInliner(result: DocgenResult, opts: InlineOpts, enabled: b
       for (const typeParam of doc.typeParams) record(typeParam, false, self)
       for (const parent of doc.extends) record(parent, true, self)
       for (const property of doc.properties) record(property.type, false, self)
-      for (const method of doc.methods) callable(method.typeParams, method.params, method.returns, self)
+      for (const method of doc.methods) callable(method.typeParams, method.params, method.returns, false, self)
       if (doc.properties.length === 0 && doc.methods.length === 0) record(doc.value, false, self)
     }
   }
@@ -91,7 +98,7 @@ export function createInliner(result: DocgenResult, opts: InlineOpts, enabled: b
   const candidates = new Set<string>()
   for (const [ident, entry] of usage) {
     const doc = byName.get(ident)!
-    if (entry.count !== 1 || entry.heritage || duplicates.has(ident)) continue
+    if (entry.count !== 1 || entry.pinned || duplicates.has(ident)) continue
     if (doc.kind === "enum" || doc.typeParams.length > 0) continue
     candidates.add(ident)
   }
