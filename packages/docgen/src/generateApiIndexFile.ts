@@ -3,6 +3,7 @@ import { dirname, join, relative, resolve as resolvePath, sep } from "node:path"
 import {
   camelCase,
   listFiles,
+  matchesAnyPath,
   pascalCase,
   resolveModuleFile,
   resolveScopedPath,
@@ -21,6 +22,13 @@ export type GenerateApiIndexFileOptions = {
   out?: string
   /** Filename markers identifying sample files. Defaults to [".examples.", ".demo."]. */
   markers?: string[]
+  /**
+   * Sample files to skip entirely, matched against their path relative to `src` (see
+   * `matchesAnyPath`). For a one-off manual verification script that only happens to match a
+   * sample marker (e.g. a `scratch.demo.ts` poking at internal render math) — its imports are
+   * incidental, not the api it means to demonstrate, and would otherwise leak into the barrel.
+   */
+  excludeFiles?: string[]
   /** Class and function names to drop from the generated api. */
   exclude?: string[]
   /** Factory names to use instead of the camelCased class or function name, keyed by factory name. */
@@ -64,6 +72,7 @@ export async function generateApiIndexFile(
     src = "src",
     out = "src/browser/api.ts",
     markers = SAMPLE_MARKERS,
+    excludeFiles = [],
     exclude = [],
     aliases = {},
     root,
@@ -71,7 +80,8 @@ export async function generateApiIndexFile(
   const dir = resolveScopedPath(spec)
   const outPath = resolvePath(dir, out)
   const outDir = dirname(outPath)
-  const samples = await listFiles(join(dir, src), { glob: "**/*.{ts,tsx}", markers })
+  const allSamples = await listFiles(join(dir, src), { glob: "**/*.{ts,tsx}", markers })
+  const samples = allSamples.filter((sample) => !matchesAnyPath(sample, excludeFiles))
   const dropped = new Set(exclude)
   const found = new Map<string, ApiTarget>()
   for (const sample of samples) {

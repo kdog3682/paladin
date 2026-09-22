@@ -5,6 +5,9 @@ const { api, root } = await generateApiIndexFile(spec, {
   root: {
     includes: ["fromJSON as deserialize", "toJSON as serialize", "display"],
   },
+  // Manual verification scripts, not api demos - their imports are internals being spot-checked,
+  // not the public surface they'd otherwise get credited for demonstrating.
+  excludeFiles: ["render/scratch.demo.ts"],
   exclude: [
     "AnnotationPointer",
     "AnnularSector",
