@@ -1,105 +1,20 @@
+// @paladin/api2/src/services/scaffold/runner.ts
 import { basename, dirname } from "node:path"
-import { collectImports, resolveRelativePath, resolveScopedPath } from "@paladin/utils"
-import { kindOf, matches, matchesAny, type Matcher } from "./matcher"
+import { collectImports, resolveRelativePath } from "@paladin/utils"
+import { matches, matchesAny } from "./matcher"
 import { bashOp, contentOf, isSkip, isWrite } from "./ops"
-import type { BashOp, FsOp, PathResolutionOpts, SkipOp, WriteOp } from "./types"
+import { DEFAULT_REGISTRATIONS, type Registration } from "./registrations"
+import type { BashOp, FsOp, SkipOp, WriteOp } from "./types"
+
+export { DEFAULT_REGISTRATIONS, type Registration } from "./registrations"
 
 const SOURCE = "codeRunner"
 
-/** Trails the paths, so the path list stays variadic. withArgv reads it back. */
-const OPTS_FLAG = "--opts"
-
-export interface Registration {
-  /** Registering the same id again replaces the earlier one, and keys `scopedRunOptions`. */
-  id?: string
-  matches: Matcher
-  /**
-   * Paths and options are appended automatically, so a command is usually just the
-   * executable. Use `<path>`/`<paths>` or `<opts>` only to place them somewhere other
-   * than the end. `@owner/pkg` becomes the directory it lives in.
-   */
-  command: string
-  /** Defaults to the matched kind. */
-  purpose?: BashOp["purpose"]
-  /** A failure here stops everything queued behind it. Off by default. */
-  strict?: boolean
-  /** One run over every matched file, instead of a run per file. */
-  grouped?: boolean
-  /**
-   * Whether the command understands an options flag. Off by default, since a
-   * native binary like `bun test` would choke on it. An explicit `<opts>` token
-   * counts as opting in.
-   */
-  acceptsOptions?: boolean
-  /** Baseline options, overlaid by `scopedRunOptions[id]`. Ignored unless accepted. */
-  options?: Record<string, unknown>
-  /** Off means the registration never matches. On by default. */
-  enabled?: boolean
-}
-
 export interface RunOptions {
   cwd: string
-  /** Keyed by registration id; merged over that registration's own `options`. */
-  scopedRunOptions?: Record<string, Record<string, unknown>>
   /** Registration ids to leave out of this run. */
   disabled?: string[]
-  pathResolution?: PathResolutionOpts
 }
-
-/**
- * The first registration whose `matches` holds wins, so list specific ones before
- * general ones (`tsx-example` before `example`).
- *
- * To make a new kind runnable, add a registration here. `matches` may use `basename`
- * alone, and a kind that `classify()` doesn't know needs a `PATTERN_KINDS` entry in
- * matcher.ts. `isRunnable` is shared, so `updateBarrel` already keeps such files out of
- * the barrel. A new `purpose` goes in `BashOp["purpose"]` (types.ts) and `BASH_ORDER` (ops.ts).
- */
-export const DEFAULT_REGISTRATIONS: Registration[] = [
-  { id: "test-ts", matches: { kind: "test", ext: "ts" }, command: "bun test", grouped: true },
-  { id: "test-tsx", matches: { kind: "test", ext: "tsx" }, command: "bun test --preload ./happydom.ts", grouped: true },
-  { id: "script", matches: { kind: "script" }, command: "bun run" },
-  { id: "demo", matches: { kind: "demo" }, command: "bun run" },
-  {
-    id: "story",
-    matches: { kind: "story", ext: "tsx" },
-    command: "bun run @paladin/storylite",
-    purpose: "demo",
-    acceptsOptions: true,
-    enabled: false, // TODO
-  },
-  {
-    id: "tsx-example",
-    matches: { kind: "example", ext: "tsx" },
-    command: `bun run @paladin/webrun/cli.ts`,
-    purpose: "example",
-  },
-  {
-    id: "example",
-    matches: { kind: "example" },
-    command: `bun run @paladin/exemplar/cli.ts`,
-    purpose: "example",
-    grouped: true,
-  },
-  {
-    id: "recast-spec",
-    matches: { kind: "recast-spec" },
-    command: `bun run @paladin/recast/runner.ts`,
-    purpose: "script",
-  },
-  {
-    id: "codemod",
-    matches: { kind: "codemod" },
-    command: `bun run @paladin/codemod/test.ts`,
-    purpose: "test",
-  },
-  {
-    id: "webrun",
-    matches: { basename: "App.tsx" },
-    command: `bun run @paladin/webrun/cli.ts`,
-    purpose: "demo",
-  },
-]
 
 /** Whether `path` is runnable under the default registrations, independent of any CodeRunner instance. */
 export function isRunnable(path: string): boolean {
@@ -117,59 +32,17 @@ function importsOf(path: string, content: string): Set<string> {
   return new Set(paths)
 }
 
-/** The package's `test` script, when this op is a package.json that has one. */
-function testScriptOf(op: WriteOp | SkipOp): string | null {
-  if (basename(op.path) !== "package.json") return null
+/** Whether this op is a package.json with a non-empty `test` script. */
+function hasTestScript(op: WriteOp | SkipOp): boolean {
+  if (basename(op.path) !== "package.json") return false
   const content = contentOf(op)
-  if (content === null) return null
+  if (content === null) return false
   try {
     const script = JSON.parse(content)?.scripts?.test
-    return typeof script === "string" && script.trim() ? script : null
+    return typeof script === "string" && script.trim() !== ""
   } catch {
-    return null
+    return false
   }
-}
-
-function acceptsOptions(registration: Registration): boolean {
-  return registration.acceptsOptions ?? registration.command.includes("<opts>")
-}
-
-function payloadOf(registration: Registration, opts: RunOptions): string | null {
-  if (!acceptsOptions(registration)) return null
-
-  const scoped = registration.id ? opts.scopedRunOptions?.[registration.id] : undefined
-  const merged = { ...registration.options, ...scoped }
-  return Object.keys(merged).length ? JSON.stringify(merged) : null
-}
-
-function purposeOf(registration: Registration): BashOp["purpose"] {
-  return registration.purpose ?? ((registration.matches.kind ?? "script") as BashOp["purpose"])
-}
-
-function toArgs(registration: Registration, paths: string[], opts: RunOptions): string[] {
-  const payload = payloadOf(registration, opts)
-  let placedPaths = false
-  let placedOpts = false
-
-  const args = registration.command
-    .split(" ")
-    .filter(Boolean)
-    .flatMap((part) => {
-      if (part === "<path>" || part === "<paths>") {
-        placedPaths = true
-        return paths
-      }
-      if (part === "<opts>") {
-        placedOpts = true
-        return payload === null ? [] : [OPTS_FLAG, payload]
-      }
-      if (part.startsWith("@")) return [resolveScopedPath(part, opts.pathResolution ?? {})]
-      return [part]
-    })
-
-  if (!placedPaths) args.push(...paths)
-  if (!placedOpts && payload !== null) args.push(OPTS_FLAG, payload)
-  return args
 }
 
 export class CodeRunner {
@@ -216,20 +89,17 @@ export class CodeRunner {
       for (const runnable of this.importers(op.path)) targets.add(runnable)
     }
 
-    // a package that declares its own test script runs that, not bun test on each file
-    const packageTests = touched.flatMap((op) => (testScriptOf(op) ? [dirname(op.path)] : []))
-    const inPackageTests = (path: string) => packageTests.some((dir) => path.startsWith(dir + "/"))
+    // a package that declares its own test script runs that, and its test files aren't run individually
+    const packageDirs = touched.filter(hasTestScript).map((op) => dirname(op.path))
+    const inPackage = (path: string) => packageDirs.some((dir) => path.startsWith(dir + "/"))
 
     const disabled = new Set(opts.disabled ?? [])
     const groups = new Map<Registration, string[]>()
 
     for (const path of targets) {
-      const kind = kindOf(path)
-      if (kind === "test" && inPackageTests(path)) continue
-
-      const registration = this.match(path, kind)
+      const registration = this.match(path, disabled)
       if (!registration) continue
-      if (registration.id && disabled.has(registration.id)) continue
+      if (registration.kind === "test" && inPackage(path)) continue
 
       const group = groups.get(registration)
       if (group) group.push(path)
@@ -243,7 +113,7 @@ export class CodeRunner {
 
       for (const batch of batches) {
         out.push(
-          bashOp(SOURCE, toArgs(registration, batch, opts), purposeOf(registration), {
+          bashOp(SOURCE, [...registration.command, ...batch], registration.kind, {
             cwd: opts.cwd,
             strict: registration.strict ?? false,
           }),
@@ -251,7 +121,7 @@ export class CodeRunner {
       }
     }
 
-    for (const dir of packageTests) {
+    for (const dir of packageDirs) {
       out.push(bashOp(SOURCE, ["bun", "run", "test"], "test", { cwd: dir }))
     }
 
@@ -266,10 +136,11 @@ export class CodeRunner {
     return out
   }
 
-  private match(path: string, kind: string | null): Registration | null {
+  private match(path: string, disabled: Set<string>): Registration | null {
     for (const registration of this.registrations) {
       if (registration.enabled === false) continue
-      if (matches(registration.matches, path, kind)) return registration
+      if (registration.id && disabled.has(registration.id)) continue
+      if (matches(registration.matches, path)) return registration
     }
     return null
   }
