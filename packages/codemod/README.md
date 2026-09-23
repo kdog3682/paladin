@@ -16,5 +16,8 @@ bun src/cli.ts '{"dir":".","dry":true,"actions":[{"action":"renameSymbol","args"
 - `action` is a file name in `src/codemods/`; `args` are its positional arguments.
 - `dry: true` lists the files that would change and writes nothing. Do that first.
 - `dir` defaults to `.`; `repo/rest` means `~/projects/repo/packages/rest`.
+- `files: string[]` (relative to `dir`, or absolute) loads just those files instead of every
+  source file under `dir` — useful for a large package where a codemod only needs a handful of
+  files.
 - If the target's `package.json` has a `sanity` script, it runs after a real run.
 

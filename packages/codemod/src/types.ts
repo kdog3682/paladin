@@ -11,6 +11,8 @@ export type Spec = {
   actions: Action[]
   /* report what would change without writing */
   dry?: boolean
+  /* load only these files (relative to dir, or absolute) instead of every source file under dir */
+  files?: string[]
 }
 
 export type Codemod = (project: import('ts-morph').Project, ...args: unknown[]) => unknown

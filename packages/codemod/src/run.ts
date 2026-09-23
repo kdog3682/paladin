@@ -42,7 +42,7 @@ export async function runActions(project: Project, actions: Action[]) {
 /** Bare codemod names are the degenerate case of an action: no arguments. */
 export const toActions = (names: string[]): Action[] => names.map(action => ({ action }))
 
-export async function runSpec(spec: Spec, project = createProject(spec.dir ?? '.')) {
+export async function runSpec(spec: Spec, project = createProject(spec.dir ?? '.', spec.files)) {
   await runActions(project, spec.actions)
 
   const touched = project.getSourceFiles().filter(file => !file.isSaved())

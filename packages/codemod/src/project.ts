@@ -86,7 +86,11 @@ export function projectRoot(spec: string) {
 // Files always come from our own globs rather than the tsconfig's `include`: the spec's dir is
 // the unit of work, and a monorepo tsconfig would otherwise drag in the whole repo. The tsconfig
 // is still loaded, for its compilerOptions.
-export function createProject(spec: string) {
+//
+// `files`, when given, are loaded instead of the full glob: paths relative to `dir` (or
+// absolute). Use this to load just the files a codemod needs, rather than paying to parse an
+// entire (possibly large) package every run.
+export function createProject(spec: string, files?: string[]) {
   const dir = projectRoot(spec)
   const tsConfigFilePath = findTsConfig(dir)
 
@@ -97,7 +101,12 @@ export function createProject(spec: string) {
     manipulationSettings: MANIPULATION_SETTINGS
   })
 
-  project.addSourceFilesAtPaths(sourceGlobs(dir))
+  if (files?.length) {
+    project.addSourceFilesAtPaths(files.map(file => (isAbsolute(file) ? file : join(dir, file))))
+  } else {
+    project.addSourceFilesAtPaths(sourceGlobs(dir))
+  }
+
   if (project.getSourceFiles().length === 0) throw new Error(`no source files found in ${dir}`)
 
   return project

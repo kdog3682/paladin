@@ -6,7 +6,10 @@ import type { Spec } from './types'
 const USAGE = [
   "usage: bun src/cli.ts '<json spec>'",
   '',
-  '{ "dir": "./src", "actions": [{ "action": "renameSymbol", "args": ["Foo", "Bar"] }] }'
+  '{ "dir": "./src", "actions": [{ "action": "renameSymbol", "args": ["Foo", "Bar"] }] }',
+  '',
+  '`files: string[]` (paths relative to dir, or absolute) loads only those files instead of',
+  'everything under dir.'
 ].join('\n')
 
 // Sanity check is opt-in per package: define a `sanity` script and the CLI runs it after
