@@ -90,14 +90,16 @@ export function projectRoot(spec: string) {
 // `files`, when given, are loaded instead of the full glob: paths relative to `dir` (or
 // absolute). Use this to load just the files a codemod needs, rather than paying to parse an
 // entire (possibly large) package every run.
-export function createProject(spec: string, files?: string[]) {
+export function createProject(spec: string, files?: string[], compilerOptions?: ts.CompilerOptions) {
   const dir = projectRoot(spec)
   const tsConfigFilePath = findTsConfig(dir)
 
   const project = new Project({
     tsConfigFilePath,
     skipAddingFilesFromTsConfig: true,
-    compilerOptions: tsConfigFilePath ? undefined : COMPILER_OPTIONS,
+    compilerOptions: tsConfigFilePath
+      ? compilerOptions
+      : { ...COMPILER_OPTIONS, ...compilerOptions },
     manipulationSettings: MANIPULATION_SETTINGS
   })
 

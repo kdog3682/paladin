@@ -7,9 +7,11 @@
   },
   "dependencies": {
     "react-dom": "^18.3.1",
+    "@paladin/codemod": "workspace:*",
     "@paladin/utils": "workspace:*"
   },
   "bin": {
-    "gitchunks": "src/gitchunks.cli.ts"
+    "gitchunks": "src/gitchunks.cli.ts",
+    "finder": "src/finder/finder.cli.ts"
   }
 }
