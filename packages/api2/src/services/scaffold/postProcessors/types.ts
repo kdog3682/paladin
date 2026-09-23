@@ -32,6 +32,8 @@ export interface UpdateBarrelOptions {
 
 export interface PostProcessorOptions {
   updateBarrel?: UpdateBarrelOptions
+  /** filename -> fixed destination, merged over `DEFAULT_ROUTES` in `router.ts`. */
+  router?: Record<string, string>
 }
 
 /** Reads a unit's ops and adds more. Never touches disk. */
