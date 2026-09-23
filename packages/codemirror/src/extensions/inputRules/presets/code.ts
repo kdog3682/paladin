@@ -22,7 +22,7 @@ export const codeRules: InputRule[] = [
 
 /* a fence language typed at the start of an empty line becomes a fenced block with the cursor inside.
    No word may prefix another (`ts` would pre-empt `tsx`), and `sh` is left out because it opens "should". */
-const FENCE_LANGUAGES = ['ts', 'js', 'py', 'css', 'html']
+const FENCE_LANGUAGES = ['py', 'css', 'html']
 
 export const codeTemplateSource: Record<string, string> = Object.fromEntries(
   FENCE_LANGUAGES.map((lang) => [lang, '```' + lang + '\n|\n```']),
