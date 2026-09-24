@@ -6,21 +6,20 @@ import { ACTIONS } from "./probe/actions"
 import { formatReport as formatProbe, probe } from "./probe/run"
 import { formatReport, webrun, webstatus, webstop } from "./webrun"
 
-const INTRO = `Serves an App.tsx (or a name.examples.tsx, which renders every exported function in it as an example; #<name> in the url isolates one) with vite and opens it. Calling it again with another file switches the open tab to it. Run \`webrun --status\` first for anything about the server (which app/url/pid, uptime, new vite errors, stop it) and don't go hunting through ps/ss/.webrun dirs; --status also prints this help.
+const INTRO = `Serves an App.tsx (or a name.examples.tsx, which renders every exported function in it as an example; #<name> in the url isolates one) with vite and opens it. Calling it again with another file switches the open tab to it. Use --status for anything about the running server (which app/url/pid, uptime, new vite errors) and don't go hunting through ps/ss/.webrun dirs.
 
-Any action flag (or --preview) also drives the page in headless Chrome and reports what the browser saw: every action, console errors and warnings, failed requests, fonts. Actions run in the order given, left to right, and exit 1 if one fails, skipping the rest. With a path the app is served first, without a target the running server is probed, and with an http(s) url that page is probed as is (any web project, e.g. its own dev server). Serving for a probe never opens the browser unless --open is given.
+Any action flag (or --preview) also drives the page in headless Chrome and reports what the browser saw. Actions run in the order given and exit 1 if one fails, skipping the rest. Serving for a probe never opens the browser unless --open is given.
 
 Use it to check what a page does in a real browser, instead of one-off puppeteer scripts or synthetic dispatchEvent calls, e.g.
   webrun path/to/App.tsx --keypress alt+f --expect '[role=dialog]' --preview
   webrun http://localhost:5173 --text body
-A class that does nothing? --rule <class> shows whether elements carry it and which stylesheet rules mention it; it fails if none do, i.e. it was never generated. --reload <ms> waits for the page to reload itself while another terminal swaps the app.
 
 Source: packages/webrun/src/cli.ts (probe in src/probe), README.md next to it.`
 
 const spec = {
   bin: "webrun",
   intro: INTRO,
-  args: [{ name: "target", optional: true, help: "path/to/App.tsx, path/to/name.examples.tsx, or an http(s) url to probe" }],
+  args: [{ name: "target", optional: true, help: "path/to/App.tsx, path/to/name.examples.tsx, or an http(s)/file:// url to probe as is (no target: probe the running server)" }],
   kwargs: {
     open: { help: "open the browser even on a reused server" },
     "no-open": { help: "never open the browser" },
@@ -29,13 +28,13 @@ const spec = {
     passthrough: { help: "force the project's own index.html" },
     "no-user-config": { help: "ignore the project's vite config entirely" },
     stop: { help: "stop the running server" },
-    status: { help: "print the running server (app, url, mode, pid, uptime, new vite errors), then this help" },
+    status: { help: "print the running server (app, url, mode, pid, uptime, new vite errors)" },
     ...ACTIONS,
     preview: { help: "also print a compact outline of the page (buttons, inputs, headings, text) after the actions" },
   },
 } as const satisfies Spec
 
-const isUrl = (s: string) => /^https?:\/\//.test(s)
+const isUrl = (s: string) => /^(https?|file):\/\//.test(s)
 
 export function main(argv = process.argv.slice(2)) {
   return runArgv(spec, argv, async ({ args, kwargs, seq }) => {
@@ -45,7 +44,6 @@ export function main(argv = process.argv.slice(2)) {
       const state = await webstatus()
       const { errors } = state ? await newErrors(state.log, state.logOffset) : { errors: [] }
       console.log(state ? formatReport(state, errors, await recentActions(state.log)) : "webrun · nothing running")
-      console.log("\n" + helpText(spec))
       return
     }
 
