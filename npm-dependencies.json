@@ -504,5 +504,6 @@
   "sonner": "^2.0.8",
   "react-hotkeys-hook": "^5.3.3",
   "googleapis": "^181.0.0",
-  "@google-cloud/local-auth": "^3.0.1"
+  "@google-cloud/local-auth": "^3.0.1",
+  "vite-plugin-singlefile": "^2.3.3"
 }
