@@ -27,7 +27,7 @@ export type FsOp =
       cwd: string
       /** A non-zero exit stops every command queued behind it. */
       strict: boolean
-      purpose: "install" | "test" | "demo" | "example" | "script" | "build"
+      purpose: "install" | "bin" | "test" | "demo" | "example" | "script" | "build"
       result?: BashOpResult
     })
   /** Directories go through rmDir, which refuses anything holding a git repo. */

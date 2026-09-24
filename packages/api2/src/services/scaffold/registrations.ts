@@ -38,10 +38,10 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     command: ["bun", "run", "@paladin/recast/runner.ts"],
   },
   {
-    // webrun: App.tsx, <name>.app.tsx, and tsx examples
+    // <name>.bin.ts: symlinked into ~/.local/bin under an abbreviated name (build-react-app -> bra)
     purpose: "bin",
     matches: [
-      "**/*.{bin}.ts",
+      "**/*.bin.ts",
     ],
     command: ["bun", "run", "@paladin/commands/setupBinCommand.ts"],
   },
