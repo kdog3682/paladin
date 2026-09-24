@@ -141,7 +141,8 @@ function virtualMain(entry: string, fromDir: string): string {
     `import {createRoot} from "react-dom/client"`,
     `import * as mod from ${spec}`,
     ``,
-    `const App = (mod as any).default ?? (mod as any).App`,
+    `const pick = (key: string) => (mod as any)[key]`,
+    `const App = pick("default") ?? pick("App")`,
     `if (App) createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>)`,
     ``,
   ].join("\n")
