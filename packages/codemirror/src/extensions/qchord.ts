@@ -61,7 +61,16 @@ export function executeNewlineDedent(view: EditorView) {
 export function executeCursorRight(view: EditorView) {
   const { state } = view
   const pos = state.selection.main.head
-  if (pos < state.doc.length) {
-    view.dispatch({ selection: { anchor: pos + 1 } })
+  if (pos >= state.doc.length) return
+  const next = pos + 1
+  const line = state.doc.lineAt(next)
+  const atLineEnd = next === line.to && next > line.from
+  if (atLineEnd && !/\s$/.test(line.text)) {
+    view.dispatch({
+      changes: { from: next, insert: ' ' },
+      selection: { anchor: next + 1 },
+    })
+    return
   }
+  view.dispatch({ selection: { anchor: next } })
 }

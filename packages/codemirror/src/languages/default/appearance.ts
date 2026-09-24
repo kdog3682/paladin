@@ -17,14 +17,12 @@ const color = {
 
 const theme = EditorView.theme({
   '&': {
-    fontSize: '12px',
     backgroundColor: '#ffffff',
     color: color.fg,
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-content': {
     padding: '16px 0',
-    lineHeight: '1.5',
   },
   '.cm-gutters': {
     backgroundColor: '#ffffff',

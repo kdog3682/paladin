@@ -41,6 +41,10 @@ export type EditorProps = {
    * editor restyles without remounting. Defaults to 'inconsolata'.
    */
   font?: FontKey
+  /** Font size. A number is px; a string is any CSS size. Defaults to 12. */
+  fontSize?: number | string
+  /** Line height. A number is a unitless multiplier; a string is any CSS value. Defaults to 1.15. */
+  lineHeight?: number | string
   /** Editing behaviour. Defaults to `defaultExtensions()`; pass `defaultExtensions({ lineNumbers: true })` to tune it. */
   baseExtensions?: Extension[]
   /**
@@ -94,13 +98,29 @@ const FILL_CONTAINER = EditorView.theme({
  * Everything the config compartment holds. The font is resolved here rather
  * than baked into an appearance, so the same appearance works in any family.
  */
-function buildLanguageConfig(lang: ResolvedLanguage, font: FontKey = DEFAULT_FONT): Extension {
+const DEFAULT_FONT_SIZE = 12
+const DEFAULT_LINE_HEIGHT = 1.15
+
+function sizingExtension(fontSize: number | string, lineHeight: number | string): Extension {
+  return EditorView.theme({
+    '&': { fontSize: typeof fontSize === 'number' ? `${fontSize}px` : fontSize },
+    '.cm-content': { lineHeight: String(lineHeight) },
+  })
+}
+
+function buildLanguageConfig(
+  lang: ResolvedLanguage,
+  font: FontKey = DEFAULT_FONT,
+  fontSize: number | string = DEFAULT_FONT_SIZE,
+  lineHeight: number | string = DEFAULT_LINE_HEIGHT
+): Extension {
   return [
     placeholder(lang.placeholder),
     lang.support ?? [],
     lang.appearance ?? [],
     lang.extensions ?? [],
     fontExtension(font),
+    sizingExtension(fontSize, lineHeight),
     lang.wrapLines ? EditorView.lineWrapping : [],
     FILL_CONTAINER,
   ]
@@ -113,6 +133,8 @@ export function Editor(props: EditorProps) {
     language = DEFAULT_LANGUAGE,
     languages = BUILTIN_LANGUAGES,
     font,
+    fontSize,
+    lineHeight,
     baseExtensions,
     onLoad = loadFromLocalStorage,
     onSave = saveToLocalStorage,
@@ -137,6 +159,8 @@ export function Editor(props: EditorProps) {
 
   const langRef = useLatest(resolveLanguage(language, languages))
   const fontRef = useLatest(font)
+  const fontSizeRef = useLatest(fontSize)
+  const lineHeightRef = useLatest(lineHeight)
   const stateRef = useLatest(state)
   const onLoadRef = useLatest(onLoad)
   const onSaveRef = useLatest(onSave)
@@ -184,7 +208,7 @@ export function Editor(props: EditorProps) {
   const makeState = (json?: SerializedState) => {
     const extensions: Extension[] = [
       ...baseRef.current!,
-      configCompartment.of(buildLanguageConfig(langRef.current, fontRef.current)),
+      configCompartment.of(buildLanguageConfig(langRef.current, fontRef.current, fontSizeRef.current, lineHeightRef.current)),
       EditorView.updateListener.of((u) => {
         if (!u.docChanged && !u.selectionSet) return
         leftRef.current = false
@@ -254,10 +278,10 @@ export function Editor(props: EditorProps) {
   useEffect(() => {
     viewRef.current?.dispatch({
       effects: configCompartment.reconfigure(
-        buildLanguageConfig(langRef.current, fontRef.current)
+        buildLanguageConfig(langRef.current, fontRef.current, fontSizeRef.current, lineHeightRef.current)
       ),
     })
-  }, [language, languages, font])
+  }, [language, languages, font, fontSize, lineHeight])
 
   return <div ref={containerRef} className={className} />
 }

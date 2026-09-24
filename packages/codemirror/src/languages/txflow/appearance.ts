@@ -19,7 +19,6 @@ import { EditorView } from '@codemirror/view'
  */
 export const TXFLOW_APPEARANCE = EditorView.theme({
   '&': {
-    fontSize: '12px',
     backgroundColor: '#ffffff',
     color: '#000000',
   },
@@ -27,8 +26,6 @@ export const TXFLOW_APPEARANCE = EditorView.theme({
   '.cm-content': {
     /* controls the margin around the editor */
     padding: '10px 10px', 
-    /* the line-height between lines */
-    lineHeight: '1.15',
   },
   '.cm-line': { padding: '0' },
   '.cm-cursor': {
