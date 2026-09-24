@@ -1,0 +1,12 @@
+{
+  "name": "@paladin/chromext",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {},
+  "dependencies": {
+    "fflate": "^0.8.3"
+  }
+}
