@@ -11,7 +11,10 @@
     "@paladin/utils": "workspace:*",
     "vite": "^6.4.1",
     "@vitejs/plugin-react": "^4.7.0",
-    "vite-plugin-singlefile": "^2.3.3"
+    "vite-plugin-singlefile": "^2.3.3",
+    "googleapis": "^181.0.0",
+    "@paladin/gapi": "workspace:*",
+    "fflate": "^0.8.3"
   },
   "bin": {
     "gitchunks": "src/gitchunks.cli.ts",
