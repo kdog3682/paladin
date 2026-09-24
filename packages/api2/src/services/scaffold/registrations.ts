@@ -41,7 +41,7 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     // webrun: App.tsx, <name>.app.tsx, and tsx examples
     purpose: "bin",
     matches: [
-      "**/*.{bin,cli}.ts",
+      "**/*.{bin}.ts",
     ],
     command: ["bun", "run", "@paladin/commands/setupBinCommand.ts"],
   },
