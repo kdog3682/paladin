@@ -66,7 +66,7 @@ function KbdKey({ className, ...props }: React.ComponentProps<"kbd">) {
     <kbd
       data-slot="kbd"
       className={cn(
-        "pointer-events-none inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-[3.5px] border bg-neutral-100 p-1 font-mono text-[8px] text-muted-foreground select-none dark:border-white dark:bg-white/10 in-data-[slot=tooltip-content]:border-background/20 in-data-[slot=tooltip-content]:bg-background/20 in-data-[slot=tooltip-content]:text-background dark:in-data-[slot=tooltip-content]:bg-background/10",
+        "pointer-events-none inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-[5px] border bg-neutral-100 px-1.5 pt-[5px] pb-1 font-mono text-[10px] text-muted-foreground select-none dark:border-white dark:bg-white/10 in-data-[slot=tooltip-content]:border-background/20 in-data-[slot=tooltip-content]:bg-background/20 in-data-[slot=tooltip-content]:text-background dark:in-data-[slot=tooltip-content]:bg-background/10",
         className
       )}
       {...props}
