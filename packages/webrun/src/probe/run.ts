@@ -234,12 +234,16 @@ export async function probe({ url, actions = [], timeout = 2000, preview = false
     let at = "load"
     const tag = (s: string) => (at === "load" ? s : `[${at}] ${s}`)
 
+    const isFavicon = (u?: string) => /\/favicon\.[a-z]+(\?|$)/i.test(u ?? "")
+
     page.on("response", (r) => {
+      if (isFavicon(r.url())) return
       const line = `${r.status()} ${r.url()}`
       if (r.status() >= 400) result.failedRequests.push(line)
       else if (/\.(woff2?|ttf|otf)(\?|$)/.test(r.url())) result.fontRequests.push(line)
     })
     page.on("console", (m) => {
+      if (isFavicon(m.location()?.url)) return
       if (m.type() === "error") result.errors.push(tag(m.text()))
       else if (m.type() === "warn") result.warnings.push(tag(m.text()))
     })
