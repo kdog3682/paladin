@@ -4,42 +4,29 @@ import { type Command } from '@codemirror/view'
 import { leadingWhitespace } from '../lineUtils'
 
 const WRAP_RE = /^([ \t]*)wrap[ \t]+(\S.*?)[ \t]*$/
-const OPENS_BLOCK_RE = /\{[ \t]*$/
-const ONE_LINE_BLOCK_RE = /\{.*\}[ \t]*$/
+const KEY_RE = /^(\S+)[ \t]+(\S.*)$/
 
-/** last line of the `{ … }` block starting at `openLine`: the first `}` line at
- * the opener's indent. null when the code dedents past it first */
-function findBlockEnd(doc: Text, openLine: number): number | null {
-  const indent = leadingWhitespace(doc.line(openLine).text)
-  for (let n = openLine + 1; n <= doc.lines; n++) {
+/** last line of the contiguous, non-blank run below `line` whose indent is at
+ * least the first line's indent (and deeper-or-equal to `min`); `line` itself
+ * when there is none */
+function contiguousEnd(doc: Text, line: number, min: number): number {
+  if (line + 1 > doc.lines) return line
+  const first = doc.line(line + 1).text
+  if (!first.trim()) return line
+  const base = leadingWhitespace(first).length
+  if (base < min) return line
+  let end = line
+  for (let n = line + 1; n <= doc.lines; n++) {
     const text = doc.line(n).text
     if (!text.trim()) continue
-    const ws = leadingWhitespace(text)
-    if (ws === indent && text.slice(ws.length).startsWith('}')) return n
-    if (ws.length < indent.length) return null
-  }
-  return null
-}
-
-/** last line of the contiguous run of blocks directly below `line`, or `line`
- * itself when there is none */
-function contiguousBlocksEnd(doc: Text, line: number): number {
-  let end = line
-  let n = line + 1
-  while (n <= doc.lines) {
-    const text = doc.line(n).text
-    if (!text.trim()) break
-    let close: number | null = null
-    if (OPENS_BLOCK_RE.test(text)) close = findBlockEnd(doc, n)
-    else if (ONE_LINE_BLOCK_RE.test(text)) close = n
-    if (close === null) break
-    end = close
-    n = close + 1
+    if (leadingWhitespace(text).length < base) break
+    end = n
   }
   return end
 }
 
-/** turn `wrap foobar` + the blocks under it into `foobar <cursor> { …blocks… }`.
+/** turn `wrap foobar` + the contiguous lines under it into `foobar <cursor> { … }`;
+ * `wrap left: stuff` becomes `left: {\n  stuff\n}`.
  * returns false when the cursor line is not a `wrap` line */
 export const executeWrap: Command = (view) => {
   const { state } = view
@@ -48,21 +35,31 @@ export const executeWrap: Command = (view) => {
   const line = doc.lineAt(state.selection.main.head)
   const match = WRAP_RE.exec(line.text)
   if (!match) return false
-  const [, indent, word] = match as unknown as [string, string, string]
+  const [, indent, rest] = match as unknown as [string, string, string]
   const unit = state.facet(indentUnit)
+  const keyed = KEY_RE.exec(rest)
+  const word = keyed ? keyed[1]! : rest
+  const inline = keyed ? keyed[2]! : null
 
-  const end = contiguousBlocksEnd(doc, line.number)
-  const body: string[] = []
+  let end = contiguousEnd(doc, line.number, indent.length)
+  if (inline?.endsWith('{') && end < doc.lines) {
+    const next = doc.line(end + 1).text
+    if (leadingWhitespace(next) === indent && next.trimStart().startsWith('}')) end++
+  }
+  const body: string[] = inline === null ? [] : [indent + unit + inline]
   for (let n = line.number + 1; n <= end; n++) {
     const text = doc.line(n).text
     body.push(text.length ? unit + text : text)
   }
 
   const head = `${indent}${word} `
-  const insert = head + ' {' + (body.length ? '\n' + body.join('\n') : '') + '\n' + indent + '}'
+  const insert = inline === null
+    ? head + ' {' + (body.length ? '\n' + body.join('\n') : '') + '\n' + indent + '}'
+    : head + '{\n' + body.join('\n') + '\n' + indent + '}'
+  const cursor = line.from + indent.length + word.length
   view.dispatch({
     changes: { from: line.from, to: doc.line(end).to, insert },
-    selection: { anchor: line.from + head.length },
+    selection: { anchor: cursor },
     scrollIntoView: true,
     userEvent: 'input.wrap',
   })
