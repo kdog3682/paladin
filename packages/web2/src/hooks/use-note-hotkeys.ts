@@ -3,12 +3,14 @@ import { toast } from '@paladin/shadcn'
 import { downloadJson, useClipboard, useHotkeys, type HotkeyMap } from '@paladin/ui'
 import { BOOKMARK_SLOTS, useNotes } from '../store/notes'
 import { useEditorStore } from '../store/editor'
-import { focusTitle } from '../lib/editor'
+import { focusTitle, readDoc } from '../lib/editor'
 import { noteTitle } from '../lib/note'
 
 export type UseNoteHotkeysOpts = {
-  /* opt+f */
+  /* opt+f, cmd/ctrl+k */
   onSearch: () => void
+  /* cmd/ctrl+/ */
+  onHelp: () => void
   /* pause every binding, eg while a dialog owns the keyboard */
   enabled?: boolean
 }
@@ -18,13 +20,16 @@ const activeNote = () => {
   return s.notes.find(n => n.id === s.activeId)
 }
 
-export const useNoteHotkeys = ({ onSearch, enabled = true }: UseNoteHotkeysOpts) => {
+export const useNoteHotkeys = ({ onSearch, onHelp, enabled = true }: UseNoteHotkeysOpts) => {
   const { copy } = useClipboard()
 
   const map = useMemo<HotkeyMap>(() => {
     const m: HotkeyMap = {
-      'alt+n': () => useNotes.getState().create(),
-      'alt+r': () => focusTitle(useEditorStore.getState().view),
+      'alt+n': () => {
+        useNotes.getState().create()
+        setTimeout(focusTitle, 0)
+      },
+      'alt+r': () => focusTitle(),
       'alt+d': () => {
         const note = activeNote()
         if (!note) return
@@ -35,9 +40,13 @@ export const useNoteHotkeys = ({ onSearch, enabled = true }: UseNoteHotkeysOpts)
       'alt+c': async () => {
         const note = activeNote()
         if (!note) return
-        toast((await copy(note.content)) ? 'copied to clipboard' : 'could not reach the clipboard')
+        toast((await copy(readDoc(useEditorStore.getState().view) || note.content)) ? 'copied to clipboard' : 'could not reach the clipboard')
       },
       'alt+f': onSearch,
+      'cmd+Slash': onHelp,
+      'ctrl+Slash': onHelp,
+      'cmd+k': onSearch,
+      'ctrl+k': onSearch,
       'alt+ArrowUp': () => useNotes.getState().step(-1),
       'alt+ArrowDown': () => useNotes.getState().step(1),
     }
@@ -55,7 +64,7 @@ export const useNoteHotkeys = ({ onSearch, enabled = true }: UseNoteHotkeysOpts)
     }
 
     return m
-  }, [onSearch, copy])
+  }, [onSearch, onHelp, copy])
 
   useHotkeys(map, { enabled })
 }

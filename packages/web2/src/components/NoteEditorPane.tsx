@@ -1,8 +1,7 @@
 import { Editor } from '@paladin/codemirror'
 import { cn } from '@paladin/shadcn'
 import { useNotes, useActiveNote } from '../store/notes'
-import { useEditorStore, useEditorView } from '../store/editor'
-import { useLiveDoc } from '../hooks/use-live-doc'
+import { useEditorStore } from '../store/editor'
 
 /* the Editor owns loading and saving; both ends are the notes store rather
    than its localStorage default, so nothing is persisted twice. */
@@ -20,14 +19,7 @@ export type NoteEditorPaneProps = {
 
 export const NoteEditorPane = ({ className }: NoteEditorPaneProps) => {
   const note = useActiveNote()
-  const view = useEditorView()
   const setView = useEditorStore(s => s.setView)
-
-  // onSave is debounced 30s; this keeps titles, search and opt+c current
-  useLiveDoc(view, doc => {
-    const { activeId, setContent } = useNotes.getState()
-    if (activeId) setContent(activeId, doc)
-  })
 
   if (!note) return <div className={cn('flex-1', className)} />
 

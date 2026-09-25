@@ -12,7 +12,6 @@ import {
   toast,
 } from '@paladin/shadcn'
 import { BOOKMARK_SLOTS, useNote, useNotes } from '../store/notes'
-import { useEditorStore } from '../store/editor'
 import { focusTitle } from '../lib/editor'
 
 export type NoteContextMenuProps = {
@@ -35,7 +34,7 @@ export const NoteContextMenu = ({ noteId, children }: NoteContextMenuProps) => {
         <ContextMenuItem
           onClick={() => {
             setActive(noteId)
-            setTimeout(() => focusTitle(useEditorStore.getState().view), 0)
+            setTimeout(() => focusTitle(), 0)
           }}
         >
           Rename

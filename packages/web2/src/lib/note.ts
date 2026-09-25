@@ -10,6 +10,8 @@ export type Note = {
   createdAt: ISODate
   updatedAt: ISODate
   content: string
+  /* user-set name; notes from before this existed derive one from content */
+  title?: string
   /* free-form label, eg 'note' | 'scratch' | 'todo' */
   kind: string
 }
@@ -24,9 +26,9 @@ export const newNote = ({ kind = 'note', content = '' }: NewNoteOpts = {}): Note
   return { id: crypto.randomUUID(), status: 'active', createdAt: now, updatedAt: now, content, kind }
 }
 
-/* the note has no name field, so its title is the first line that has
-   anything on it — edit line 1 to rename (opt+r selects it). */
+/* without a title, the first line that has anything on it stands in */
 export const noteTitle = (note: Note, fallback = 'untitled') => {
+  if (note.title?.trim()) return note.title.trim()
   const line = note.content.split('\n').find(l => l.trim().length > 0)
   if (!line) return fallback
   return line.replace(/^#+\s*/, '').trim().slice(0, 60)
@@ -35,7 +37,7 @@ export const noteTitle = (note: Note, fallback = 'untitled') => {
 /* a one-line preview of everything after the title */
 export const noteSnippet = (note: Note, max = 80) => {
   const lines = note.content.split('\n')
-  const start = lines.findIndex(l => l.trim().length > 0)
+  const start = note.title?.trim() ? -1 : lines.findIndex(l => l.trim().length > 0)
   const rest = lines.slice(start + 1).join(' ').replace(/\s+/g, ' ').trim()
   return rest.slice(0, max)
 }

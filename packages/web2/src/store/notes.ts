@@ -14,6 +14,7 @@ export type NotesState = {
   bookmarks: Partial<Record<BookmarkSlot, string>>
   create: (opts?: NewNoteOpts) => string
   setContent: (id: string, content: string) => void
+  setTitle: (id: string, title: string) => void
   setStatus: (id: string, status: NoteStatus) => void
   setKind: (id: string, kind: string) => void
   setActive: (id: string) => void
@@ -52,6 +53,9 @@ export const useNotes = create<NotesState>()(
           if (!note || note.content === content) return s
           return { notes: s.notes.map(n => (n.id === id ? touch(n, { content }) : n)) }
         }),
+
+      setTitle: (id, title) =>
+        set(s => ({ notes: s.notes.map(n => (n.id === id ? touch(n, { title }) : n)) })),
 
       setStatus: (id, status) =>
         set(s => {
