@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
+    ".": "./src/index.ts",
     "./CodeBlock": "./src/components/CodeBlock.tsx",
     "./CodeBlock.tsx": "./src/components/CodeBlock.tsx",
     "./TreeView": "./src/components/TreeView.tsx",
