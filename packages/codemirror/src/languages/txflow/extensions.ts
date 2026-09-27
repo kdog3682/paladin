@@ -7,13 +7,20 @@ import { executeCursorRight, executeNewlineDedent, executeNewlineIndent } from '
 import { executeSmartEnter } from '../../extensions/smartEnter'
 import { handleSmartPaste } from '../../extensions/smartPaste'
 import { toggleIndentedBlockComment, toggleIndentedLineComment } from '../../extensions/toggleComment'
+import { cycleWord, vim } from '../../extensions/vim'
 
 const toggleBlockComment = toggleIndentedBlockComment()
 
 /** What txflow adds on top of the base extensions: the fully packed input rules,
  * the `q`-leader insert-mode chords, smart enter, indent-aware comments,
- * export / cut below the cursor, and reflowing paste. */
+ * export / cut below the cursor, reflowing paste, and a vim normal mode on Esc. */
 export const TXFLOW_EXTENSIONS: Extension = [
+  vim({
+    commands: {
+      'Space': cycleWord(),
+      'Shift-Space': cycleWord({ dir: -1 }),
+    },
+  }),
   inputRules(packedInputRules),
   inoremap({
     'qw': executeNewlineIndent,
