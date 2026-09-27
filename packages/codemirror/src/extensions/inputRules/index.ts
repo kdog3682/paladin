@@ -1,5 +1,6 @@
 import { abbrevs, templates } from './abbrevs'
 import { codeRules, codeTemplateSource, codeWraps } from './presets/code'
+import { snippetRules, snippetSource } from './presets/snippets'
 import type { InputRulesConfig } from './config'
 import { bracketRules, bracketWraps } from './presets/brackets'
 import { markdownRules } from './presets/markdown'
@@ -19,6 +20,7 @@ export { punctuationSwaps, punctuationRules, punctuationAbbrevSource } from './p
 export { markdownRules, dashRules, headingRules, HORIZONTAL_RULE } from './presets/markdown'
 export { bracketWraps, bracketRules } from './presets/brackets'
 export { codeRules, codeWraps, codeTemplateSource } from './presets/code'
+export { snippetRules, snippetSource } from './presets/snippets'
 
 /**
  * Every preset packed into one config: punctuation, markdown, bracket and code rules
@@ -29,5 +31,5 @@ export const packedInputRules: InputRulesConfig = {
   swaps: punctuationSwaps,
   wraps: [...bracketWraps, ...codeWraps],
   rules: [...punctuationRules, ...markdownRules, ...bracketRules, ...codeRules],
-  abbrevs: [...abbrevs(punctuationAbbrevSource), ...templates(codeTemplateSource)],
+  abbrevs: [...abbrevs(punctuationAbbrevSource), ...snippetRules(snippetSource), ...templates(codeTemplateSource)],
 }

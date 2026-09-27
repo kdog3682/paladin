@@ -97,6 +97,29 @@ describe('abbrevs', () => {
   test('respect the word boundary', () => {
     expect(type('|', 'carr ')).toBe('carr |')
   })
+
+  test('l expands to let', () => {
+    expect(type('|', 'l ')).toBe('let |')
+    expect(type('|', 'al ')).toBe('al |')
+  })
+
+  test('mu expands to an indented markup template', () => {
+    expect(type('|', 'mu ')).toBe('markup(`\n\t|\n`)')
+    expect(type('  |', 'mu ')).toBe('  markup(`\n  \t|\n  `)')
+  })
+})
+
+describe('closers and slash', () => {
+  test('a second space after a closer is swallowed', () => {
+    expect(type('f(a)|', '  ')).toBe('f(a) |')
+    expect(type('"a"|', '  ')).toBe('"a" |')
+  })
+
+  test('slash on an empty line opens a line comment', () => {
+    expect(type('|', '/')).toBe('// |')
+    expect(type('  |', '/')).toBe('  // |')
+    expect(type('a|', '/')).toBe('a/|')
+  })
 })
 
 describe('dash rules', () => {

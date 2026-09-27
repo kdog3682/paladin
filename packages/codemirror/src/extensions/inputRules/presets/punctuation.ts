@@ -23,8 +23,10 @@ export const punctuationRules: InputRule[] = [
   { on: ',', after: /^ /, insert: ',' },
   /* otherwise a comma brings its own space */
   { on: ',', insert: ', ' },
-  /* a second space after ', ' / '. ' / '! ' / ': ' is swallowed (zero-width lookbehind) */
-  { on: ' ', before: /(?<=[,.!:] )$/, insert: '' },
+  /* a second space after ', ' / '. ' / '! ' / ': ' / ') ' / '] ' / '} ' / "' " / '" ' is swallowed (zero-width lookbehind) */
+  { on: ' ', before: /(?<=[,.!:)\]}'"] )$/, insert: '' },
+  /* '/' on an empty line opens a line comment */
+  { on: '/', before: /^([ \t]*)$/, after: /^\s*$/, insert: (m) => m[1] + '// ' },
   /* '\' + 'r' becomes an arrow, spaced out from its neighbours */
   { on: 'r', before: /\\$/, insert: (_m, ctx) => pad('->', ctx, 1) },
 ]
