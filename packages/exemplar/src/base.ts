@@ -8,7 +8,7 @@ display hook and may rewrite the baseline, runTest does neither and only
 reports mismatches.
 */
 import { type SymbolInfo, createCache, loadSpecFunction, quickParse } from "@paladin/utils"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -89,10 +89,21 @@ export type RunContext = {
 
 const defaultSerialize: Serialize = (value) => JSON.stringify(value, null, 2)
 
+/* a package with no importable entry just has no hooks, but an entry that exists and fails
+   to import (e.g. a dangling re-export) must stop the run, not silently fall back to defaults */
 async function importNamespace(namespace: string, root: string): Promise<any> {
-  return import(namespace).catch(() =>
-    import(pathToFileURL(join(root, "src/index.ts")).href).catch(() => ({})),
-  )
+  const entry = join(root, "src/index.ts")
+  try {
+    return await import(namespace)
+  } catch {
+    if (!existsSync(entry)) return {}
+    try {
+      return await import(pathToFileURL(entry).href)
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : String(cause)
+      throw new Error(`cannot import package "${namespace}" (${entry}): ${reason}`, { cause })
+    }
+  }
 }
 
 export async function resolveHooks(namespace: string, root: string, hooks: Hooks) {
