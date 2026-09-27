@@ -1,7 +1,7 @@
 import { type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
-export type FontKey = 'inconsolata' | 'ncm-mono'
+export type FontKey = 'inconsolata' | 'ncm-mono' | 'inherit'
 
 /**
  * Each stack ends in system fallbacks, so an app that never imports
@@ -10,6 +10,8 @@ export type FontKey = 'inconsolata' | 'ncm-mono'
 export const FONT_STACKS: Record<FontKey, string> = {
   inconsolata: "'Inconsolata', ui-monospace, SFMono-Regular, Menlo, monospace",
   'ncm-mono': "'NCM Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+  /* follow whatever font the surrounding page sets */
+  inherit: 'inherit',
 }
 
 export const DEFAULT_FONT: FontKey = 'inconsolata'
