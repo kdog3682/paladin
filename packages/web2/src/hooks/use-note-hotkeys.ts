@@ -30,6 +30,8 @@ export const useNoteHotkeys = ({ onSearch, onHelp, enabled = true }: UseNoteHotk
         setTimeout(focusTitle, 0)
       },
       'alt+r': () => focusTitle(),
+      'cmd+r': () => focusTitle(),
+      'ctrl+r': () => focusTitle(),
       'alt+d': () => {
         const note = activeNote()
         if (!note) return

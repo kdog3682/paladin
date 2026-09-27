@@ -30,7 +30,8 @@ export const NoteEditorPane = ({ className }: NoteEditorPaneProps) => {
       onSave={save}
       onLeave={save}
       onViewReady={setView}
-      className={cn('min-w-0 flex-1', className)}
+      font="inconsolata"
+      className={cn('min-w-0 flex-1 px-10 py-8', className)}
     />
   )
 }
