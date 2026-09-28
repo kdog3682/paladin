@@ -3,8 +3,16 @@ import { EditorState } from '@codemirror/state'
 
 const INDENT = '  '
 
+/** `- `, `* `, `+ `, `1. ` — a marker counts as indentation, so a child line
+ * lands past it rather than aligned with its text. */
+const LIST_MARKER = /^\s*(?:[-*+]|\d+[.)])\s+/
+
+/** The whitespace a line below this one should start from: its leading
+ * whitespace, plus a blank stand-in for any list marker. */
 function getLineIndent(state: EditorState, pos: number): string {
   const line = state.doc.lineAt(pos)
+  const marker = line.text.match(LIST_MARKER)
+  if (marker) return ' '.repeat(marker[0].length)
   const match = line.text.match(/^(\s*)/)
   return match ? match[1] : ''
 }
@@ -20,42 +28,36 @@ function nextLineIsBlank(state: EditorState, lineNumber: number): boolean {
   return state.doc.line(lineNumber + 1).text.trim() === ''
 }
 
-function moveToBlankNextLine(view: EditorView, lineNumber: number) {
+/** Reuse the blank line below instead of opening another, but reindent it. */
+function reindentNextLine(view: EditorView, lineNumber: number, indent: string) {
+  const nextLine = view.state.doc.line(lineNumber + 1)
+  view.dispatch({
+    changes: { from: nextLine.from, to: nextLine.to, insert: indent },
+    selection: { anchor: nextLine.from + indent.length },
+  })
+}
+
+function openLine(view: EditorView, indent: (current: string) => string) {
   const { state } = view
-  const nextLine = state.doc.line(lineNumber + 1)
-  view.dispatch({ selection: { anchor: nextLine.from + nextLine.text.length } })
+  const line = state.doc.lineAt(state.selection.main.head)
+  const newIndent = indent(getLineIndent(state, line.from))
+  if (nextLineIsBlank(state, line.number)) {
+    reindentNextLine(view, line.number, newIndent)
+    return
+  }
+  const insertPos = line.to
+  view.dispatch({
+    changes: { from: insertPos, insert: '\n' + newIndent },
+    selection: { anchor: insertPos + 1 + newIndent.length },
+  })
 }
 
 export function executeNewlineIndent(view: EditorView) {
-  const { state } = view
-  const line = state.doc.lineAt(state.selection.main.head)
-  if (nextLineIsBlank(state, line.number)) {
-    moveToBlankNextLine(view, line.number)
-    return
-  }
-  const currentIndent = getLineIndent(state, line.from)
-  const newIndent = currentIndent + INDENT
-  const insertPos = line.to
-  view.dispatch({
-    changes: { from: insertPos, insert: '\n' + newIndent },
-    selection: { anchor: insertPos + 1 + newIndent.length },
-  })
+  openLine(view, current => current + INDENT)
 }
 
 export function executeNewlineDedent(view: EditorView) {
-  const { state } = view
-  const line = state.doc.lineAt(state.selection.main.head)
-  if (nextLineIsBlank(state, line.number)) {
-    moveToBlankNextLine(view, line.number)
-    return
-  }
-  const currentIndent = getLineIndent(state, line.from)
-  const newIndent = dedent(currentIndent)
-  const insertPos = line.to
-  view.dispatch({
-    changes: { from: insertPos, insert: '\n' + newIndent },
-    selection: { anchor: insertPos + 1 + newIndent.length },
-  })
+  openLine(view, dedent)
 }
 
 export function executeCursorRight(view: EditorView) {
