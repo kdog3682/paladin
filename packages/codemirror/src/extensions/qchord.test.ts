@@ -21,11 +21,16 @@ describe('executeNewlineIndent (qw)', () => {
     expect(indent('\tfoo|')).toBe('\tfoo\n\t  |')
   })
 
-  test('a bullet line indents past the marker', () => {
-    expect(indent('- foo|')).toBe('- foo\n    |')
-    expect(indent('  - foo|')).toBe('  - foo\n      |')
-    expect(indent('* foo|')).toBe('* foo\n    |')
-    expect(indent('1. foo|')).toBe('1. foo\n     |')
+  test('a bullet continues as an indented bullet', () => {
+    expect(indent('- long-addition|')).toBe('- long-addition\n  - |')
+    expect(indent('  - foo|')).toBe('  - foo\n    - |')
+    expect(indent('* foo|')).toBe('* foo\n  * |')
+    expect(indent('+ foo|')).toBe('+ foo\n  + |')
+  })
+
+  test('an ordered marker is carried down as written', () => {
+    expect(indent('1. foo|')).toBe('1. foo\n  1. |')
+    expect(indent('2) foo|')).toBe('2) foo\n  2) |')
   })
 
   test('a dash that is not a marker is just text', () => {
@@ -37,10 +42,11 @@ describe('executeNewlineIndent (qw)', () => {
     expect(indent('|')).toBe('\n  |')
   })
 
-  test('a blank next line is reused, and reindented', () => {
+  test('a blank next line is reused, and rewritten', () => {
     expect(indent('foo|\n')).toBe('foo\n  |')
     expect(indent('foo|\n    ')).toBe('foo\n  |')
     expect(indent('  foo|\n')).toBe('  foo\n    |')
+    expect(indent('- foo|\n')).toBe('- foo\n  - |')
   })
 
   test('a non-blank next line is pushed down', () => {
@@ -72,9 +78,10 @@ describe('executeNewlineDedent (qe)', () => {
     expect(dedent('    foo|\n        ')).toBe('    foo\n  |')
   })
 
-  test('a bullet line dedents from the marker width', () => {
-    expect(dedent('- foo|')).toBe('- foo\n|')
-    expect(dedent('  - foo|')).toBe('  - foo\n  |')
+  test('a bullet continues as a dedented bullet', () => {
+    expect(dedent('  - foo|')).toBe('  - foo\n- |')
+    expect(dedent('    - foo|')).toBe('    - foo\n  - |')
+    expect(dedent('- foo|')).toBe('- foo\n- |')
   })
 })
 
