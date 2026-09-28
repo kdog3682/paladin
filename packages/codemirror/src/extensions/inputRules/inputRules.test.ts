@@ -1,46 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { EditorSelection, EditorState } from '@codemirror/state'
-import type { SelectionRange } from '@codemirror/state'
+import type { EditorState } from '@codemirror/state'
+import { parse, render } from '../../test/editor'
 import { inputRuleTransaction, splitCursor } from './apply'
 import { resolveConfig, type ResolvedConfig } from './config'
 import { packedInputRules, templates } from './index'
 import { HORIZONTAL_RULE } from './presets/markdown'
 
 const config = resolveConfig(packedInputRules)
-
-/* '|' is a cursor, '«…»' a selection */
-function parse(spec: string): EditorState {
-  let doc = ''
-  const ranges: SelectionRange[] = []
-  let anchor = 0
-  for (const c of spec) {
-    if (c === '|') ranges.push(EditorSelection.cursor(doc.length))
-    else if (c === '«') anchor = doc.length
-    else if (c === '»') ranges.push(EditorSelection.range(anchor, doc.length))
-    else doc += c
-  }
-  return EditorState.create({
-    doc,
-    selection: ranges.length ? EditorSelection.create(ranges, 0) : EditorSelection.single(0),
-    // without this, EditorState.create collapses the selection to its main range
-    extensions: [EditorState.allowMultipleSelections.of(true)],
-  })
-}
-
-function render(state: EditorState): string {
-  const marks: { pos: number, text: string }[] = []
-  for (const range of state.selection.ranges) {
-    if (range.empty) marks.push({ pos: range.from, text: '|' })
-    else {
-      marks.push({ pos: range.from, text: '«' })
-      marks.push({ pos: range.to, text: '»' })
-    }
-  }
-  marks.sort((a, b) => b.pos - a.pos)
-  let doc = state.doc.toString()
-  for (const mark of marks) doc = doc.slice(0, mark.pos) + mark.text + doc.slice(mark.pos)
-  return doc
-}
 
 function press(state: EditorState, key: string, cfg: ResolvedConfig = config): EditorState {
   const spec = inputRuleTransaction(state, key, cfg)
@@ -236,14 +202,23 @@ describe('code', () => {
   })
 
   test('a language typed on an empty line expands to a fenced block', () => {
-    expect(type('|', 'ts')).toBe('```ts\n|\n```')
+    expect(type('|', 'py')).toBe('```py\n|\n```')
     expect(type('  |', 'py')).toBe('  ```py\n  |\n  ```')
+    expect(type('|', 'css')).toBe('```css\n|\n```')
+    expect(type('|', 'html')).toBe('```html\n|\n```')
   })
 
   test('a language mid-line, inside a word or before text is left alone', () => {
-    expect(type('a |', 'ts')).toBe('a ts|')
-    expect(type('|', 'pits')).toBe('pits|')
-    expect(type('t|x', 's')).toBe('ts|x')
+    expect(type('a |', 'py')).toBe('a py|')
+    expect(type('|', 'spy')).toBe('spy|')
+    expect(type('p|x', 'y')).toBe('py|x')
+  })
+
+  /* see FENCE_LANGUAGES in presets/code: no language may prefix another,
+     so `ts` is left out rather than pre-empt `tsx` */
+  test('a language that is not registered is left alone', () => {
+    expect(type('|', 'ts')).toBe('ts|')
+    expect(type('|', 'sh')).toBe('sh|')
   })
 
   test('a template can wait for an explicit trigger', () => {
