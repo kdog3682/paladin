@@ -1,6 +1,8 @@
 # routes
 
-Every file in this folder becomes a route group, except `base.ts` and `index.ts`. The lowercased file name is the prefix, so `Claude.ts` is served at `/claude`.
+Every file in this folder becomes a route group, except `base.ts` and `index.ts`. Groups are mounted under `API_PREFIX` (`/api`, from `base.ts`) with the lowercased file name after it, so `Claude.ts` is served at `/api/claude`.
+
+Keeping every group under one prefix means a dev server needs a single proxy entry for `/api` rather than one per route file.
 
 A file is mounted only if it has a default export. Anything without one is ignored.
 
@@ -12,13 +14,13 @@ import {createRouter, fail} from './base'
 
 const app = createRouter()
 
-// GET /todos
+// GET /api/todos
 app.get('/', () => [])
 
-// POST /todos/:id/done   (path params are typed from the route string)
+// POST /api/todos/:id/done   (path params are typed from the route string)
 app.post('/:id/done', ({id}) => ({id, done: true}))
 
-// POST /todos   (annotate the body/query yourself)
+// POST /api/todos   (annotate the body/query yourself)
 app.post('/', ({title}: {title: string}) => {
   if (!title) fail(400, 'title is required')
   return {title}

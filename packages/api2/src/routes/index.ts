@@ -1,6 +1,7 @@
 import {readdir} from 'node:fs/promises'
 import {join, parse} from 'node:path'
 import {Hono} from 'hono'
+import {API_PREFIX} from './base'
 import type {Router} from './base'
 
 const IGNORE = new Set(['base', 'index'])
@@ -25,7 +26,7 @@ for (const file of files) {
   const mod = await import(join(import.meta.dir, file))
   const hono = toHono(mod.default)
   if (!hono) continue
-  routes.route(`/${parse(file).name.toLowerCase()}`, hono)
+  routes.route(`${API_PREFIX}/${parse(file).name.toLowerCase()}`, hono)
 }
 
 routes.notFound(c => Response.json({error: `not found: ${c.req.path}`}, {status: 404}))

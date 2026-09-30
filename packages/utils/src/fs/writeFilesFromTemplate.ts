@@ -10,8 +10,14 @@ export type WriteFilesFromTemplateOpts = {
 /* a header line is a lone comment holding a path, ie `/* src/index.ts *\/` */
 const HEADER = /^\/\*\s*([^\s*]*[./][^\s*]*)\s*\*\/$/
 
+export type TemplateFile = {
+  /* path relative to the template root */
+  path: string
+  text: string
+}
+
 /*
- * write every file in a template of the form
+ * parse a template of the form
  *
  *   /* src/index.ts *\/
  *   export const a = 1
@@ -19,9 +25,9 @@ const HEADER = /^\/\*\s*([^\s*]*[./][^\s*]*)\s*\*\/$/
  *   /* package.json *\/
  *   {"name": "x"}
  *
- * indentation is removed with smartDedent, returns the written paths relative to root
+ * into its files, without touching the disk. indentation is removed with smartDedent
  */
-export function writeFilesFromTemplate(template: string, opts: WriteFilesFromTemplateOpts): string[] {
+export function parseFilesFromTemplate(template: string): TemplateFile[] {
   const files: { path: string, lines: string[] }[] = []
   for (const line of smartDedent(template).split("\n")) {
     const header = line.match(HEADER)
@@ -30,11 +36,19 @@ export function writeFilesFromTemplate(template: string, opts: WriteFilesFromTem
     else if (line.trim()) throw new Error(`writeFilesFromTemplate: content before the first /* path */ header: ${line}`)
   }
 
+  return files.map((file) => {
+    const text = smartDedent(file.lines.join("\n"))
+    return { path: file.path, text: text ? text + "\n" : "" }
+  })
+}
+
+/* write every file of a template (see parseFilesFromTemplate), returns the written paths relative to root */
+export function writeFilesFromTemplate(template: string, opts: WriteFilesFromTemplateOpts): string[] {
+  const files = parseFilesFromTemplate(template)
   for (const file of files) {
     const target = join(opts.root, file.path)
-    const text = smartDedent(file.lines.join("\n"))
     mkdirSync(dirname(target), { recursive: true })
-    writeFileSync(target, text ? text + "\n" : "")
+    writeFileSync(target, file.text)
   }
   return files.map((file) => file.path)
 }

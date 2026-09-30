@@ -17,7 +17,8 @@ function inlineWrap(state: EditorState, range: SelectionRange, open: string, clo
   }
 }
 
-function blockWrap(state: EditorState, range: SelectionRange, open: string, close: string): RuleResult {
+/** wrap the whole lines a range touches, indenting the body one level under `open` / `close` */
+export function blockWrap(state: EditorState, range: SelectionRange, open: string, close: string): RuleResult {
   const startLine = state.doc.lineAt(range.from)
   const endLine = state.doc.lineAt(range.to)
   const from = startLine.from

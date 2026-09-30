@@ -1,14 +1,12 @@
 import { type Command } from '@codemirror/view'
 import { executeBracketEnter } from './bracket'
 import { insertIndentedNewline } from './indentNewline'
-import { executeWrap } from './wrap'
 
 export { insertIndentedNewline } from './indentNewline'
-export { executeWrap } from './wrap'
 
-/** special-case handlers, tried in order. the first to return true wins */
+/** special-case handlers, tried in order. the first to return true wins.
+ * the `wrap foo` transform used to live here; it is visual mode's `w` now */
 export const SMART_ENTER_HANDLERS: Command[] = [
-  executeWrap,
   executeBracketEnter,
 ]
 

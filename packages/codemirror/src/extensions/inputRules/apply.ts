@@ -44,11 +44,21 @@ export function applyRules(
   typed: string,
   config: ResolvedConfig,
 ): RuleResult | null {
-  const char = config.swaps[typed] ?? typed
+  const swapped = config.swaps[typed]
+  const char = swapped ?? typed
 
   if (!range.empty) {
     const wrapped = matchWrap(state, range, typed, char, config)
     if (wrapped) return wrapped
+  }
+
+  // a swapped character is the literal the user asked for, so it never runs the
+  // rules of the key it landed on: shift+9 gives a bare `9`, not the `9` pair rule
+  if (swapped !== undefined) {
+    return {
+      changes: { from: range.from, to: range.to, insert: swapped },
+      range: EditorSelection.cursor(range.from + swapped.length),
+    }
   }
 
   const startLine = state.doc.lineAt(range.from)
@@ -75,13 +85,6 @@ export function applyRules(
   }
 
   // nothing matched, but the swap layer still has to land its character
-  if (char !== typed) {
-    return {
-      changes: { from: range.from, to: range.to, insert: char },
-      range: EditorSelection.cursor(range.from + char.length),
-    }
-  }
-
   return null
 }
 

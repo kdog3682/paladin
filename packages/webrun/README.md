@@ -7,6 +7,7 @@ the tab that's already open switches to it.
 ```
 webrun <path/to/App.tsx | path/to/name.examples.tsx> [--open] [--no-open] [--report] [--virtual] [--passthrough] [--no-user-config]
 webrun --status | --stop
+webrun [target] --build [--out <dir>] [--name <name>] [--no-open]         # freeze
 webrun [target] --click <sel> --expect <sel> --text <sel> --preview ...   # probe
 ```
 
@@ -31,6 +32,22 @@ as is. Actions run in the order given; exit 1 if one fails.
 The project's vite config is merged underneath ours, minus its `test`/`build` blocks and plugins that
 start a run (vitest, storybook, …). Generated files live in
 `<project>/node_modules/.webrun/<hash of project>/`, including `vite.log`.
+
+## Building
+
+`--build` freezes the app into one self-contained html — js, css and assets inlined, no server — in
+`~/.paladin/apps/`, and opens it. The filename is the app's path under `~/projects` with the slashes
+turned into `__` — `paladin__packages__web2__src__App.html` for
+`~/projects/paladin/packages/web2/src/App.tsx` — since that directory is flat and a bare `App.html`
+says nothing about where it came from. `--name` overrides it. With no target it builds the app currently being
+served, so the flow is `webrun App.tsx`, poke at it, `webrun --build`. The server is neither needed
+nor touched.
+
+It builds what it serves: the same mode, the same generated shell (so an `.examples.tsx` target
+builds its gallery), the project's vite config with react and tailwind filled in the same way. In
+virtual mode the generated entry is written next to the app for the build and removed afterwards, so
+its relative imports resolve as they do at dev time. `--out` picks another directory, `--name` another
+filename, `--no-open` skips the browser.
 
 ## Examples files
 

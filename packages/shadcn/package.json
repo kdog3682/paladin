@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "sideEffects": [
-    "*.css"
+    "**/*.css",
+    "src/index.ts"
   ],
   "main": "./src/index.ts",
   "module": "./src/index.ts",

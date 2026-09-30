@@ -1,11 +1,24 @@
 import type { EditorView } from '@codemirror/view'
-import { jump, normalCommands, type NormalCommand } from './commands'
+import { normalCommands, submitPrompt, visualCommands, type NormalCommand } from './commands'
 import { getVim, setVim, type VimState } from './state'
 
 type Commands = Record<string, NormalCommand>
 
 // non-printable keys that would otherwise edit the doc (smart enter, tab indent...)
-const SWALLOWED = new Set(['Escape', 'Enter', 'Backspace', 'Delete', 'Tab'])
+/** named (multi-character) keys vim takes over, so they never reach the default keymap.
+ * the arrows are here because otherwise `cursorCharRight` and friends would run and
+ * collapse a visual selection */
+const SWALLOWED = new Set([
+  'Escape',
+  'Enter',
+  'Backspace',
+  'Delete',
+  'Tab',
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+])
 
 const prefixCache = new WeakMap<Commands, Set<string>>()
 
@@ -32,7 +45,11 @@ const keyName = (e: KeyboardEvent, commands: Commands): string | null => {
     return e.ctrlKey && !e.metaKey && name in commands ? name : null
   }
   if (e.key === ' ') return e.shiftKey ? 'Shift-Space' : 'Space'
-  if (e.key.length === 1 || SWALLOWED.has(e.key)) return e.key
+  // some environments report shift+v as key 'v' with shiftKey set rather than 'V', which
+  // would quietly run the lowercase binding. upper-casing is a no-op everywhere else,
+  // punctuation included: shift+3 already arrives as '#'
+  if (e.key.length === 1) return e.shiftKey ? e.key.toUpperCase() : e.key
+  if (SWALLOWED.has(e.key)) return e.key
   // arrows, home / end, page up / down keep working
   return null
 }
@@ -44,21 +61,19 @@ const handlePromptKey = (e: KeyboardEvent, view: EditorView, vim: VimState) => {
   if (e.key === 'Escape') setPrompt(null)
   else if (e.key === 'Enter') {
     setPrompt(null)
-    // an empty `/` repeats the last search, like vim
-    const query = prompt.text || vim.search?.query
-    if (query) jump(view, { query, wholeWord: !prompt.text && !!vim.search?.wholeWord, dir: prompt.dir })
+    submitPrompt(view, prompt, vim)
   } else if (e.key === 'Backspace') setPrompt(prompt.text ? { ...prompt, text: prompt.text.slice(0, -1) } : null)
   else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) setPrompt({ ...prompt, text: prompt.text + e.key })
   return true
 }
 
-/** keydown handler for normal mode, returns true when the key was consumed */
+/** keydown handler for normal and visual mode, returns true when the key was consumed */
 export const handleNormalKey = (event: KeyboardEvent, view: EditorView): boolean => {
   const vim = getVim(view.state)
-  if (!vim || vim.mode !== 'normal' || event.isComposing) return false
+  if (!vim || vim.mode === 'insert' || event.isComposing) return false
   if (vim.prompt) return handlePromptKey(event, view, vim)
 
-  const commands = view.state.facet(normalCommands)
+  const commands = view.state.facet(vim.mode === 'visual' ? visualCommands : normalCommands)
   const name = keyName(event, commands)
   if (name === null) return false
 

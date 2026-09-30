@@ -9,12 +9,13 @@
     "react-dom": "^18.3.1",
     "@paladin/codemod": "workspace:*",
     "@paladin/utils": "workspace:*",
-    "vite": "^6.4.1",
+    "vite": "^5.4.21",
     "@vitejs/plugin-react": "^4.7.0",
     "vite-plugin-singlefile": "^2.3.3",
     "googleapis": "^181.0.0",
     "@paladin/gapi": "workspace:*",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "@paladin/ai": "workspace:*"
   },
   "bin": {
     "gitchunks": "src/gitchunks.cli.ts",

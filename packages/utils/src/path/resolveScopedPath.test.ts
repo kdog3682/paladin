@@ -33,6 +33,15 @@ const cases: [input: string, expected: string][] = [
   ['@web/Foo.tsx', `${web}/src/components/Foo.tsx`],
   ['@ui/Button.tsx', `${web}/src/components/ui/Button.tsx`],
   ['@services/mail.ts', '/base/paladin/packages/api/src/services/mail.ts'],
+  ['@SymbolViewerApplet', '/base/paladin/packages/web2/src/SymbolViewerApplet'],
+  [
+    '@SymbolViewerApplet/useSymbols.ts',
+    '/base/paladin/packages/web2/src/SymbolViewerApplet/useSymbols.ts'
+  ],
+  [
+    '@SymbolViewerApplet/SymbolViewer.tsx',
+    '/base/paladin/packages/web2/src/SymbolViewerApplet/SymbolViewer.tsx'
+  ],
   ['paladin', '/base/paladin'],
   ['paladin/web/Foo.tsx', `${web}/src/components/Foo.tsx`],
   ['/etc/hosts', '/etc/hosts'],
@@ -99,6 +108,12 @@ const optionCases: [name: string, input: string, opts: ResolveScopedPathOptions,
       '@paladin/web/Foo.tsx',
       { base, routers: [() => null, () => undefined] },
       `${web}/src/Foo.tsx`
+    ],
+    [
+      'capitalizedPrefix is replaceable',
+      '@Applet/Foo.tsx',
+      { base, capitalizedPrefix: '@paladin/api2/src/applets' },
+      '/base/paladin/packages/api2/src/applets/Applet/Foo.tsx'
     ],
     [
       'aliases are replaceable',

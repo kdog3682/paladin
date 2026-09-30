@@ -32,11 +32,13 @@ export async function runAction(project: Project, action: Action) {
 }
 
 export async function runActions(project: Project, actions: Action[]) {
-  await withoutInsertedSemicolons(project, async () => {
-    for (const action of actions) await runAction(project, action)
+  const results = await withoutInsertedSemicolons(project, async () => {
+    const results: unknown[] = []
+    for (const action of actions) results.push(await runAction(project, action))
+    return results
   })
 
-  return project
+  return { project, results }
 }
 
 /** Bare codemod names are the degenerate case of an action: no arguments. */
@@ -49,4 +51,25 @@ export async function runSpec(spec: Spec, project = createProject(spec.dir ?? '.
   if (!spec.dry) await project.save()
 
   return { project, touched }
+}
+
+export type CodemodRunOptions = {
+  /* project to run against, same resolution rules as Spec.dir */
+  dir: string
+  codemod: Codemod
+  /* positional arguments, passed after the project */
+  args?: unknown[]
+  /* report what would change without writing. defaults to true */
+  dry?: boolean
+}
+
+/** Runs a codemod function directly, rather than one looked up by name from src/codemods/. */
+export async function runCodemod({ dir, codemod, args = [], dry = true }: CodemodRunOptions) {
+  const project = createProject(dir)
+  const result = await withoutInsertedSemicolons(project, () => Promise.resolve(codemod(project, ...args)))
+
+  const touched = project.getSourceFiles().filter(file => !file.isSaved())
+  if (!dry) await project.save()
+
+  return { project, touched, result }
 }

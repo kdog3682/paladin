@@ -30,14 +30,15 @@ export const dashRules: InputRule[] = [
   },
 ]
 
-/* '#' deepens an existing heading, or opens a new one at h2 */
+/* '3' deepens an existing heading, or opens a new one at h2. the unshifted key carries
+ * the rule so shift+3 stays a literal '#' */
 export const headingRules: InputRule[] = [
   /* at the line start of an existing heading, deepen it and stay put */
-  { on: '#', before: /^$/, after: /^#{1,4} /, insert: '#' },
+  { on: '3', before: /^$/, after: /^#{1,4} /, insert: '#' },
   /* just after the '### ' prefix, deepen it and follow the prefix */
-  { on: '#', before: /^(#{1,4}) $/, insert: (m) => m[1] + '# ' },
+  { on: '3', before: /^(#{1,4}) $/, insert: (m) => m[1] + '# ' },
   /* anywhere else at a line start, open at h2 */
-  { on: '#', before: /^$/, insert: '## ' },
+  { on: '3', before: /^$/, insert: '## ' },
 ]
 
 export const markdownRules: InputRule[] = [...dashRules, ...headingRules]

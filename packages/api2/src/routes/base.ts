@@ -1,6 +1,9 @@
 import {Hono} from 'hono'
 import type {Context} from 'hono'
 
+/* every route group in this folder is mounted under this prefix, so a client needs one proxy entry */
+export const API_PREFIX = '/api'
+
 export class HttpError extends Error {
   status: number
   constructor(status: number, message: string) {

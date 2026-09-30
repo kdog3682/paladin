@@ -21,6 +21,17 @@ export type GitStatusEntry = {
   kind: GitStatusKind
 }
 
+export type CompactDiff = {
+  /* number of added lines */
+  added: number
+  /* number of removed lines */
+  removed: number
+  /* hunk headers and +/- lines only, capped at maxLines */
+  lines: string[]
+  /* true when lines were cut off by maxLines */
+  truncated: boolean
+}
+
 function git(dir: string, args: string[]): Promise<BashResult> {
   return bash(["git", ...args], { cwd: dir })
 }
@@ -52,12 +63,22 @@ export function isGitRepo(dir: string): boolean {
   return existsSync(join(dir, ".git"))
 }
 
+/* absolute path of the repo containing `dir` (works from any subdirectory) */
+export async function getRepoRoot(dir: string): Promise<string> {
+  return (await gitOut(dir, ["rev-parse", "--show-toplevel"])).trim()
+}
+
+/* whether the repo has at least one commit */
+export async function hasHead(dir: string): Promise<boolean> {
+  return (await git(dir, ["rev-parse", "--verify", "-q", "HEAD"])).exitCode === 0
+}
+
 /* whether a repo-relative file or directory exists in HEAD, false when there is no HEAD */
 export async function existsAtHead(dir: string, path: string): Promise<boolean> {
   return (await git(dir, ["cat-file", "-e", `HEAD:${path}`])).exitCode === 0
 }
 
-/* working tree status, untracked dirs expanded to files */
+/* working tree status, untracked dirs expanded to files. paths are repo-root relative */
 export async function getStatus(dir: string): Promise<GitStatusEntry[]> {
   // v2 records start with a type char, unlike v1's " M path", so bash()'s stdout trim can't damage the first one
   const out = await gitOut(dir, ["status", "--porcelain=v2", "-z", "--untracked-files=all"])
@@ -85,6 +106,37 @@ export async function getStatus(dir: string): Promise<GitStatusEntry[]> {
     }
   }
   return entries
+}
+
+/*
+ * working tree vs HEAD for the given paths, with zero context and no file headers.
+ * paths are relative to `dir`, so pass the repo root as `dir` when using getStatus paths
+ */
+export async function getCompactDiff(dir: string, paths: string[], maxLines = 40): Promise<CompactDiff> {
+  const out = await gitOut(dir, [
+    "diff", "HEAD", "-M", "--no-color", "--no-ext-diff", "--unified=0", "--", ...paths,
+  ])
+  const diff: CompactDiff = { added: 0, removed: 0, lines: [], truncated: false }
+  let inHunk = false
+  for (const line of out.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      inHunk = false
+      continue
+    }
+    if (line.startsWith("Binary files ")) {
+      diff.lines.push("(binary)")
+      continue
+    }
+    if (line.startsWith("@@")) inHunk = true
+    else if (!inHunk) continue
+    else if (line[0] === "+") diff.added++
+    else if (line[0] === "-") diff.removed++
+    else continue
+
+    if (diff.lines.length < maxLines) diff.lines.push(line)
+    else diff.truncated = true
+  }
+  return diff
 }
 
 /* stage and commit only the given paths (other staged changes stay staged), returns the short sha */

@@ -12,7 +12,7 @@ export { resolveConfig } from './config'
 export type { InputRulesConfig, ResolvedConfig } from './config'
 export { abbrevs, templates } from './abbrevs'
 export type { AbbrevOptions, TemplateOptions } from './abbrevs'
-export { wraps, matchWrap } from './wraps'
+export { wraps, matchWrap, blockWrap } from './wraps'
 export { notIn, onlyIn, atLineEnd } from './guards'
 export type { InputRule, Insert, RuleContext, RuleResult, WrapSpec, ResolvedWrap } from './types'
 
@@ -20,7 +20,7 @@ export { punctuationSwaps, punctuationRules, punctuationAbbrevSource } from './p
 export { markdownRules, dashRules, headingRules, HORIZONTAL_RULE } from './presets/markdown'
 export { bracketWraps, bracketRules } from './presets/brackets'
 export { codeRules, codeWraps, codeTemplateSource } from './presets/code'
-export { snippetRules, snippetSource } from './presets/snippets'
+export { snippetRules, snippetSource, today, type Snippet } from './presets/snippets'
 
 /**
  * Every preset packed into one config: punctuation, markdown, bracket and code rules

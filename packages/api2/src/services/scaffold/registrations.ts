@@ -77,7 +77,10 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
   },
   {
     purpose: "example",
-    matches: ["**/{example,examples}/**/*.ts", "**/*.{example,examples}.ts"],
+    matches: [
+    "**/mathpen/**/{example,examples}/**/*.ts",
+    "**/mathpen/**/*.{example,examples}.ts",
+    ],
     command: ["bun", "run", "@paladin/exemplar/cli.ts"],
     grouped: true,
   },

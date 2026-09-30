@@ -21,6 +21,26 @@ async function applyCorpus(corpus: Corpus, names: string[]) {
   )
 }
 
+async function applyDataCorpus(corpus: Corpus, names: string[]) {
+  const project = createMemoryProject()
+
+  for (const file of corpus.input) {
+    project.createSourceFile(`/${file.path}`, file.code, { overwrite: true })
+  }
+
+  const { results } = await runActions(project, corpus.actions.length > 0 ? corpus.actions : toActions(names))
+  return results[results.length - 1]
+}
+
+/** Data corpora compare a codemod's return value, not files, so they get a single pseudo-file. */
+function compareData(received: unknown, expected: unknown): FileResult {
+  const got = JSON.stringify(received, null, 2) ?? String(received)
+  const want = JSON.stringify(expected, null, 2) ?? String(expected)
+
+  if (got === want) return { path: 'data', status: 'pass', diff: [] }
+  return { path: 'data', status: 'changed', diff: diff(got, want) }
+}
+
 function compare(corpus: Corpus, received: Map<string, string>): FileResult[] {
   const paths = [
     ...corpus.expected.map(file => file.path),
@@ -45,7 +65,10 @@ function compare(corpus: Corpus, received: Map<string, string>): FileResult[] {
 export async function test(names: string[]): Promise<Summary> {
   const name = names.join('.')
   const corpus = await loadCorpus(name)
-  const files = compare(corpus, await applyCorpus(corpus, names))
+
+  const files = corpus.data
+    ? [compareData(await applyDataCorpus(corpus, names), corpus.data.value)]
+    : compare(corpus, await applyCorpus(corpus, names))
   const failed = files.filter(file => file.status !== 'pass')
 
   return {

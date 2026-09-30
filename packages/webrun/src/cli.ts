@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { helpText, runArgv, type Spec } from "@paladin/utils"
 import type { WebrunOpts } from "./types"
+import { webbuild } from "./build"
 import { newErrors, recentActions } from "./proc"
 import { ACTIONS } from "./probe/actions"
 import { formatReport as formatProbe, probe } from "./probe/run"
@@ -13,8 +14,7 @@ Any action flag (or --preview) also drives the page in headless Chrome and repor
 Use it to check what a page does in a real browser, instead of one-off puppeteer scripts or synthetic dispatchEvent calls, e.g.
   webrun path/to/App.tsx --keypress alt+f --expect '[role=dialog]' --preview
   webrun http://localhost:5173 --text body
-
-Source: packages/webrun/src/cli.ts (probe in src/probe), README.md next to it.`
+`
 
 const spec = {
   bin: "webrun",
@@ -29,6 +29,9 @@ const spec = {
     "no-user-config": { help: "ignore the project's vite config entirely" },
     stop: { help: "stop the running server" },
     status: { help: "print the running server (app, url, mode, pid, uptime, new vite errors)" },
+    build: { help: "build to one self-contained html in ~/.paladin/apps and open it, instead of serving (no target: the app currently being served)" },
+    out: { arg: "dir", help: "where --build writes the html (default ~/.paladin/apps)" },
+    name: { arg: "name", help: "output name for --build (default the path under ~/projects with / as __, e.g. paladin__packages__web2__src__App)" },
     ...ACTIONS,
     preview: { help: "also print a compact outline of the page (buttons, inputs, headings, text) after the actions" },
   },
@@ -48,6 +51,17 @@ export function main(argv = process.argv.slice(2)) {
     }
 
     const { target } = args
+
+    if (kwargs.build) {
+      if (target && isUrl(target)) throw new Error("--build needs a file to build, not a url")
+      await webbuild(target, {
+        outDir: kwargs.out,
+        name: kwargs.name,
+        open: kwargs["no-open"] ? false : undefined,
+      })
+      return
+    }
+
     const probing = seq.length > 0 || kwargs.preview
     if (!target && !probing) return void console.log(helpText(spec))
 

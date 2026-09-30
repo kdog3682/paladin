@@ -71,3 +71,38 @@ export function executeCursorRight(view: EditorView) {
   }
   view.dispatch({ selection: { anchor: next } })
 }
+
+/**
+ * Join the current line onto the one above it, separated by a single space:
+ * `abc` / `  | ghi` becomes `abc |ghi`. The cursor lands on the seam, where the
+ * moved text now starts. A no-op on the first line.
+ */
+export function executeJoinPrevious(view: EditorView) {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+  if (line.number === 1) return
+  const prev = state.doc.line(line.number - 1)
+  const head = prev.text.trimEnd()
+  const tail = line.text.trim()
+  const separator = head && tail ? ' ' : ''
+  view.dispatch({
+    changes: { from: prev.from, to: line.to, insert: head + separator + tail },
+    selection: { anchor: prev.from + head.length + separator.length },
+  })
+}
+
+/**
+ * Wrap everything from the cursor to the end of the line in parens:
+ * `foobar|boo` becomes `foobar(boo)|`. With nothing left on the line it opens an
+ * empty pair and sits inside it.
+ */
+export function executeWrapParens(view: EditorView) {
+  const { state } = view
+  const pos = state.selection.main.head
+  const line = state.doc.lineAt(pos)
+  const rest = line.text.slice(pos - line.from)
+  view.dispatch({
+    changes: { from: pos, to: line.to, insert: `(${rest})` },
+    selection: { anchor: rest ? line.to + 2 : pos + 1 },
+  })
+}

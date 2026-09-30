@@ -6,7 +6,10 @@ export const punctuationSwaps: Record<string, string> = {
   '$': '4',
   ';': ':',
   ':': ';',
+  /* the unshifted keys carry the rules (9 -> the paren pair, 3 -> a heading),
+   * so the shifted ones swap back to the plain digit */
   '(': '9',
+  '#': '3',
 }
 
 /* pads an insertion with the spaces its neighbours are missing */

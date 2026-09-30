@@ -34,6 +34,9 @@ export const pkgRootFiles: (string | RegExp)[] = [
   /\.config\.[cm]?[jt]sx?$/ // vite.config.ts, tailwind.config.js
 ]
 
+/** `@SymbolViewerApplet/...` style specifiers: a capitalized name standing in for a web2 dir. */
+const capitalizedScope = /^@([A-Z][A-Za-z0-9]*)(\/.*)?$/
+
 export type ResolveScopedPathOptions = {
   /** root dir containing all scopes/projects */
   base?: string
@@ -49,6 +52,8 @@ export type ResolveScopedPathOptions = {
   routers?: TailRouter[]
   /** files that belong at the package root instead of a src-like dir */
   rootFiles?: (string | RegExp)[]
+  /** scoped prefix a `@Capitalized` name resolves under */
+  capitalizedPrefix?: string
 }
 
 /** True for a bare filename that belongs at the package root. */
@@ -67,9 +72,11 @@ function splitSrcDir(tail: string, srcDirs: string[]): { dir: string; tail: stri
  * Resolve a specifier into an absolute filesystem path. Absolute and '~' paths pass through,
  * single-segment and './' paths resolve against relativeTo, everything else must be scoped
  * as '@scope/pkg/tail'. Manifest-style files (package.json, tsconfig.json, dotfiles, ...)
- * land at the package root; prefix them with a src-like dir to override.
+ * land at the package root; prefix them with a src-like dir to override. A '@Capitalized' name
+ * is a shorthand for a dir under capitalizedPrefix.
  * example: @mathpen/manim -> ~/projects/mathpen/packages/manim
  * example: @mathpen/manim/package.json -> ~/projects/mathpen/packages/manim/package.json
+ * example: @SymbolViewerApplet/index.ts -> ~/projects/paladin/packages/web2/src/SymbolViewerApplet/index.ts
  */
 export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions = {}): string {
   const {
@@ -78,6 +85,7 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
     srcDirs = ['src', 'docs', 'scripts', 'corpus', 'dev'],
     packagesDir = 'packages',
     rootFiles = pkgRootFiles,
+    capitalizedPrefix = '@paladin/web2/src',
     aliases = {
       '@ui': '@paladin/ui',
       '@web': '@paladin/web',
@@ -102,6 +110,12 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
 
   let raw = input.trim()
   if (!raw) throw new Error('resolveScopedPath: empty path')
+
+  const capitalized = capitalizedPrefix ? capitalizedScope.exec(raw) : null
+  if (capitalized) {
+    const [, name, rest = ''] = capitalized
+    raw = `${capitalizedPrefix}/${name}${rest}`
+  }
 
   for (const [from, to] of Object.entries(aliases)) {
     if (raw === from) {

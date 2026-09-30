@@ -88,6 +88,39 @@ async function writeConfig(layout: Layout) {
   await writeFile(configPath(layout), await renderConfig(layout))
 }
 
+/** `src/components` relative to the project's parent, so the project itself is named */
+const appDir = (layout: Layout, app: string) =>
+  relative(dirname(layout.project), dirname(app)).replaceAll("\\", "/")
+
+/**
+ * the entry that mounts `app` — the app entry, or the gallery for an
+ * `.examples.tsx` target. it imports the app relative to `fromDir`, so one
+ * source serves both the scratch dir and a throwaway entry written beside the
+ * app itself (which is how `--build` reuses it). `styles` is an import line.
+ */
+export async function entrySource(layout: Layout, app: string, fromDir: string, styles = "") {
+  const rel = relative(fromDir, app).replaceAll("\\", "/")
+  const entry = rel.startsWith(".") ? rel : "./" + rel
+
+  return render(await template(layout.kind === "examples" ? "examples.tsx.tmpl" : "main.tsx.tmpl"), {
+    title: basename(app),
+    dir: appDir(layout, app),
+    styles,
+    entry: JSON.stringify(entry),
+    // the raw source, only to recover declaration order — a module namespace
+    // enumerates alphabetically, which would scramble the examples
+    source: JSON.stringify(entry + "?raw"),
+  })
+}
+
+/** the generated stylesheet: tailwind, plus the dirs it has to scan for classes */
+export async function stylesSource(layout: Layout) {
+  return render(await template("styles.css.tmpl"), {
+    project: JSON.stringify(layout.project),
+    sources: layout.sources.map((s) => `@source ${JSON.stringify(s)};`).join("\n"),
+  })
+}
+
 /**
  * the index.html + entry pair we serve when the project has none that fits.
  *
@@ -96,36 +129,16 @@ async function writeConfig(layout: Layout) {
  * `@import "tailwindcss"` would 500 the page in a project that never had it.
  */
 async function writeShell(layout: Layout, app: string) {
-  const { workdir, tailwind, kind, project, sources } = layout
-  const rel = relative(workdir, app).replaceAll("\\", "/")
-  const entry = rel.startsWith(".") ? rel : "./" + rel
-  const title = basename(app)
-  // relative to the project's parent so the project itself is named: ui/src/components
-  const dir = relative(dirname(project), dirname(app)).replaceAll("\\", "/")
+  const { workdir, tailwind } = layout
+  const title = `${basename(app)} — ${appDir(layout, app)}`
 
-  await writeFile(join(workdir, "index.html"), render(await template("index.html.tmpl"), { title: `${title} — ${dir}` }))
+  await writeFile(join(workdir, "index.html"), render(await template("index.html.tmpl"), { title }))
 
-  if (tailwind) {
-    await writeFile(
-      join(workdir, "styles.css"),
-      render(await template("styles.css.tmpl"), {
-        project: JSON.stringify(project),
-        sources: sources.map((s) => `@source ${JSON.stringify(s)};`).join("\n"),
-      }),
-    )
-  }
+  if (tailwind) await writeFile(join(workdir, "styles.css"), await stylesSource(layout))
 
   await writeFile(
     join(workdir, "main.tsx"),
-    render(await template(kind === "examples" ? "examples.tsx.tmpl" : "main.tsx.tmpl"), {
-      title,
-      dir,
-      styles: tailwind ? `import "./styles.css"` : "",
-      entry: JSON.stringify(entry),
-      // the raw source, only to recover declaration order — a module namespace
-      // enumerates alphabetically, which would scramble the examples
-      source: JSON.stringify(entry + "?raw"),
-    }),
+    await entrySource(layout, app, workdir, tailwind ? `import "./styles.css"` : ""),
   )
 }
 

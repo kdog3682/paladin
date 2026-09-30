@@ -1,7 +1,9 @@
 import type { InputRule, ResolvedWrap, WrapSpec } from './types'
 
 export type InputRulesConfig = {
-  /* physical character to logical character, applied before every other stage */
+  /* physical character to logical character, applied before every other stage.
+   * a swapped character is inserted literally: it never falls through to the rules
+   * registered on its replacement, so shift+9 gives a bare `9` rather than the `9` pair */
   swaps?: Record<string, string>
   /* selection wrapping pairs; a '()' style string is shorthand for { pair: ['(', ')'] } */
   wraps?: (WrapSpec | string)[]

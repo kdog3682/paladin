@@ -91,6 +91,19 @@ export function stripAnnotations(source: string) {
   return kept.join('\n')
 }
 
+/** A data corpus has no file-header comments and exports its expectation directly. */
+function isDataOutput(source: string): boolean {
+  return [...source.matchAll(FILE_HEADER)].length === 0 && /^\s*export\s+default\b/.test(source)
+}
+
+async function loadOutputData(name: string): Promise<{ value: unknown }> {
+  const mod = (await import(new URL(`${name}/output.ts`, CORPUS).href)) as { default?: { data?: unknown } }
+  if (!mod.default || !('data' in mod.default)) {
+    throw new Error(`corpus/${name}/output.ts must \`export default { data }\``)
+  }
+  return { value: mod.default.data }
+}
+
 // Each fixture is self-describing: input.ts either carries a preamble of actions to run, or
 // the directory name is itself a codemod. Callers pick between the two.
 export async function loadCorpus(name: string): Promise<Corpus> {
@@ -99,7 +112,10 @@ export async function loadCorpus(name: string): Promise<Corpus> {
   const input = parseFiles(rest)
   if (input.length === 0) throw new Error(`corpus/${name}/input.ts has no /* path.ts */ headers`)
 
-  const expected = parseFiles(stripAnnotations(await readCorpusFile(`${name}/output.ts`)))
+  const outputSource = await readCorpusFile(`${name}/output.ts`)
+  if (isDataOutput(outputSource)) return { name, actions, input, expected: [], data: await loadOutputData(name) }
+
+  const expected = parseFiles(stripAnnotations(outputSource))
 
   return { name, actions, input, expected }
 }

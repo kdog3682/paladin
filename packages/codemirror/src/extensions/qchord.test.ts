@@ -1,10 +1,18 @@
 import { describe, expect, test } from 'bun:test'
 import { runCommand } from '../test/editor'
-import { executeCursorRight, executeNewlineDedent, executeNewlineIndent } from './qchord'
+import {
+  executeCursorRight,
+  executeJoinPrevious,
+  executeNewlineDedent,
+  executeNewlineIndent,
+  executeWrapParens,
+} from './qchord'
 
 const indent = (spec: string) => runCommand(spec, executeNewlineIndent)
 const dedent = (spec: string) => runCommand(spec, executeNewlineDedent)
 const right = (spec: string) => runCommand(spec, executeCursorRight)
+const join = (spec: string) => runCommand(spec, executeJoinPrevious)
+const parens = (spec: string) => runCommand(spec, executeWrapParens)
 
 describe('executeNewlineIndent (qw)', () => {
   test('opens an indented line below', () => {
@@ -114,5 +122,47 @@ describe('executeCursorRight (ql)', () => {
 
   test('an empty line is stepped over without a space', () => {
     expect(right('foo|\n\nbar')).toBe('foo\n|\nbar')
+  })
+})
+
+describe('executeJoinPrevious (qd)', () => {
+  test('joins the line onto the one above with a single space', () => {
+    expect(join('abc\n | ghi')).toBe('abc |ghi')
+    expect(join('abc\nghi|')).toBe('abc |ghi')
+  })
+
+  test('trailing space on the line above is not doubled', () => {
+    expect(join('abc  \n|ghi')).toBe('abc |ghi')
+  })
+
+  test('joining onto a blank line leaves no leading space', () => {
+    expect(join('\n  |ghi')).toBe('|ghi')
+  })
+
+  test('joining a blank line up leaves no trailing space', () => {
+    expect(join('abc\n  |')).toBe('abc|')
+  })
+
+  test('the first line has nothing to join to', () => {
+    expect(join('abc|')).toBe('abc|')
+  })
+
+  test('lines below are untouched', () => {
+    expect(join('abc\n|ghi\nxyz')).toBe('abc |ghi\nxyz')
+  })
+})
+
+describe('executeWrapParens (qp)', () => {
+  test('wraps the rest of the line, cursor after the closer', () => {
+    expect(parens('foobar|boo')).toBe('foobar(boo)|')
+    expect(parens('|boo')).toBe('(boo)|')
+  })
+
+  test('with nothing left on the line it opens an empty pair', () => {
+    expect(parens('foo|')).toBe('foo(|)')
+  })
+
+  test('only the cursor line is wrapped', () => {
+    expect(parens('foo|bar\nbaz')).toBe('foo(bar)|\nbaz')
   })
 })

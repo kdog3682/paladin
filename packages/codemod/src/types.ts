@@ -28,7 +28,12 @@ export type Corpus = {
   /* actions from the input preamble; empty when the fixture is named after a codemod */
   actions: Action[]
   input: CorpusFile[]
+  /* empty when output.ts is a data corpus (see `data`) */
   expected: CorpusFile[]
+  /* set when output.ts is `export default { data }` instead of a set of files: the codemod's
+     return value is compared against `data.value`, rather than diffing files. wrapped so an
+     expected value of `undefined` is still distinguishable from "no data corpus". */
+  data?: { value: unknown }
 }
 
 export type FileResult = {

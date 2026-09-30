@@ -13,6 +13,12 @@ export type BuildReactAppOpts = {
   outDir?: string
   /* open the result in the browser once written, defaults to true */
   open?: boolean
+  /*
+   * last word on which plugins the build runs, given the package's own
+   * (flattened, singlefile-free) ones — drop what does not belong in a build,
+   * fill in what the package's config leaves out. singlefile is appended after.
+   */
+  plugins?: (userPlugins: Plugin[]) => PluginOption[] | Promise<PluginOption[]>
 }
 
 export type BuildReactAppResult = {
@@ -53,7 +59,7 @@ export async function buildReactApp(entryArg: string, opts: BuildReactAppOpts = 
     input = htmlId
   }
 
-  const config = await virtualConfig({root, input, extra})
+  const config = await virtualConfig({root, input, extra, plugins: opts.plugins})
   const {output} = (await build(config)) as RollupOutput
   const html = String((output[0] as OutputAsset).source)
 
@@ -74,6 +80,8 @@ type VirtualConfigOpts = {
   input: string
   /* plugins that must run before everything else (the virtual file server) */
   extra: Plugin[]
+  /* see BuildReactAppOpts.plugins */
+  plugins?: BuildReactAppOpts["plugins"]
 }
 
 /*
@@ -91,7 +99,7 @@ async function virtualConfig(o: VirtualConfigOpts): Promise<InlineConfig> {
 
   const plugins: PluginOption[] = [
     ...o.extra,
-    ...userPlugins,
+    ...(o.plugins ? await o.plugins(userPlugins) : userPlugins),
     viteSingleFile(),
   ]
 

@@ -3,6 +3,7 @@ import { cors } from "hono/cors"
 import { createBunWebSocket, serveStatic } from "hono/bun"
 import { createWatcher } from "./watcher"
 import { createBroadcast } from "./broadcast"
+import routes from "./routes"
 import { ScaffoldService } from "./services/scaffold/scaffold"
 import type { ScaffoldMessage } from "./services/scaffold/events"
 
@@ -58,6 +59,8 @@ app.post("/controller", async (c) => {
     return c.json({ error: message }, 500)
   }
 })
+
+app.route("/", routes)
 
 const stopWatcher = createWatcher(async (paths) => {
   try {

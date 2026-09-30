@@ -2,10 +2,11 @@ import { existsSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path'
 import { IndentationText, Project, QuoteKind, ts } from 'ts-morph'
+import { parseFilesFromTemplate } from '@paladin/utils'
 
-const PROJECTS = join(homedir(), 'projects')
+export const PROJECTS = join(homedir(), 'projects')
 
-const IGNORED_DIRS = [
+export const IGNORED_DIRS = [
   'node_modules',
   'dist',
   'build',
@@ -75,6 +76,30 @@ export function findTsConfig(dir: string): string | undefined {
   }
 }
 
+/** Whether a path is inside ~/projects. Anything outside is off limits to callers that take paths from the outside. */
+export function isUnderProjects(target: string) {
+  const path = resolve(target)
+  return path === PROJECTS || path.startsWith(`${PROJECTS}/`)
+}
+
+/**
+ * The package a path belongs to: its nearest ancestor with a package.json, or its own directory
+ * when there is none. This is the unit imports get rewritten across, so a move or a rename is
+ * only seen by the package that owns the file, not by the rest of the monorepo.
+ */
+export function packageRootOf(target: string) {
+  const path = resolve(target)
+  const start = existsSync(path) && statSync(path).isDirectory() ? path : dirname(path)
+  const { root } = parse(start)
+
+  let current = start
+  while (true) {
+    if (existsSync(join(current, 'package.json'))) return current
+    if (current === root) return start
+    current = dirname(current)
+  }
+}
+
 /** Resolved, existing directory for a spec; a file path resolves to its containing dir. */
 export function projectRoot(spec: string) {
   const target = resolveProjectDir(spec)
@@ -114,13 +139,29 @@ export function createProject(spec: string, files?: string[], compilerOptions?: 
   return project
 }
 
-/** Same settings as a real project, minus `lib` (no lib files to read off an in-memory fs). */
-export function createMemoryProject() {
+/**
+ * Same settings as a real project, minus `lib` (no lib files to read off an in-memory fs).
+ *
+ * `template` is a writeFilesFromTemplate-style template; its files are created in the in-memory
+ * fs (under `/`) rather than on disk.
+ */
+export function createMemoryProject(template?: string) {
   const { lib: _lib, ...compilerOptions } = COMPILER_OPTIONS
 
-  return new Project({
+  const project = new Project({
     useInMemoryFileSystem: true,
     compilerOptions,
     manipulationSettings: { ...MANIPULATION_SETTINGS, useTrailingCommas: false }
   })
+
+  if (template) {
+    const fs = project.getFileSystem()
+    for (const file of parseFilesFromTemplate(template)) {
+      const target = join('/', file.path)
+      if (/\.(ts|tsx|mts|cts|js|jsx)$/.test(target)) project.createSourceFile(target, file.text)
+      else fs.writeFileSync(target, file.text)
+    }
+  }
+
+  return project
 }

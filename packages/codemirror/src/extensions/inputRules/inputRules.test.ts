@@ -3,7 +3,7 @@ import type { EditorState } from '@codemirror/state'
 import { parse, render } from '../../test/editor'
 import { inputRuleTransaction, splitCursor } from './apply'
 import { resolveConfig, type ResolvedConfig } from './config'
-import { packedInputRules, templates } from './index'
+import { packedInputRules, templates, today } from './index'
 import { HORIZONTAL_RULE } from './presets/markdown'
 
 const config = resolveConfig(packedInputRules)
@@ -31,6 +31,11 @@ describe('swaps', () => {
 
   test('do not loop back through the swap map', () => {
     expect(type('|', '4$;:')).toBe('$4:;|')
+  })
+
+  test('do not fall through to the rules of the key they land on', () => {
+    // '(' swaps to '9', but must not then fire the '9' bracket rule
+    expect(type('|', '(')).toBe('9|')
   })
 })
 
@@ -67,6 +72,10 @@ describe('abbrevs', () => {
   test('l expands to let', () => {
     expect(type('|', 'l ')).toBe('let |')
     expect(type('|', 'al ')).toBe('al |')
+  })
+
+  test('fm expands to dated yaml front matter', () => {
+    expect(type('|', 'fm ')).toBe(`---\ndate: ${today()}\n|\n---`)
   })
 
   test('mu expands to an indented markup template', () => {
@@ -125,20 +134,29 @@ describe('dash rules', () => {
 
 describe('heading rules', () => {
   test('a line start opens at h2', () => {
-    expect(type('|', '#')).toBe('## |')
+    expect(type('|', '3')).toBe('## |')
   })
 
   test('just after the prefix, deepen it', () => {
-    expect(type('## |', '#')).toBe('### |')
+    expect(type('## |', '3')).toBe('### |')
   })
 
   test('at the line start of a heading, deepen it and stay put', () => {
-    expect(type('|## foo', '#')).toBe('#|## foo')
+    expect(type('|## foo', '3')).toBe('#|## foo')
   })
 
   test('stops at h5', () => {
-    expect(type('|', '####')).toBe('##### |')
-    expect(type('##### |', '#')).toBe('##### #|')
+    expect(type('|', '3333')).toBe('##### |')
+    expect(type('##### |', '3')).toBe('##### 3|')
+  })
+
+  test('the shifted key swaps back to a bare 3', () => {
+    expect(type('|', '#')).toBe('3|')
+    expect(type('|', '###')).toBe('333|')
+  })
+
+  test('a 3 that is not at a line start is just a digit', () => {
+    expect(type('a|', '3')).toBe('a3|')
   })
 })
 
@@ -147,8 +165,8 @@ describe('brackets', () => {
     expect(type('|', '9')).toBe('(|)')
   })
 
-  test('the paren key routes through the swap to the same rule', () => {
-    expect(type('|', '(')).toBe('(|)')
+  test('the shifted paren key swaps back to a bare 9', () => {
+    expect(type('|', '(')).toBe('9|')
   })
 
   test('a selection is wrapped and stays selected', () => {
@@ -235,7 +253,7 @@ describe('multiple cursors', () => {
   })
 
   test('a selection and a cursor can take different branches', () => {
-    expect(type('«foo»\nbar|', '(')).toBe('(«foo»)\nbar(|)')
+    expect(type('«foo»\nbar|', '(')).toBe('(«foo»)\nbar9|')
   })
 
   test('rules that match at only one cursor still fire there', () => {

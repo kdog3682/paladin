@@ -165,6 +165,7 @@ export function handleSmartPaste(opts: SmartPasteOpts = {}) {
   return (event: ClipboardEvent, view: EditorView): boolean => {
     const text = event.clipboardData?.getData('text/plain')
     if (!text || view.state.readOnly) return false
+    if (!text.includes('\n')) return false
     event.preventDefault()
     view.dispatch(pasteTransaction(view.state, text, maxWidth))
     return true
