@@ -1,13 +1,19 @@
 #!/usr/bin/env bun
 
-import { argParseRunner } from "@paladin/utils"
+import { type Spec, runArgv } from "@paladin/utils"
 import { parseGitChunks } from "./gitchunks"
 
+const spec = {
+  bin: "gitchunks",
+  intro: "split working tree changes into feat / fix / refactor / deprecate / chore commits per package unit",
+  args: [{ name: "dir", help: "git repo root (default ~/projects/mathpen)", optional: true }],
+  kwargs: { dry: { alias: "n", help: "print the plan without committing" } },
+} as const satisfies Spec
+
 if (import.meta.main) {
-  argParseRunner(parseGitChunks, {
-    name: "gitchunks",
-    abstract: "split working tree changes into feat / fix / refactor / deprecate / chore commits per package unit",
-    args: [{ name: "dir", help: "git repo root", fallback: "~/projects/mathpen" }],
-    kwargs: [{ name: "dry", alias: "n", help: "print the plan without committing", default: false }],
+  runArgv(spec, process.argv.slice(2), ({ args, kwargs }) =>
+    parseGitChunks(args.dir ?? "~/projects/mathpen", { dry: kwargs.dry }),
+  ).then((code) => {
+    process.exitCode = code
   })
 }

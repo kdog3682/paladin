@@ -8,7 +8,7 @@ never been through runExampleFiles is not tested here.
 */
 import { readdir } from "node:fs/promises"
 import { join } from "node:path"
-import { deriveNamespace, withArgv } from "@paladin/utils"
+import { deriveNamespace, runArgv } from "@paladin/utils"
 import {
   type ExampleFile,
   type Spec,
@@ -107,4 +107,16 @@ export async function runTest(pkgdir: string, options: Options = {}): Promise<Te
   return { namespace, root, passes, summary: summarize(files), failures, ok: !failures.length }
 }
 
-export default withArgv(runTest)
+if (import.meta.main) {
+  const spec = {
+    bin: "exemplar-test",
+    intro: "replay every examples file in a package that has a baseline and report the ones that no longer match",
+    args: [{ name: "pkgdir", help: "the package directory" }],
+    kwargs: { serialize: { arg: "spec", help: "override the namespace's serialize hook" } },
+  } as const
+  runArgv(spec, process.argv.slice(2), ({ args, kwargs }) =>
+    runTest(args.pkgdir, { serialize: kwargs.serialize }),
+  ).then((code) => {
+    process.exitCode = code
+  })
+}

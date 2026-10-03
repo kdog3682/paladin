@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { extractData, foldStderr, relativizeArgs, stripBunVersion, typeOf } from './postProcess'
 
 // real capture from `bun run .../exemplar/src/cli.ts <examples file>`, items trimmed to one.
-// exemplar's cli is wrapped in withArgv (packages/utils/src/argv/withArgv.ts), which brackets
+// exemplar's cli is run through runArgv (packages/utils/src/argv/runArgv.ts), which brackets
 // its payload in <BASH>...</BASH>, matching the pair markBashPayload.ts writes and that
 // BASH_DATA_RE looks for.
 const WITH_ARGV_CAPTURE = `<BASH>{"namespace":"@mathpen/manim","root":"/home/kdog3682/projects/mathpen/packages/manim","files":[{"relpath":"src/grid/grid.examples.ts","artifactPath":null,"displayError":"TypeError: undefined is not an object (evaluating 'bb[indices[0]][0]')","items":[{"output":"{\\"ops\\":[]}","name":"stack","status":"match","ms":22.79}]}],"summary":{"new":0,"match":19,"changed":0,"error":1}}</BASH>`
@@ -52,7 +52,7 @@ describe('extractData', () => {
     expect(extractData('just some prose')).toEqual({ text: 'just some prose' })
   })
 
-  test('parses a real withArgv capture from the exemplar cli', () => {
+  test('parses a real runArgv capture from the exemplar cli', () => {
     const { text, data } = extractData(WITH_ARGV_CAPTURE)
     expect(text).toBe('')
     expect(data).toMatchObject({ namespace: '@mathpen/manim', summary: { error: 1 } })

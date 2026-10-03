@@ -23,13 +23,11 @@ export * from "./object/deepMerge"
 
 export * from "./ast/quick-parse"
 
-export * from "./argv/withArgv"
 export * from "./cache/createCache"
 export * from "./path/deriveNamespace"
 
 export * from "./module/loadSpec"
 
-export * from "./argv/withArgv"
 
 export * from "./object/deepMap"
 export * from "./string/truncateLines"
@@ -51,7 +49,6 @@ export * from "./git/git"
 export * from "./ast/collectImports"
 export * from "./ast/collectExports"
 export * from "./console/report"
-export * from "./argv/argParseRunner"
 export * from "./string/smartDedent"
 export * from "./fs/writeFilesFromTemplate"
 export * from "./cache/cached"

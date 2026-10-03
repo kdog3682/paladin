@@ -2,7 +2,7 @@
 
 import { relative } from "node:path"
 import { createProject, extractSymbols, type ExtractItem } from "@paladin/codemod"
-import { argParseRunner } from "@paladin/utils"
+import { type Spec, runArgv } from "@paladin/utils"
 import { DEFAULT_PROJECTS, expandHome, finder, type FinderHit } from "./finder"
 
 /**
@@ -62,9 +62,12 @@ function noteFor(hit: FinderHit): string {
 }
 
 if (import.meta.main) {
-  argParseRunner(findSymbols, {
-    name: "finder",
-    abstract: "resolve backticked `name` references in a snippet and print their real source",
+  const spec = {
+    bin: "finder",
+    intro: "resolve backticked `name` references in a snippet and print their real source",
     args: [{ name: "snippet", help: "text containing `name` references and packages/<pkg> paths" }],
+  } as const satisfies Spec
+  runArgv(spec, process.argv.slice(2), ({ args }) => findSymbols(args.snippet)).then((code) => {
+    process.exitCode = code
   })
 }

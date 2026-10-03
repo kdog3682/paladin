@@ -1,3 +1,15 @@
+/** brackets a non-string result on stdout so a caller can slice it out from around anything else the command logged */
+export const MARKER = "<BASH>"
+export const CLOSE_MARKER = "</BASH>"
+
+/** the JSON result `runArgv` printed between the markers */
+export function extract(stdout: string): unknown {
+  const start = stdout.indexOf(MARKER)
+  const end = stdout.lastIndexOf(CLOSE_MARKER)
+  if (start === -1 || end === -1) throw new Error("no <BASH> payload in stdout")
+  return JSON.parse(stdout.slice(start + MARKER.length, end))
+}
+
 /** one `--flag` in a command spec */
 export type Kwarg = {
   /* placeholder shown in help, eg "sel" renders as `--click <sel>`; omit for a switch */
@@ -293,11 +305,16 @@ export function parseArgv<const S extends Spec>(spec: S, argv: readonly string[]
  * 0 on success or `--help`, 2 on a bad invocation, 1 on a thrown error or a
  * number returned by `body`. Nothing here exits the process, so the caller keeps
  * control and this stays testable.
+ *
+ * Any other value `body` returns is its result: a string, or an object with its
+ * own toString (eg a ReportBuilder), is printed as text, and anything else as
+ * JSON between <BASH>...</BASH> markers so the caller can slice it out of stdout
+ * with {@link extract}. Both exit 0.
  */
 export async function runArgv<const S extends Spec>(
   spec: S,
   argv: readonly string[],
-  body: (parsed: Parsed<S>) => number | void | Promise<number | void>,
+  body: (parsed: Parsed<S>) => unknown,
 ) {
   let parsed: Parsed<S>
   try {
@@ -318,11 +335,25 @@ export async function runArgv<const S extends Spec>(
   }
 
   try {
-    return (await body(parsed)) ?? 0
+    const result = await body(parsed)
+    if (result === undefined) return 0
+    if (typeof result === "number") return result
+    if (typeof result === "string" || hasOwnToString(result)) console.log(String(result))
+    else console.log(`${MARKER}${JSON.stringify(result)}${CLOSE_MARKER}`)
+    return 0
   } catch (e) {
     console.error(e instanceof Error ? e.message : String(e))
     return 1
   }
+}
+
+function hasOwnToString(value: unknown) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    value.toString !== Object.prototype.toString
+  )
 }
 
 function coerce(
