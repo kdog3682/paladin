@@ -1,5 +1,6 @@
 import { clip } from "@paladin/utils"
-import type { ApplyResult, ExampleResult } from "./types"
+import type { ApplyResult } from "./types"
+import type { ApplyResult } from "./types"
 
 /* every example run in the result, carried on the bash op that ran it */
 function examplesOf(result: ApplyResult): ExampleResult[] {
@@ -7,7 +8,7 @@ function examplesOf(result: ApplyResult): ExampleResult[] {
   for (const unit of result.units) {
     for (const op of unit.ops) {
       if (op.kind !== "bash") continue
-      const data = op.result?.data
+      const data = op.data
       if (data?.files) runs.push(data as ExampleResult)
     }
   }
@@ -39,7 +40,7 @@ function artifactsOf(result: ApplyResult): string[] {
   for (const unit of result.units) {
     for (const op of unit.ops) {
       if (op.kind !== "bash") continue
-      const found = op.result?.data?.artifactPaths
+      const found = op.data?.artifactPaths
       if (found?.length) paths.push(...found)
     }
   }
@@ -52,14 +53,12 @@ function bashOf(result: ApplyResult): string {
   for (const unit of result.units) {
     for (const op of unit.ops) {
       if (op.kind !== "bash") continue
-      const res = op.result
-      if (!res) continue
-      const out = [res.stdout, res.stderr]
+      const out = [op.stdout, op.stderr]
         .map(text => text?.trim())
         .filter(Boolean)
         .join("\n")
       if (!out) continue
-      blocks.push([`$ ${res.args.join(" ")}`, out].join("\n"))
+      blocks.push([`$ ${op.args.join(" ")}`, out].join("\n"))
     }
   }
   return blocks.join("\n\n").trim()

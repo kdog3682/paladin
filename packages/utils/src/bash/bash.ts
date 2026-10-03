@@ -1,10 +1,11 @@
 /*
   await bash(['bun', 'test'])
 */
-import { BashError } from './BashError'
 import { parseTestSummary } from './parseTestSummary'
-import { extractData, foldStderr, relativizeArgs, stripBunVersion, typeOf } from './postProcess'
+import { extractData, foldStderr, stripBunVersion, typeOf } from './postProcess'
 import type { BashOptions, BashResult } from './types'
+
+export type { BashOptions, BashResult, BashType } from './types'
 
 export async function bash(args: string[], opts: BashOptions = {}): Promise<BashResult> {
   const proc = Bun.spawn(args, {
@@ -26,12 +27,15 @@ export async function bash(args: string[], opts: BashOptions = {}): Promise<Bash
   const summary = type === 'test' ? parseTestSummary(rawStderr) : null
 
   const [stdout, stderr] = foldStderr(text, rawStderr, exitCode)
-  const resultArgs = relativizeArgs(args, opts.cwd)
-
-  const result: BashResult =
-    type === 'test'
-      ? { stdout, stderr, exitCode, args: resultArgs, type, data: summary ?? undefined }
-      : { stdout, stderr, exitCode, args: resultArgs, type, data }
+  const result: BashResult = {
+    args,
+    cwd: opts.cwd ?? process.cwd(),
+    strict: opts.strict ?? false,
+    stdout,
+    stderr,
+    exitCode,
+    data: type === 'test' ? summary ?? undefined : data,
+  }
 
   if (exitCode !== 0 && opts.strict) {
     throw new Error(result.stderr)

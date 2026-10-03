@@ -7,7 +7,6 @@ import type {
   ApplyResult,
   ApplySummary,
   BashOp,
-  BashOpResult,
   DeleteOp,
   FsOp,
   PathOp,
@@ -167,10 +166,10 @@ async function applyWrite(op: WriteOp): Promise<FsOp> {
 }
 
 async function applyBash(op: BashOp): Promise<FsOp> {
+  // not strict: bash would throw; the op's own strict halts the queue in apply instead
   const run = await bash(op.args, { cwd: op.cwd })
-  const result: BashOpResult = { ...run, purpose: op.purpose }
   const ok = run.exitCode === 0
-  return { ...op, result, applied: true, reason: ok ? undefined : `exit ${run.exitCode}` }
+  return { ...run, ...op, applied: true, reason: ok ? undefined : `exit ${run.exitCode}` }
 }
 
 function failed(op: FsOp): boolean {

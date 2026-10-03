@@ -61,7 +61,7 @@ test("writes the unit, exports it, and runs its tests", async () => {
   const run = commands(result).find((op) => op.purpose === "test")!
   expect(run.args.slice(0, 2)).toEqual(["bun", "test"])
   expect(run.args).toContain(join(unitDir, "src/test/add.test.ts"))
-  expect(run.result?.exitCode).toBe(0)
+  expect(run.exitCode).toBe(0)
 
   // one op per path — nothing was written twice
   const paths = writes(result).map((entry) => entry.op).filter(isWrite).map((op) => op.path)
@@ -81,7 +81,7 @@ test("second pass writes nothing but still runs the tests", async () => {
   expect(barrel.filter((line) => line.includes('"./add"'))).toHaveLength(1)
 
   // unchanged files still get their tests run
-  expect(commands(result).find((op) => op.purpose === "test")?.result?.exitCode).toBe(0)
+  expect(commands(result).find((op) => op.purpose === "test")?.exitCode).toBe(0)
 })
 
 test("fixtures are written as-is, without barrel, boilerplate, deps or runs", async () => {

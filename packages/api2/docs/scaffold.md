@@ -49,7 +49,7 @@ No marker: `write` when the file is new or differs from disk, `skip` when identi
 - per-path ops `fold`: a `write` resets, `append`/`merge` stack on top, `delete` clears; the latest intent wins;
 - duplicate bash ops (same cwd + args) collapse;
 - a delete of something being written (or an ancestor of it) is discarded;
-- order: deletes, writes, then bash sorted by `BASH_ORDER` (install, test, demo, example, script, build).
+- order: deletes, writes, then bash sorted by `BASH_ORDER` (install, bin, test, demo, example, script, build).
 
 `applyOperations` then executes in that order. A `strict` bash op that exits non-zero blocks every later bash op in the project (`blocked by ...`); files are already written by then.
 The returned `ApplyResult` groups ops per unit; paths and cwds are relative to the unit's `dir` (which is absolute), plus a `summary` of created/updated/deleted/commands/failed.

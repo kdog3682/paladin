@@ -22,7 +22,7 @@ export interface Registration {
  *
  * To make a new kind runnable, add a registration here. `isRunnable` reads this list,
  * so `updateBarrel` already keeps such files out of the barrel. A new `purpose` goes in
- * `BashOp["purpose"]` (types.ts) and `BASH_ORDER` (ops.ts).
+ * `BASH_ORDER` (ops.ts).
  */
 export const DEFAULT_REGISTRATIONS: Registration[] = [
   {

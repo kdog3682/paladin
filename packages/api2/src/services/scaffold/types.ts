@@ -1,4 +1,5 @@
 import type { BashResult } from "@paladin/utils"
+import type { BASH_ORDER } from "./ops"
 
 export type WriteMode = "write" | "append" | "merge"
 
@@ -21,15 +22,14 @@ export type FsOp =
       /** Set by apply: whether the file didn't exist before. */
       created?: boolean
     })
+  /** `strict` here means a non-zero exit stops every command queued behind it. */
   | (OpMeta & {
       kind: "bash"
-      args: string[]
-      cwd: string
-      /** A non-zero exit stops every command queued behind it. */
-      strict: boolean
-      purpose: "install" | "bin" | "test" | "demo" | "example" | "script" | "build"
-      result?: BashOpResult
-    })
+      /** One of `BASH_ORDER` (ops.ts), which also sets the run order. */
+      purpose: (typeof BASH_ORDER)[number]
+    } & Pick<BashResult, "args" | "cwd" | "strict">
+      /** The output fields are set by apply once the command has run. */
+      & Partial<BashResult>)
   /** Directories go through rmDir, which refuses anything holding a git repo. */
   | (OpMeta & { kind: "delete"; path: string })
   /** Untouched, but still visible — the runner reruns tests for unchanged files. */
@@ -45,10 +45,6 @@ export type DeprecatedOp = Extract<FsOp, { kind: "deprecated" }>
 
 /** Every op except bash addresses a single path. */
 export type PathOp = Exclude<FsOp, BashOp>
-
-export interface BashOpResult extends BashResult {
-  purpose: BashOp["purpose"]
-}
 
 export interface Unit {
   name: string
@@ -69,13 +65,6 @@ export interface PathResolutionOpts {
   relativeTo?: string
   npmCachePath?: string
 }
-export interface ApplySummary {
-  created: number
-  updated: number
-  deleted: number
-  commands: number
-  failed: number
-}
 
 export interface UnitResult {
   name: string
@@ -91,17 +80,6 @@ export interface ApplyResult {
   dir: string
   isNew: boolean
   units: UnitResult[]
-  summary: ApplySummary
 }
 
 
-/** What an example run (`@paladin/exemplar`) reports on stdout; print reads it back off the bash op. */
-export interface ExampleResult {
-  files: {
-    relpath: string
-    artifactPath: string | null
-    /** Stack or message when display() threw. */
-    displayError?: string
-    items?: { name: string; error?: string }[]
-  }[]
-}
