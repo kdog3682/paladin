@@ -98,7 +98,7 @@ export async function runTest(pkgdir: string, options: Options = {}): Promise<Te
         name: item.name,
         statement: item.desc,
         status: item.status,
-        expected: item.previous ?? "",
+        expected: item.previousOutput ?? "",
         received: item.error ?? item.output,
       })
     }

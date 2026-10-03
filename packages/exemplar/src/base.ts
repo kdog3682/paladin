@@ -1,21 +1,22 @@
 /*
-shared machinery behind runExampleFiles and runTest.
+shared machinery behind runExampleFiles and runTest: import an examples file,
+call every exported example, serialize, diff against the stored baseline.
 
-both do the same work — import an examples file, call every exported example,
-serialize the result, diff it against the stored snapshot. they differ only in
-what happens afterwards: runExampleFiles renders through the namespace's
-display hook and may rewrite the baseline, runTest does neither and only
-reports mismatches.
+baselines are always written, except a changed output, which only replaces
+the baseline when `update` is set. pictures are always rendered for the
+current output so the frontend can see it; the baseline's picture is kept
+alongside an unaccepted change. any other picture in the dir is pruned.
 */
-import { type SymbolInfo, createCache, loadSpecFunction, quickParse } from "@paladin/utils"
-import { existsSync, readFileSync } from "node:fs"
+import { type SymbolInfo, loadSpecFunction, quickParse } from "@paladin/utils"
+import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { picturePath, prunePictures, readBaseline, snapshotDir, writeBaseline } from "./snapshots"
 
 /* "src/manim/display.ts#display" | "@a/b/display#display" */
 export type Spec = string
 
-/* how this run's output compares to the stored snapshot */
+/* how this run's output compares to the stored baseline */
 export type Status = "new" | "match" | "changed" | "error"
 
 export type ExampleItem = {
@@ -23,27 +24,26 @@ export type ExampleItem = {
   output: string
   /* the exported symbol's name */
   name: string
-  /* the input seed — source text of the example itself */
+  /* source text of the example itself */
   input: string
-  /* the example's docstring, read as a statement about what it should do */
+  /* the example's docstring */
   desc: string
-  /* snapshot output from a previous run, absent on first run */
+  /* baseline output, absent on first run */
   previous?: string
   status: Status
-  /* wall time of the call plus serialization */
-  ms: number
   /* stack or message when the example threw; output is "" in that case */
   error?: string
+  /* picture of the current output, null when none was rendered */
+  artifactPath: string | null
+  /* picture of the baseline output, set only for a changed item */
+  previousArtifactPath?: string | null
+  /* stack or message when display() threw */
+  displayError?: string
 }
 
-
 export type ExampleFile = {
-  /* path relative to root — display label and stable react key */
+  /* path relative to the package root — display label and react key */
   relpath: string
-  /* whatever display() wrote, if anything */
-  artifactPath: string | null
-  /* stack or message when display() threw; artifactPath is null in that case */
-  displayError?: string
   /* in source order */
   items: ExampleItem[]
 }
@@ -52,20 +52,15 @@ export type ExampleReport = {
   namespace: string
   root: string
   files: ExampleFile[]
-  /* item counts across every file, for a header badge */
-  summary: Record<Status, number>
 }
 
 /* what display() receives — same item, plus the live unserialized value */
 export type DisplayItem = ExampleItem & { value: unknown }
 
-export type DisplayContext = { path: string; relpath: string; namespace: string; root: string }
-
 export type Serialize = (value: unknown) => string | Promise<string>
-export type Display = (
-  items: DisplayItem[],
-  context: DisplayContext,
-) => string | null | Promise<string | null>
+
+/* writes a picture of the item to outPath */
+export type Display = (item: DisplayItem, outPath: string) => void | Promise<void>
 
 export type Hooks = {
   /* overrides the namespace's `serialize` hook */
@@ -74,20 +69,18 @@ export type Hooks = {
   display?: Spec
 }
 
-/* everything runFile needs that doesn't vary per file */
 export type RunContext = {
-  namespace: string
-  root: string
   getRelpath: (path: string) => string
   serialize: Serialize
   display: Display | null
   /* accept changed output as the new baseline */
   update: boolean
-  /* persist baselines at all — off for test runs */
-  write: boolean
 }
 
 const defaultSerialize: Serialize = (value) => JSON.stringify(value, null, 2)
+
+const describe = (cause: unknown) =>
+  cause instanceof Error ? (cause.stack ?? cause.message) : String(cause)
 
 /* a package with no importable entry just has no hooks, but an entry that exists and fails
    to import (e.g. a dangling re-export) must stop the run, not silently fall back to defaults */
@@ -117,20 +110,6 @@ export async function resolveHooks(namespace: string, root: string, hooks: Hooks
   return { serialize, display }
 }
 
-export function snapshotDir(root: string) {
-  return join(root, "snapshots")
-}
-
-/* flat snapshot dir, so the whole relpath is flattened into the filename */
-export function snapshotPath(root: string, relpath: string) {
-  return join(snapshotDir(root), `${flatten(relpath)}.cache.json`)
-}
-
-export const flatten = (relpath: string) => relpath.replaceAll("/", "__")
-
-export const unflatten = (filename: string) =>
-  filename.replace(/\.cache\.json$/, "").replaceAll("__", "/")
-
 const KINDS = new Set(["function", "class"])
 
 /* quickParse returns every symbol, so narrow to exported callables ourselves */
@@ -139,15 +118,12 @@ export function exampleSymbols(path: string): SymbolInfo[] {
   return symbols.filter((symbol) => symbol.exported && KINDS.has(symbol.kind))
 }
 
-async function runItem(module: any, symbol: SymbolInfo, serialize: Serialize) {
-  const started = performance.now()
+async function runItem(module: any, name: string, serialize: Serialize) {
   try {
-    const value = await module[symbol.name]()
-    const output = await serialize(value)
-    return { value, output, ms: performance.now() - started, error: undefined as string | undefined }
+    const value = await module[name]()
+    return { value, output: await serialize(value), error: undefined as string | undefined }
   } catch (cause) {
-    const error = cause instanceof Error ? (cause.stack ?? cause.message) : String(cause)
-    return { value: undefined, output: "", ms: performance.now() - started, error }
+    return { value: undefined, output: "", error: describe(cause) }
   }
 }
 
@@ -157,22 +133,38 @@ function statusOf(error: string | undefined, output: string, previous: string | 
   return previous === output ? "match" : "changed"
 }
 
+/* the baseline after this run: errors and unaccepted changes keep the old one */
+function nextBaseline(status: Status, output: string, previous: string | undefined, update: boolean) {
+  if (status === "error" || (status === "changed" && !update)) return previous
+  return output
+}
+
+/* reuses the picture for this output, or renders it */
+async function renderItem(path: string, item: DisplayItem, display: Display) {
+  const outPath = picturePath(path, item.name, item.output)
+  if (!existsSync(outPath)) await display(item, outPath)
+  return existsSync(outPath) ? outPath : null
+}
+
 export async function runFile(path: string, context: RunContext): Promise<ExampleFile> {
-  const { namespace, root, getRelpath, serialize, display, update, write } = context
-  const relpath = getRelpath(path)
+  const { getRelpath, serialize, display, update } = context
   const module = await import(path)
-  const cache = createCache<string>(snapshotPath(root, relpath))
+  const baseline = readBaseline(path)
+  const next: Record<string, string> = {}
+  const keep = new Set<string>()
+  if (display) mkdirSync(snapshotDir(path), { recursive: true })
 
   const items: ExampleItem[] = []
-  const shown: DisplayItem[] = []
 
   for (const symbol of exampleSymbols(path)) {
-    const previous = await cache.get(symbol.name)
-    const { value, output, ms, error } = await runItem(module, symbol, serialize)
+    const previous = baseline[symbol.name]
+    const { value, output, error } = await runItem(module, symbol.name, serialize)
     const status = statusOf(error, output, previous)
 
-    if (write && (status === "new" || (status === "changed" && update))) {
-      cache.set(symbol.name, output)
+    const accepted = nextBaseline(status, output, previous, update)
+    if (accepted !== undefined) {
+      next[symbol.name] = accepted
+      keep.add(picturePath(path, symbol.name, accepted))
     }
 
     const item: ExampleItem = {
@@ -182,33 +174,29 @@ export async function runFile(path: string, context: RunContext): Promise<Exampl
       desc: symbol.docstr ?? "",
       previous,
       status,
-      ms,
       error,
+      artifactPath: null,
     }
+
+    if (!error && display) {
+      try {
+        item.artifactPath = await renderItem(path, { ...item, value }, display)
+        if (item.artifactPath) keep.add(item.artifactPath)
+      } catch (cause) {
+        item.displayError = describe(cause)
+      }
+    }
+
+    if (status === "changed" && previous !== undefined) {
+      const previousPath = picturePath(path, symbol.name, previous)
+      item.previousArtifactPath = existsSync(previousPath) ? previousPath : null
+    }
+
     items.push(item)
-    if (!error) shown.push({ ...item, value })
   }
 
-  let artifactPath: string | null = null
-  let displayError: string | undefined
-  if (display && shown.length) {
-    try {
-      artifactPath = await display(shown, { path, relpath, namespace, root })
-    } catch (cause) {
-      displayError = cause instanceof Error ? (cause.stack ?? cause.message) : String(cause)
-    }
-  }
-  if (write) await cache.save()
+  writeBaseline(path, next)
+  if (display) prunePictures(path, keep)
 
-  return { relpath, artifactPath, displayError, items }
-}
-
-export function emptySummary(): Record<Status, number> {
-  return { new: 0, match: 0, changed: 0, error: 0 }
-}
-
-export function summarize(files: ExampleFile[]): Record<Status, number> {
-  const summary = emptySummary()
-  for (const file of files) for (const item of file.items) summary[item.status] += 1
-  return summary
+  return { relpath: getRelpath(path), items }
 }

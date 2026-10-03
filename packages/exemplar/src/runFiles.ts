@@ -1,32 +1,31 @@
 /*
 runs `.examples.` files and records their output.
   runExampleFiles(["/repo/a/packages/b/src/foo.examples.ts"])
-every example always runs; the snapshot is the baseline we compare against,
-not a skip list. pass `update` to accept changed output as the new baseline.
+every example always runs; new outputs are saved as the baseline automatically.
+pass `update` to also accept changed outputs as the new baseline.
 */
 import { deriveNamespace } from "@paladin/utils"
-import { type ExampleFile, type ExampleReport, type Spec, resolveHooks, runFile, summarize } from "./base"
+import { type ExampleFile, type ExampleReport, type Spec, resolveHooks, runFile } from "./base"
 
 export type Options = {
   /* overrides the namespace's `serialize` hook */
   serialize?: Spec
   /* overrides the namespace's `display` hook */
   display?: Spec
-  /* accept changed output as the new snapshot baseline */
+  /* accept changed outputs as the new baseline */
   update?: boolean
-  /* persist baselines to disk */
-  snapshot?: boolean
 }
 
 /* paths are absolute, and all expected to live in the same package */
 export async function runExampleFiles(paths: string[], options: Options = {}): Promise<ExampleReport> {
-  const { update = false, snapshot = false } = options
+  const { update = false } = options
   const { namespace, root, getRelpath } = deriveNamespace(paths[0])
   const { serialize, display } = await resolveHooks(namespace, root, options)
 
-  const context = { namespace, root, getRelpath, serialize, display, update, write: snapshot }
   const files: ExampleFile[] = []
-  for (const path of paths) files.push(await runFile(path, context))
+  for (const path of paths) {
+    files.push(await runFile(path, { getRelpath, serialize, display, update }))
+  }
 
-  return { namespace, root, files, summary: summarize(files) }
+  return { namespace, root, files }
 }
