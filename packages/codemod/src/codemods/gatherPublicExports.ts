@@ -252,6 +252,38 @@ function getReferencedTypes(signature: Signature, base: string): MorphSymbol[] {
   return symbols
 }
 
+/**
+ * How close a declaration's call or construct signatures come to the base type: the
+ * fewest inheritance steps from any base-derived type its parameters or return carry
+ * (`Mobject` is 0, `VMobject` is 1). Infinity when none carry it, which includes anything
+ * that isn't callable. Used to choose between declarations that share a name.
+ */
+export function getBaseDistance(node: Node, base = "Mobject"): number {
+  const symbol = node.getSymbol()
+  if (!symbol) return Infinity
+  const type = symbol.getTypeAtLocation(node)
+
+  const types = [...type.getCallSignatures(), ...type.getConstructSignatures()].flatMap((s) => [
+    s.getReturnType(),
+    ...s.getParameters().map((p) => p.getTypeAtLocation(node)),
+  ])
+  return Math.min(Infinity, ...collectDerived(types, base).map((t) => stepsTo(t, base)))
+}
+
+/** inheritance steps from a base-derived type up to the base */
+function stepsTo(type: Type, base: string, seen = new Set<ts.Type>()): number {
+  if (type.isTypeParameter()) {
+    const constraint = type.getConstraint()
+    return constraint ? stepsTo(constraint, base, seen) : Infinity
+  }
+  const target = type.getTargetType() ?? type
+  if (seen.has(target.compilerType)) return Infinity
+  seen.add(target.compilerType)
+
+  if (target.getSymbol()?.getName() === base) return 0
+  return 1 + Math.min(Infinity, ...target.getBaseTypes().map((t) => stepsTo(t, base, seen)))
+}
+
 /** a base-derived type followed by each ancestor up to the base; type parameters go through their constraint */
 function getAncestry(type: Type, base: string, seen = new Set<ts.Type>()): Type[] {
   if (type.isTypeParameter()) {
