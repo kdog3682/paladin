@@ -6,6 +6,7 @@ import { createBroadcast } from "./broadcast"
 import routes from "./routes"
 import { ScaffoldService } from "./services/scaffold/scaffold"
 import type { ScaffoldMessage } from "./services/scaffold/events"
+import { CACHE_ROOT as EXEMPLAR_ROOT } from "@paladin/exemplar/snapshots"
 
 const IMAGE_ROOT = "/home/kdog3682/trash"
 
@@ -18,6 +19,18 @@ app.use(
   "/images/*",
   serveStatic({
     root: IMAGE_ROOT,
+    onFound: (_path, c) => {
+      c.header("Cache-Control", "no-store")
+    },
+  }),
+)
+
+// pictures rendered by exemplar's display hook, linked from print's gallery
+app.use(
+  "/exemplar/*",
+  serveStatic({
+    root: EXEMPLAR_ROOT,
+    rewriteRequestPath: (path) => path.replace(/^\/exemplar/, ""),
     onFound: (_path, c) => {
       c.header("Cache-Control", "no-store")
     },

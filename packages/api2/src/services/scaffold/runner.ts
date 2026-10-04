@@ -45,6 +45,15 @@ function hasTestScript(op: WriteOp | SkipOp): boolean {
   }
 }
 
+/** `{ key: "value", flag: true }` -> `["--key", "value", "--flag"]`; `false` drops the flag. */
+function serializeOpts(opts: Registration["opts"] = {}): string[] {
+  return Object.entries(opts).flatMap(([key, value]) => {
+    if (value === false) return []
+    if (value === true) return [`--${key}`]
+    return [`--${key}`, value]
+  })
+}
+
 export class CodeRunner {
   private registrations: Registration[] = []
   private imports = new Map<string, Set<string>>()
@@ -113,7 +122,7 @@ export class CodeRunner {
 
       for (const batch of batches) {
         out.push(
-          bashOp(SOURCE, [...registration.command, ...batch], registration.kind, {
+          bashOp(SOURCE, [...registration.command, ...serializeOpts(registration.opts), ...batch], registration.kind, {
             cwd: opts.cwd,
             strict: registration.strict ?? false,
           }),

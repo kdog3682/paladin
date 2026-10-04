@@ -7,6 +7,8 @@ export interface Registration {
   matches: Matcher
   /** The command, split into args. Matched paths are appended. `@owner/pkg` parts are resolved at load. */
   command: string[]
+  /** Flags placed after `command`, before the matched paths: `{ key: "value" }` -> `--key value`, `{ key: true }` -> `--key`. */
+  opts?: Record<string, string | boolean>
   purpose: BashOp["purpose"]
   /** A failure here stops everything queued behind it. Off by default. */
   strict?: boolean
@@ -73,6 +75,20 @@ export const DEFAULT_REGISTRATIONS: Registration[] = [
     purpose: "test",
     matches: ["**/{test,tests,__tests__}/**/*.tsx", "**/*.{test,spec}.tsx"],
     command: ["bun", "test", "--preload", "./happydom.ts"],
+    grouped: true,
+  },
+  {
+    // manim examples: rendered to pictures, so they need manim's own serialize/display hooks
+    purpose: "example",
+    matches: [
+      "**/mathpen/packages/manim/**/{example,examples}/**/*.ts",
+      "**/mathpen/packages/manim/**/*.{example,examples}.ts",
+    ],
+    command: ["bun", "run", "@paladin/exemplar/cli.ts"],
+    opts: {
+      serialize: "src/render/describe.ts#describe",
+      display: "src/display.ts#displayExample",
+    },
     grouped: true,
   },
   {

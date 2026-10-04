@@ -1,15 +1,16 @@
+import type { ExampleReport } from "@paladin/exemplar"
 import { clip } from "@paladin/utils"
-import type { ApplyResult } from "./types"
+import { gallery } from "./gallery"
 import type { ApplyResult } from "./types"
 
 /* every example run in the result, carried on the bash op that ran it */
-function examplesOf(result: ApplyResult): ExampleResult[] {
-  const runs: ExampleResult[] = []
+function examplesOf(result: ApplyResult): ExampleReport[] {
+  const runs: ExampleReport[] = []
   for (const unit of result.units) {
     for (const op of unit.ops) {
       if (op.kind !== "bash") continue
       const data = op.data
-      if (data?.files) runs.push(data as ExampleResult)
+      if (data?.files) runs.push(data as ExampleReport)
     }
   }
   return runs
@@ -20,23 +21,26 @@ function errorsOf(result: ApplyResult): string {
   const blocks: string[] = []
   for (const run of examplesOf(result)) {
     for (const file of run.files) {
-      for (const item of file.items ?? []) {
+      for (const item of file.items) {
         if (item.error) blocks.push(`${file.relpath}#${item.name}\n${item.error}`)
+        if (item.displayError) blocks.push(`${file.relpath}#${item.name} (display)\n${item.displayError}`)
       }
-      if (file.displayError) blocks.push(`${file.relpath} (display)\n${file.displayError}`)
     }
   }
   return blocks.join("\n\n").trim()
 }
 
-/* artifacts written by display(), plus any a bash op reports through a <BASH> payload */
+/* the example runs as one report, or null when none rendered a picture */
+function galleryOf(result: ApplyResult): ExampleReport | null {
+  const runs = examplesOf(result)
+  const files = runs.flatMap(run => run.files)
+  if (!files.some(file => file.items.some(item => item.artifactPath))) return null
+  return { ...runs[0], files }
+}
+
+/* artifacts other runners report; example pictures go through the gallery */
 function artifactsOf(result: ApplyResult): string[] {
   const paths: string[] = []
-  for (const run of examplesOf(result)) {
-    for (const file of run.files) {
-      if (file.artifactPath) paths.push(file.artifactPath)
-    }
-  }
   for (const unit of result.units) {
     for (const op of unit.ops) {
       if (op.kind !== "bash") continue
@@ -64,11 +68,17 @@ function bashOf(result: ApplyResult): string {
   return blocks.join("\n\n").trim()
 }
 
-/* clip the error if the run failed, else the artifacts, else the bash output, else nothing */
+/* clip the error if the run failed, else the example gallery, else other artifacts, else the bash output, else nothing */
 export function print(result: ApplyResult): void {
   const errors = errorsOf(result)
   if (errors) {
     clip(errors)
+    return
+  }
+
+  const report = galleryOf(result)
+  if (report) {
+    clip(gallery(report))
     return
   }
 
