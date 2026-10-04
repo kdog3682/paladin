@@ -18,8 +18,7 @@ index.html
 src/App.tsx
 ================================================================
 
-import { Button } from '@bklearn/shadcn'
-import { Card, CardHeader, CardTitle, CardContent } from '@bklearn/shadcn'
+import { Button, Card, CardHeader, CardTitle, CardContent } from '@paladin/shadcn'
 
 export default function App() {
   return (
@@ -39,8 +38,7 @@ export default function App() {
 src/index.css
 ================================================================
 @import "tailwindcss";
-@import "@bklearn/shadcn/globals.css";
-@source "../node_modules/@bklearn/shadcn/dist";
+@import "@paladin/shadcn/source.css";
 
 ================================================================
 src/main.tsx
@@ -107,7 +105,6 @@ package.json
     "test": "bun test --preload ./happydom.ts"
   },
   "dependencies": {
-    "@bklearn/shadcn": "^0.1.2",
     "react": "^18",
     "react-dom": "^18",
     "zustand": "^5"

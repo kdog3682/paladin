@@ -1,11 +1,4 @@
 ================================================================
-src/index.css
-================================================================
-@import "tailwindcss";
-@import "@bklearn/shadcn/globals.css";
-@source "../node_modules/@bklearn/shadcn/dist";
-
-================================================================
 package.json
 ================================================================
 {
@@ -14,14 +7,12 @@ package.json
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts",
-    "./styles": "./src/index.css"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "test": "bun test --preload ./happydom.ts"
   },
   "dependencies": {
-    "@bklearn/shadcn": "^0.1.2",
     "lucide-react": "^0.563.0"
   },
   "peerDependencies": {
