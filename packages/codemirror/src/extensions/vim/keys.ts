@@ -49,6 +49,7 @@ const keyName = (e: KeyboardEvent, commands: Commands): string | null => {
   // would quietly run the lowercase binding. upper-casing is a no-op everywhere else,
   // punctuation included: shift+3 already arrives as '#'
   if (e.key.length === 1) return e.shiftKey ? e.key.toUpperCase() : e.key
+  if (e.key === 'Tab') return e.shiftKey ? 'Shift-Tab' : 'Tab'
   if (SWALLOWED.has(e.key)) return e.key
   // arrows, home / end, page up / down keep working
   return null

@@ -1,18 +1,19 @@
 import { EditorSelection } from '@codemirror/state'
 import { type Command } from '@codemirror/view'
-import { parseLinePrefix, repeatMarker } from '../lineUtils'
+import { parseListPrefix } from '../lineUtils'
 
 const isSpace = (ch: string | undefined) => ch === ' ' || ch === '\t'
 
 /** newline that keeps the current line's indent (no language auto-indent) and
- * repeats a leading `//`, `*` or `-` marker. on an empty marker line the
+ * repeats a leading `//`, `*` or `-` marker, continues a numbered list (`1. ` -> `2. `)
+ * and opens a fresh checklist box (`[x] ` -> `[ ] `). on an empty marker line the
  * marker is removed instead */
 export const insertIndentedNewline: Command = (view) => {
   const { state } = view
   if (state.readOnly) return false
   const tr = state.changeByRange((range) => {
     const line = state.doc.lineAt(range.from)
-    const { indent, marker, rest } = parseLinePrefix(line.text)
+    const { indent, marker, rest, next } = parseListPrefix(line.text)
     const col = range.from - line.from
     const markerEnd = indent.length + marker.length
 
@@ -30,7 +31,7 @@ export const insertIndentedNewline: Command = (view) => {
       return { changes: { from: line.from, insert: '\n' }, range: EditorSelection.cursor(range.from + 1) }
     }
 
-    // `- ` / `// ` with nothing after it: drop the marker
+    // `- ` / `// ` / `2. ` / `[ ] ` with nothing after it: drop the marker
     if (marker && range.empty && !rest.trim() && range.from === line.to) {
       const from = line.from + indent.length
       return { changes: { from, to: line.to }, range: EditorSelection.cursor(from) }
@@ -43,7 +44,7 @@ export const insertIndentedNewline: Command = (view) => {
     let to = range.to
     while (to < toLine.to && isSpace(toLine.text[to - toLine.from])) to++
 
-    const insert = '\n' + indent + (col >= markerEnd ? repeatMarker(marker) : '')
+    const insert = '\n' + indent + (col >= markerEnd ? next : '')
     return { changes: { from, to, insert }, range: EditorSelection.cursor(from + insert.length) }
   })
   view.dispatch({ ...tr, scrollIntoView: true, userEvent: 'input' })

@@ -290,3 +290,15 @@ describe('splitCursor', () => {
     expect(splitCursor('\\|a|')).toEqual({ text: '|a', cursor: 2 })
   })
 })
+
+describe('line comments', () => {
+  test("'/' on a blank line opens a comment, and again deepens it rather than typing `// /`", () => {
+    expect(type('|', '/')).toBe('// |')
+    expect(type('|', '//')).toBe('/// |')
+    expect(type('  |', '//')).toBe('  /// |')
+  })
+
+  test("'/' after a comment with text is literal", () => {
+    expect(type('// a|', '/')).toBe('// a/|')
+  })
+})

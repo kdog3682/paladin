@@ -8,7 +8,9 @@ import {
   type SelectionRange,
   type Text,
 } from '@codemirror/state'
+import { getIndentUnit, indentString } from '@codemirror/language'
 import type { Command, EditorView } from '@codemirror/view'
+import { leadingWhitespace, selectedLines } from '../lineUtils'
 import {
   clampNormal,
   firstNonBlank,
@@ -461,6 +463,43 @@ const target = (view: EditorView) => {
   }
 }
 
+/** `Tab` / `Shift-Tab`: shift every selected line one indent unit right or left. visual mode
+ * stays on, with the selection following its text, so the shift can be repeated */
+const shiftLines = (dir: 1 | -1) => (view: EditorView) => {
+  const { state } = view
+  const unit = indentString(state, getIndentUnit(state))
+  const changes: ChangeSpec[] = []
+  for (const l of selectedLines(state.doc, state.selection.main)) {
+    if (!l.text.trim()) continue
+    if (dir > 0) {
+      changes.push({ from: l.from, insert: unit })
+      continue
+    }
+    const ws = leadingWhitespace(l.text)
+    let n = 0
+    while (n < unit.length && ws[n] === ' ') n++
+    if (!n && ws[0] === '\t') n = 1
+    if (n) changes.push({ from: l.from, to: l.from + n })
+  }
+  if (!changes.length) return
+  const set = state.changes(changes)
+  const doc = set.apply(state.doc)
+  let range = state.selection.main.map(set)
+  if (getVim(state)?.visualLine) {
+    // keep whole lines covered: the mapped start would otherwise sit after the new indent
+    const from = doc.lineAt(range.from).from
+    const to = doc.lineAt(range.to).to
+    range = range.anchor <= range.head ? EditorSelection.range(from, to) : EditorSelection.range(to, from)
+  }
+  view.dispatch({
+    changes: set,
+    selection: EditorSelection.create([range]),
+    annotations: [vimEdit.of(true), isolateHistory.of('full')],
+    userEvent: 'vim.indent',
+    scrollIntoView: true,
+  })
+}
+
 /** drop `text` over the visual selection and return to normal mode. Unlike vim the replaced
  * text is dropped rather than swapped into the register, so the same yank can be pasted
  * over several selections in a row */
@@ -547,6 +586,11 @@ export const VISUAL_COMMANDS: Record<string, NormalCommand> = {
     withClipboard(view, register => replaceSelection(view, register.text), () => VISUAL_COMMANDS['p']!(view)),
 
   'w': openWrapPrompt,
+
+  'Tab': shiftLines(1),
+  'Shift-Tab': shiftLines(-1),
+  '>': shiftLines(1),
+  '<': shiftLines(-1),
 }
 
 VISUAL_COMMANDS['x'] = VISUAL_COMMANDS['d']!

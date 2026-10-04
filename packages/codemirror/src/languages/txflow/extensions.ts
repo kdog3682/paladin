@@ -1,6 +1,7 @@
 import { Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { exportTextBeneathCursor } from '../../extensions/exportText'
+import { headingFold } from '../../extensions/headingFold'
 import { inoremap } from '../../extensions/inoremap'
 import { inputRules, packedInputRules } from '../../extensions/inputRules'
 import {
@@ -20,7 +21,8 @@ const toggleBlockComment = toggleIndentedBlockComment()
 /** What txflow adds on top of the base extensions: the fully packed input rules,
  * the `q`-leader chords (insert mode, plus `qw` / `qe` in normal mode), smart enter, indent-aware comments,
  * export / cut below the cursor, reflowing paste, and a vim normal mode on Esc
- * (with visual mode on `v`, whose `w` wraps the selection in a named block). */
+ * (with visual mode on `v`, whose `w` wraps the selection in a named block, and Tab / Shift-Tab shift it),
+ * and `#` heading folds with a gutter arrow. */
 export const TXFLOW_EXTENSIONS: Extension = [
   vim({
     commands: {
@@ -32,6 +34,7 @@ export const TXFLOW_EXTENSIONS: Extension = [
       'q e': insertCommand(executeNewlineDedent),
     },
   }),
+  headingFold(),
   inputRules(packedInputRules),
   inoremap({
     'qw': executeNewlineIndent,

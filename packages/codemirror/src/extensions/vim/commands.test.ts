@@ -175,6 +175,28 @@ describe('visual mode', () => {
   })
 })
 
+describe('visual Tab / Shift-Tab', () => {
+  test('Tab indents the line and stays in linewise visual, covering the whole line', () => {
+    const view = editor('f|oo\nbar')
+    expect(keys(view, 'V', 'Tab')).toBe('«  foo»\nbar')
+    expect(getVim(view.state)!.mode).toBe('visual')
+    expect(keys(view, 'Tab')).toBe('«    foo»\nbar')
+  })
+
+  test('every selected line shifts, blank lines are left alone', () => {
+    expect(keys(editor('«foo\n\nbar»', 'visual'), 'Tab')).toBe('  «foo\n\n  bar»')
+  })
+
+  test('Shift-Tab dedents by one unit, as far as each line allows', () => {
+    expect(keys(editor('«    foo\n bar»', 'visual'), 'Shift-Tab')).toBe('«  foo\nbar»')
+    expect(keys(editor('«\tfoo»', 'visual'), 'Shift-Tab')).toBe('«foo»')
+  })
+
+  test('charwise selections keep covering the same text', () => {
+    expect(run('f|oo', 'v', 'l', 'Tab')).toBe('  f«oo»')
+  })
+})
+
 describe('linewise visual (V)', () => {
   test('V selects the whole line', () => {
     const view = editor('fo|o bar\nbaz')

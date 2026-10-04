@@ -28,6 +28,8 @@ export const punctuationRules: InputRule[] = [
   { on: ',', insert: ', ' },
   /* a second space after ', ' / '. ' / '! ' / ': ' / ') ' / '] ' / '} ' / "' " / '" ' is swallowed (zero-width lookbehind) */
   { on: ' ', before: /(?<=[,.!:)\]}'"] )$/, insert: '' },
+  /* '/' right after an empty `// ` deepens it to `/// ` (and so on) instead of typing `// /` */
+  { on: '/', before: /^([ \t]*)(\/\/+) $/, after: /^\s*$/, insert: (m) => `${m[1]}${m[2]}/ ` },
   /* '/' on an empty line opens a line comment */
   { on: '/', before: /^([ \t]*)$/, after: /^\s*$/, insert: (m) => m[1] + '// ' },
   /* '\' + 'r' becomes an arrow, spaced out from its neighbours */

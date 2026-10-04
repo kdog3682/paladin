@@ -29,6 +29,31 @@ export function repeatMarker(marker: string): string {
   return marker.endsWith(' ') ? marker : marker + ' '
 }
 
+export type ListPrefix = LinePrefix & {
+  /* the marker the next line should start with */
+  next: string
+}
+
+/* `1. ` / `1) `, or a checklist box `[ ] ` / `[x] ` / `[] ` with an optional `- ` or `* ` bullet */
+const LIST_RE = /^(?:(\d+)([.)]) |([-*] )?\[([ xX]?)\] )/
+
+/** like {@link parseLinePrefix}, but numbered and checklist items count as markers
+ * too. the next line's marker bumps the number and clears the box */
+export function parseListPrefix(text: string): ListPrefix {
+  const indent = leadingWhitespace(text)
+  const body = text.slice(indent.length)
+  const list = LIST_RE.exec(body)
+  if (!list) {
+    const prefix = parseLinePrefix(text)
+    return { ...prefix, next: repeatMarker(prefix.marker) }
+  }
+  const [marker, num, delim, bullet = '', box] = list
+  const next = num !== undefined
+    ? `${Number(num) + 1}${delim} `
+    : `${bullet}[${box ? ' ' : ''}] `
+  return { indent, marker, rest: body.slice(marker.length), next }
+}
+
 /** lines touched by a range. a non-empty range ending at column 0 does not
  * include that last line */
 export function selectedLines(doc: Text, range: SelectionRange): Line[] {
