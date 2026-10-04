@@ -5,15 +5,18 @@ import { webbuild } from "./build"
 import { newErrors, recentActions } from "./proc"
 import { ACTIONS } from "./probe/actions"
 import { formatReport as formatProbe, probe } from "./probe/run"
-import { formatReport, webrun, webstatus, webstop } from "./webrun"
+import { formatReport, webresume, webrun, webstatus, webstop } from "./webrun"
 
 const INTRO = `Serves an App.tsx (or a name.examples.tsx, which renders every exported function in it as an example; #<name> in the url isolates one) with vite and opens it. Calling it again with another file switches the open tab to it. Use --status for anything about the running server (which app/url/pid, uptime, new vite errors) and don't go hunting through ps/ss/.webrun dirs.
 
 Any action flag (or --preview) also drives the page in headless Chrome and reports what the browser saw. Actions run in the order given and exit 1 if one fails, skipping the rest. Serving for a probe never opens the browser unless --open is given.
 
+If the server is already showing someone else's app (check --status), don't build a standalone page to test yours: serve it with --switch, probe it, then run --resume to put theirs back. Their open tab follows both swaps.
+
 Use it to check what a page does in a real browser, instead of one-off puppeteer scripts or synthetic dispatchEvent calls, e.g.
   webrun path/to/App.tsx --keypress alt+f --expect '[role=dialog]' --preview
   webrun http://localhost:5173 --text body
+  webrun path/to/Mine.tsx --switch --expect .thing --screenshot shot.png; webrun --resume
 `
 
 const spec = {
@@ -28,6 +31,8 @@ const spec = {
     passthrough: { help: "force the project's own index.html" },
     "no-user-config": { help: "ignore the project's vite config entirely" },
     stop: { help: "stop the running server" },
+    switch: { help: "serve the target temporarily, remembering the app it replaces for --resume" },
+    resume: { help: "serve the app the last --switch replaced again" },
     status: { help: "print the running server (app, url, mode, pid, uptime, new vite errors)" },
     build: { help: "build to one self-contained html in ~/.paladin/apps and open it, instead of serving (no target: the app currently being served)" },
     out: { arg: "dir", help: "where --build writes the html (default ~/.paladin/apps)" },
@@ -42,6 +47,7 @@ const isUrl = (s: string) => /^(https?|file):\/\//.test(s)
 export function main(argv = process.argv.slice(2)) {
   return runArgv(spec, argv, async ({ args, kwargs, seq }) => {
     if (kwargs.stop) return void (await webstop())
+    if (kwargs.resume) return (await webresume()) ? 0 : 1
 
     if (kwargs.status) {
       const state = await webstatus()
@@ -74,6 +80,7 @@ export function main(argv = process.argv.slice(2)) {
       if (kwargs.virtual) opts.mode = "virtual"
       if (kwargs.passthrough) opts.mode = "passthrough"
       if (kwargs["no-user-config"]) opts.userConfig = false
+      if (kwargs.switch) opts.switch = true
 
       url = await webrun(target, opts)
       if (!url) return 1

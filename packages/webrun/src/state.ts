@@ -43,6 +43,7 @@ function coerce(raw: unknown): WebrunState | null {
     startedAt: typeof it.startedAt === "number" ? it.startedAt : Date.now(),
     runs: typeof it.runs === "number" ? it.runs : 1,
     logOffset: typeof it.logOffset === "number" ? it.logOffset : 0,
+    ...(typeof it.previous === "string" && { previous: it.previous }),
   }
 }
 

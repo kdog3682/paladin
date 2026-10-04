@@ -46,6 +46,7 @@ export function formatReport(state: WebrunState, errs: string[] = [], recent: st
     // guaranteed to be there just because state points at it
     ["log", existsSync(state.log) ? short(state.log) : `${short(state.log)} (missing)`],
   ]
+  if (state.previous) rows.push(["resume", `${short(state.previous)} (webrun --resume serves it again)`])
   const width = Math.max(...rows.map(([k]) => k.length))
   const lines = ["webrun · already running", ...rows.map(([k, v]) => `  ${k.padEnd(width)}  ${v}`)]
   // the last few log entries hang off the log row, aligned under its value
@@ -105,6 +106,12 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
 
     const layout = await plan(app, opts)
 
+    // from here on the app changes. a switch remembers what it replaced (the first
+    // one, across repeated switches); a plain run is a deliberate move and forgets it
+    const live = state && alive(state.pid) ? state.app : undefined
+    const previous = opts.switch ? (state?.previous ?? live) : undefined
+    const remembered = previous && previous !== app ? { previous } : {}
+
     // a live server on this port, and the new app would run on the very config it
     // has loaded (same project, both through the generated shell): keep it. the
     // entry is rewritten and the open tab told to reload — no restart, so it
@@ -122,9 +129,10 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       const tabs = await clientCount(state.url)
       await scaffold(layout, app)
       if ((await fetch(new URL("__webrun/reload", state.url))).ok) {
-        await writeState({ ...state, app, runs: state.runs + 1 })
+        const { previous: _, ...rest } = state
+        await writeState({ ...rest, app, runs: state.runs + 1, ...remembered })
         if (opts.open === true || (opts.open !== false && !tabs)) await openUrl(state.url)
-        else console.log(`webrun · swapped to ${short(app)}`)
+        else console.log(`webrun · swapped to ${short(app)}${resumeHint(remembered.previous)}`)
         return state.url
       }
     }
@@ -162,6 +170,7 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
       startedAt: Date.now(),
       runs: 1,
       logOffset: 0,
+      ...remembered,
     })
 
     if (!(await waitReady(url, started.pid, timeout))) {
@@ -170,6 +179,7 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     }
 
     if (opts.open === true || (opts.open !== false && !tabOpen)) await openUrl(url)
+    else if (remembered.previous) console.log(`webrun · switched to ${short(app)}${resumeHint(remembered.previous)}`)
     return url
   } catch (err) {
     // only tear down what this call started. clearing state without killing
@@ -181,6 +191,26 @@ export async function webrun(appPath: string, opts: WebrunOpts = {}) {
     console.log(err instanceof Error ? err.message : err)
     return null
   }
+}
+
+function resumeHint(previous?: string) {
+  return previous ? ` (webrun --resume goes back to ${short(previous)})` : ""
+}
+
+/**
+ * serve the app a `--switch` took over from, and forget it. the open tab follows
+ * the same way it does on any swap, and no new one is opened. returns the url, or
+ * null when there is nothing to resume or the old app no longer serves
+ */
+export async function webresume(opts: WebrunOpts = {}) {
+  const state = await readState()
+  if (!state?.previous) {
+    console.log("webrun · nothing to resume")
+    return null
+  }
+  const url = await webrun(state.previous, { open: false, ...opts, switch: false })
+  if (url) console.log(`webrun · resumed ${short(state.previous)}`)
+  return url
 }
 
 /** stop whatever webrun currently has running */

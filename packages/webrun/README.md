@@ -6,6 +6,8 @@ the tab that's already open switches to it.
 
 ```
 webrun <path/to/App.tsx | path/to/name.examples.tsx> [--open] [--no-open] [--report] [--virtual] [--passthrough] [--no-user-config]
+webrun <path/to/App.tsx> --switch [actions...]                           # borrow the server
+webrun --resume                                                          # give it back
 webrun --status | --stop
 webrun [target] --build [--out <dir>] [--name <name>] [--no-open]         # freeze
 webrun [target] --click <sel> --expect <sel> --text <sel> --preview ...   # probe
@@ -21,6 +23,11 @@ as is. Actions run in the order given; exit 1 if one fails.
 - Same file again: the server is reused, silently. `--report` prints the url, pid, uptime and new
   errors from `vite.log`; `--open` opens a tab instead.
 - Different file: it replaces what's served, on the same port (`35737`), so the url never changes.
+- `--switch`: like a different file, but the app it replaces is remembered, and `--resume` serves
+  it again (no new tab; the open one follows both swaps). Repeated switches keep the first app, so
+  resume always returns to it; a plain run of a different app forgets it. `--status` shows it as
+  `resume`. This is how an agent checks its own page without building a standalone one while
+  someone else's app is being served.
 - State is in `~/.cache/paladin/webrun/state.json`.
 
 ## Modes

@@ -11,6 +11,7 @@ type State = {
   url: string
   workdir: string
   mode: "passthrough" | "virtual"
+  previous?: string
 }
 
 // webrun stores its state under XDG_CACHE_HOME, and it resolves that env var once
@@ -21,7 +22,7 @@ type State = {
 const cache = await mkdtemp(join(tmpdir(), "webrun-test-"))
 process.env.XDG_CACHE_HOME = cache
 
-const { webrun, webstop } = await import("../webrun")
+const { webresume, webrun, webstop } = await import("../webrun")
 
 const STATE_FILE = join(cache, "paladin", "webrun", "state.json")
 const fixtures = join(import.meta.dir, "fixtures")
@@ -176,6 +177,48 @@ describe("webrun", () => {
       const main = await (await fetchModule(url!, "/main.tsx")).text()
       expect(main).toContain("bye/App.tsx")
       expect(main).not.toContain("Card.examples.tsx")
+    },
+    60_000,
+  )
+
+  test(
+    "switch / resume: a switch remembers the app it replaced, and resume serves it again",
+    async () => {
+      const before = await state()
+      expect(before.app).toBe(bye)
+
+      // console.log carries the swap notices; keep them out of the test report
+      const log = console.log
+      console.log = () => {}
+      try {
+        await webrun(hello, { ...opts, switch: true })
+        expect((await state()).previous).toBe(bye)
+
+        // a second switch keeps the first app, so resume still goes all the way back
+        await webrun(join(fixtures, "gallery", "Card.examples.tsx"), { ...opts, switch: true })
+        expect((await state()).previous).toBe(bye)
+
+        // probing the switched app again (a reuse) keeps it too
+        await webrun(join(fixtures, "gallery", "Card.examples.tsx"), opts)
+        expect((await state()).previous).toBe(bye)
+
+        const url = await webresume({ port: PORT })
+        expect(url).toBe(before.url)
+        const after = await state()
+        expect(after.app).toBe(bye)
+        expect(after.previous).toBeUndefined()
+        expect(after.pid).toBe(before.pid)
+
+        // nothing left to resume
+        expect(await webresume({ port: PORT })).toBeNull()
+
+        // a plain run of another app forgets a pending resume
+        await webrun(hello, { ...opts, switch: true })
+        await webrun(bye, opts)
+        expect((await state()).previous).toBeUndefined()
+      } finally {
+        console.log = log
+      }
     },
     60_000,
   )

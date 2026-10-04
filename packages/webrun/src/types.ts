@@ -27,6 +27,8 @@ export type WebrunState = {
   runs: number
   /** bytes of the log already reported, so a report only shows errors logged since */
   logOffset: number
+  /** the app a `--switch` took over from, which `--resume` serves again */
+  previous?: string
 }
 
 export type WebrunOpts = {
@@ -47,6 +49,12 @@ export type WebrunOpts = {
   mode?: Mode
   /** merge the project's own vite config underneath ours. @default true */
   userConfig?: boolean
+  /**
+   * a temporary swap: remember what was being served so `webresume` can put it back.
+   * repeated switches keep the first app, so resume always returns to it. a plain
+   * (non-switch) run of a different app forgets it. @default false
+   */
+  switch?: boolean
 }
 
 export type Layout = {
