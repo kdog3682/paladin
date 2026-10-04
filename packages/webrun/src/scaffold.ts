@@ -118,6 +118,7 @@ export async function stylesSource(layout: Layout) {
   return render(await template("styles.css.tmpl"), {
     project: JSON.stringify(layout.project),
     sources: layout.sources.map((s) => `@source ${JSON.stringify(s)};`).join("\n"),
+    styles: layout.styles.map((s) => `@import ${JSON.stringify(s)};`).join("\n"),
   })
 }
 

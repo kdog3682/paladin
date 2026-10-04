@@ -72,6 +72,8 @@ export type Layout = {
   tailwind: boolean
   /** sibling workspace packages the project depends on, which tailwind must scan too */
   sources: string[]
+  /** `<pkg>/source.css` entries those packages export, imported into the generated stylesheet */
+  styles: string[]
   mode: Mode
   /** `examples` when the target is a `<name>.examples.tsx` gallery instead of an app */
   kind: "app" | "examples"

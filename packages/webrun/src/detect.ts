@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import { CONFIG_NAMES, findPkg, findUp, findUpWithin, isExamples, real, resolveModule, workspaceSources } from "./paths"
+import { CONFIG_NAMES, findPkg, findUp, findUpWithin, isExamples, real, resolveModule, workspaceSources, workspaceStyles } from "./paths"
 import type { Layout, Mode, WebrunOpts } from "./types"
 
 /** the module-type script tags in an index.html, in document order */
@@ -97,6 +97,7 @@ export async function plan(app: string, opts: WebrunOpts = {}): Promise<Layout> 
   const tailwind = findPkg(project, "@tailwindcss/vite")
 
   const sources = tailwind ? workspaceSources(project) : []
+  const styles = tailwind ? workspaceStyles(project) : []
 
-  return { root, workdir, project, userConfig, allow, tailwind, sources, mode, kind }
+  return { root, workdir, project, userConfig, allow, tailwind, sources, styles, mode, kind }
 }

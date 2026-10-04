@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* tailwind entries sibling workspace packages export (theme, base styles) */
+{{styles}}
 /* vite roots at the scratch dir, so tailwind would otherwise scan nothing but it */
 @source {{project}};
 /* sibling workspace packages the project depends on: tailwind never scans them on its own */
