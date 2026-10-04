@@ -1,24 +1,19 @@
 /*
 ci counterpart to runExampleFiles.
   runTest("/repo/a/packages/b")
-replays every examples file that has a snapshot and reports the ones whose
-output no longer matches. read only — never writes a baseline, never calls
-display. the snapshot dir is the manifest of what to check, so a file that has
-never been through runExampleFiles is not tested here.
+replays every examples file in the package that has a baseline, through
+runExampleFiles, and reports the ones whose output no longer matches as a
+unified diff of baseline -> current. changed baselines are left alone (no
+`update`), but it is a normal run otherwise: new baselines are written and
+pictures rendered. a file that has never been through runExampleFiles has no
+baseline, so it is not tested here.
 */
-import { readdir } from "node:fs/promises"
-import { join } from "node:path"
+import { createTwoFilesPatch } from "diff"
+import { sep } from "node:path"
 import { deriveNamespace, runArgv } from "@paladin/utils"
-import {
-  type ExampleFile,
-  type Spec,
-  type Status,
-  resolveHooks,
-  runFile,
-  snapshotDir,
-  summarize,
-  unflatten,
-} from "./base"
+import type { Spec, Status } from "./base"
+import { runExampleFiles } from "./runFiles"
+import { snapshotSources } from "./snapshots"
 
 export type Options = {
   /* overrides the namespace's `serialize` hook — must match how the baseline was written */
@@ -31,10 +26,10 @@ export type TestFailure = {
   /* the docstring of the example, read as the statement it failed to hold up */
   statement: string
   status: "changed" | "error"
-  /* the stored baseline */
-  expected: string
-  /* what this run produced, or the error it threw */
-  received: string
+  /* unified diff of the stored baseline against this run's output; set for `changed` */
+  diff?: string
+  /* what the example threw; set for `error` */
+  error?: string
 }
 
 export type Pass = {
@@ -53,38 +48,24 @@ export type TestSummary = {
   ok: boolean
 }
 
-/* snapshot filenames are flattened relpaths, so they round-trip back to paths */
-async function snapshotRelpaths(root: string) {
-  const names = await readdir(snapshotDir(root)).catch(() => [] as string[])
-  return names
-    .filter((name) => name.endsWith(".cache.json"))
-    .map(unflatten)
-    .sort()
+function diffOf(label: string, previous: string, output: string) {
+  return createTwoFilesPatch(`${label} (baseline)`, `${label} (current)`, `${previous}\n`, `${output}\n`, "", "", {
+    context: 3,
+  })
 }
 
 /* pkgdir is the package root, or any path inside it */
 export async function runTest(pkgdir: string, options: Options = {}): Promise<TestSummary> {
-  const { namespace, root, getRelpath } = deriveNamespace(pkgdir)
-  const { serialize } = await resolveHooks(namespace, root, { serialize: options.serialize })
+  const { namespace, root } = deriveNamespace(pkgdir)
+  const paths = snapshotSources().filter((path) => path.startsWith(root + sep))
+  const summary: Record<Status, number> = { new: 0, match: 0, changed: 0, error: 0 }
+  if (!paths.length) return { namespace, root, passes: [], summary, failures: [], ok: true }
 
-  const context = {
-    namespace,
-    root,
-    getRelpath,
-    serialize,
-    display: null,
-    update: false,
-    write: false,
-  }
-
-  const files: ExampleFile[] = []
+  const report = await runExampleFiles(paths, { serialize: options.serialize })
   const passes: Pass[] = []
   const failures: TestFailure[] = []
 
-  for (const relpath of await snapshotRelpaths(root)) {
-    const file = await runFile(join(root, relpath), context)
-    files.push(file)
-
+  for (const file of report.files) {
     /* only `match` counts as a pass — `new` has no baseline to hold it to */
     const statements = file.items
       .filter((item) => item.status === "match")
@@ -92,19 +73,17 @@ export async function runTest(pkgdir: string, options: Options = {}): Promise<Te
     if (statements.length) passes.push({ file: file.relpath, statements })
 
     for (const item of file.items) {
-      if (item.status !== "changed" && item.status !== "error") continue
-      failures.push({
-        relpath: file.relpath,
-        name: item.name,
-        statement: item.desc,
-        status: item.status,
-        expected: item.previousOutput ?? "",
-        received: item.error ?? item.output,
-      })
+      summary[item.status]++
+      const base = { relpath: file.relpath, name: item.name, statement: item.desc }
+      if (item.status === "error") failures.push({ ...base, status: "error", error: item.error })
+      if (item.status === "changed") {
+        const label = `${file.relpath}#${item.name}`
+        failures.push({ ...base, status: "changed", diff: diffOf(label, item.previous ?? "", item.output) })
+      }
     }
   }
 
-  return { namespace, root, passes, summary: summarize(files), failures, ok: !failures.length }
+  return { namespace, root, passes, summary, failures, ok: !failures.length }
 }
 
 if (import.meta.main) {

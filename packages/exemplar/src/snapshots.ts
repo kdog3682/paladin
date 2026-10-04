@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { homedir } from "node:os"
 import { join, relative } from "node:path"
 
-const CACHE_ROOT = join(homedir(), ".paladin/cache/exemplar")
+export const CACHE_ROOT = join(homedir(), ".paladin/cache/exemplar")
 
 type BaselineFile = {
   /* absolute path of the examples file this dir belongs to */
@@ -90,4 +90,15 @@ export function cleanSnapshots(): string[] {
     removed.push(dir)
   }
   return removed
+}
+
+/* absolute paths of the examples files that have a baseline and still exist */
+export function snapshotSources(): string[] {
+  if (!existsSync(CACHE_ROOT)) return []
+  const sources: string[] = []
+  for (const name of readdirSync(CACHE_ROOT)) {
+    const baseline = readBaselineFile(join(CACHE_ROOT, name, "cache.json"))
+    if (baseline && existsSync(baseline.source)) sources.push(baseline.source)
+  }
+  return sources.sort()
 }

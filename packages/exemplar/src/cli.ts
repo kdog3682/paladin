@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { CLOSE_MARKER, MARKER, type Spec, helpText, runArgv } from "@paladin/utils"
+import { type Spec, helpText, runArgv } from "@paladin/utils"
 import { runExampleFiles } from "./runFiles"
 
 const INTRO = `Runs \`.examples.\` files: calls every exported example, serializes the result, and diffs it against the stored snapshot. Every example always runs — the snapshot is the baseline compared against, not a skip list.`
@@ -21,13 +21,11 @@ export function main(argv = process.argv.slice(2)) {
   return runArgv(spec, argv, async ({ args, kwargs }) => {
     if (!args.paths.length) return void console.log(helpText(spec))
 
-    const report = await runExampleFiles(args.paths, {
-      snapshot: kwargs.snapshot,
+    return runExampleFiles(args.paths, {
       update: kwargs.update,
       serialize: kwargs.serialize,
       display: kwargs.display,
     })
-    return report.summary.error ? 1 : 0
   })
 }
 
