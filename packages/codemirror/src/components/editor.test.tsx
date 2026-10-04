@@ -3,7 +3,6 @@ import { cleanup, render } from '@testing-library/react'
 import { foldEffect } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 import { Editor, type EditorProps } from './editor'
-import { defaultExtensions } from '../defaultExtensions'
 import { FONT_STACKS } from '../fonts'
 import type { LanguageMap } from '../languages'
 import { serializeEditorState } from '../state'
@@ -290,7 +289,7 @@ describe('defaultExtensions options', () => {
 
   test('adds it when asked', () => {
     const h = mount({
-      baseExtensions: defaultExtensions({ lineNumbers: true }),
+      lineNumbers: true,
       state: { doc: 'a\nb\nc' },
     })
     expect(h.container.querySelector('.cm-lineNumbers')).not.toBeNull()
@@ -298,7 +297,7 @@ describe('defaultExtensions options', () => {
 
   test('folding survives even with the gutter off, so snapshots stay loadable', () => {
     const h = mount({
-      baseExtensions: defaultExtensions({ foldGutter: false }),
+      foldGutter: false,
       state: { doc: 'one\ntwo\nthree', folds: [4, 7] },
     })
     expect(serializeEditorState(h.view).folds).toEqual([4, 7])

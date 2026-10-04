@@ -23,13 +23,22 @@ export { codeRules, codeWraps, codeTemplateSource } from './presets/code'
 export { snippetRules, snippetSource, today, type Snippet } from './presets/snippets'
 
 /**
- * Every preset packed into one config: punctuation, markdown, bracket and code rules
- * plus the punctuation abbreviations and the code-fence templates. Pass it to `inputRules()` for the full
- * behaviour, or to `resolveConfig()` to drive `inputRuleTransaction` directly.
+ * The presets that suit any language: punctuation, bracket and code rules plus the
+ * punctuation abbreviations and the code-fence templates. Markdown is left out
+ * (dashes and `#` mean something else in code); `packedInputRules` adds it back.
  */
-export const packedInputRules: InputRulesConfig = {
+export const baseInputRules: InputRulesConfig = {
   swaps: punctuationSwaps,
   wraps: [...bracketWraps, ...codeWraps],
-  rules: [...punctuationRules, ...markdownRules, ...bracketRules, ...codeRules],
+  rules: [...punctuationRules, ...bracketRules, ...codeRules],
   abbrevs: [...abbrevs(punctuationAbbrevSource), ...snippetRules(snippetSource), ...templates(codeTemplateSource)],
+}
+
+/**
+ * Every preset packed into one config: `baseInputRules` plus the markdown rules. Pass it to
+ * `inputRules()` for the full behaviour, or to `resolveConfig()` to drive `inputRuleTransaction` directly.
+ */
+export const packedInputRules: InputRulesConfig = {
+  ...baseInputRules,
+  rules: [...punctuationRules, ...markdownRules, ...bracketRules, ...codeRules],
 }

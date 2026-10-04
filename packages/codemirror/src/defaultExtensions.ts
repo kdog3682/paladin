@@ -1,6 +1,7 @@
-import { type Extension } from '@codemirror/state'
+import { Prec, type Extension } from '@codemirror/state'
 import {
   drawSelection,
+  EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
@@ -23,6 +24,59 @@ import {
 } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { bracketIndent } from './extensions/bracketIndent'
+import { exportTextBeneathCursor } from './extensions/exportText'
+import { inoremap } from './extensions/inoremap'
+import { baseInputRules, inputRules } from './extensions/inputRules'
+import {
+  executeCursorRight,
+  executeJoinPrevious,
+  executeNewlineDedent,
+  executeNewlineIndent,
+  executeWrapParens,
+} from './extensions/qchord'
+import { executeSmartEnter } from './extensions/smartEnter'
+import { handleSmartPaste } from './extensions/smartPaste'
+import { toggleIndentedBlockComment, toggleIndentedLineComment } from './extensions/toggleComment'
+import { cycleWord, insertCommand, vim } from './extensions/vim'
+
+const toggleBlockComment = toggleIndentedBlockComment()
+
+/**
+ * What every language gets: a vim normal mode on Esc (visual mode on `v`, whose
+ * `w` wraps the selection in a named block), the punctuation, bracket and code input rules, the
+ * `q`-leader insert chords, smart
+ * enter, indent-aware comment toggling, export / cut below the cursor, and
+ * reflowing paste.
+ */
+const EDITING: Extension = [
+  vim({
+    commands: {
+      'Space': cycleWord(),
+      'Shift-Space': cycleWord({ dir: -1 }),
+      'q w': insertCommand(executeNewlineIndent),
+      'q e': insertCommand(executeNewlineDedent),
+    },
+  }),
+  inputRules(baseInputRules),
+  inoremap({
+    'qw': executeNewlineIndent,
+    'qe': executeNewlineDedent,
+    'ql': executeCursorRight,
+    'qd': executeJoinPrevious,
+    'qp': executeWrapParens,
+  }),
+  Prec.high(keymap.of([
+    { key: 'Enter', run: executeSmartEnter },
+    { key: 'Mod-/', run: toggleIndentedLineComment() },
+    { key: 'Mod-Shift-/', run: toggleBlockComment },
+    { key: 'Mod-?', run: toggleBlockComment },
+    { key: 'Mod-e', run: exportTextBeneathCursor({ includeCursorLine: true }) },
+    { key: 'Mod-Shift-e', run: exportTextBeneathCursor({ includeCursorLine: true, delete: true }) },
+  ])),
+  EditorView.domEventHandlers({
+    paste: handleSmartPaste({ maxWidth: 80 }),
+  }),
+]
 
 export type DefaultExtensionOptions = {
   /** Line-number gutter. Defaults to false — wanted for code, not for prose. */
@@ -72,6 +126,7 @@ export function defaultExtensions(
   } = options
 
   return [
+    EDITING,
     codeFolding(),
     indentUnit.of(indent),
     drawSelection({ cursorBlinkRate }),

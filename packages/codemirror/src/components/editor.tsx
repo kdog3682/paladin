@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, placeholder } from '@codemirror/view'
-import { defaultExtensions } from '../defaultExtensions'
+import { type DefaultExtensionOptions, defaultExtensions } from '../defaultExtensions'
 import { DEFAULT_FONT, type FontKey, fontExtension } from '../fonts'
 import {
   BUILTIN_LANGUAGES,
@@ -19,7 +19,7 @@ import {
 } from '../state'
 import { useDebounced, useLatest } from '../useDebounced'
 
-export type EditorProps = {
+export type EditorProps = DefaultExtensionOptions & {
   /** Identifies the file being edited; passed back on every onSave and onDirtyChange. Defaults to 'scratchpad'. */
   fileId?: string
   /**
@@ -45,8 +45,6 @@ export type EditorProps = {
   fontSize?: number | string
   /** Line height. A number is a unitless multiplier; a string is any CSS value. Defaults to 1.15. */
   lineHeight?: number | string
-  /** Editing behaviour. Defaults to `defaultExtensions()`; pass `defaultExtensions({ lineNumbers: true })` to tune it. */
-  baseExtensions?: Extension[]
   /**
    * Fetches the snapshot for a file when no `state` is given, on mount and on
    * every fileId change. Defaults to restoring what the default `onSave` wrote
@@ -78,6 +76,8 @@ export type EditorProps = {
   onSaveDebounceDelay?: number
   /** Fires on the edges only: true on the first edit after a save, false once onSave has run. */
   onDirtyChange?: (dirty: boolean, fileId: string) => void
+  /** Called with the full document text after every edit (not on load or file switch). Use `onViewReady` for the initial text. */
+  onChange?: (doc: string) => void
   /** Called once with the EditorView so foreign consumers can drive it. */
   onViewReady?: (view: EditorView) => void
   /** Class applied to the editor's container element. Size the editor here. */
@@ -91,7 +91,9 @@ export type EditorProps = {
  */
 const FILL_CONTAINER = EditorView.theme({
   '&': { height: '100%' },
-  '.cm-scroller': { overflow: 'auto' },
+  // a visible (thin) scrollbar rather than the platform's overlay one, so a line
+  // that doesn't wrap can be seen to scroll
+  '.cm-scroller': { overflow: 'auto', scrollbarWidth: 'thin' },
 })
 
 /**
@@ -135,7 +137,6 @@ export function Editor(props: EditorProps) {
     font,
     fontSize,
     lineHeight,
-    baseExtensions,
     onLoad = loadFromLocalStorage,
     onSave = saveToLocalStorage,
     onLeave,
@@ -143,7 +144,9 @@ export function Editor(props: EditorProps) {
     onSaveDebounceDelay = 30_000,
     onDirtyChange,
     onViewReady,
+    onChange,
     className,
+    ...editing
   } = props
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -167,12 +170,13 @@ export function Editor(props: EditorProps) {
   const onLeaveRef = useLatest(onLeave ?? onSave)
   const onDirtyChangeRef = useLatest(onDirtyChange)
   const onViewReadyRef = useLatest(onViewReady)
+  const onChangeRef = useLatest(onChange)
   const autofocusRef = useLatest(autofocus)
 
-  // built once: the extension array is rebuilt per state, but an unstable
-  // default here would reconfigure the editor on every render
-  const baseRef = useRef<Extension[] | null>(null)
-  if (!baseRef.current) baseRef.current = baseExtensions ?? defaultExtensions()
+  // the editing options are the rest of the props; they are compared one by
+  // one below, so a fresh object per render does not reconfigure the editor
+  const editingRef = useLatest(editing)
+  const baseCompartment = useRef(new Compartment()).current
 
   // an explicit `state` wins; otherwise ask onLoad for the current file
   const initialState = () => stateRef.current ?? onLoadRef.current(fileIdRef.current)
@@ -207,7 +211,7 @@ export function Editor(props: EditorProps) {
   // reverting to whatever was set the first time the editor rendered.
   const makeState = (json?: SerializedState) => {
     const extensions: Extension[] = [
-      ...baseRef.current!,
+      baseCompartment.of(defaultExtensions(editingRef.current)),
       configCompartment.of(buildLanguageConfig(langRef.current, fontRef.current, fontSizeRef.current, lineHeightRef.current)),
       EditorView.updateListener.of((u) => {
         if (!u.docChanged && !u.selectionSet) return
@@ -219,6 +223,7 @@ export function Editor(props: EditorProps) {
         }
         setDirty(true)
         saver.run()
+        onChangeRef.current?.(u.state.doc.toString())
       }),
     ]
     return json
@@ -282,6 +287,13 @@ export function Editor(props: EditorProps) {
       ),
     })
   }, [language, languages, font, fontSize, lineHeight])
+
+  const { lineNumbers, foldGutter, highlightActiveLine, indentUnit, indentOnInput, tabIndents, history, search, brackets, cursorBlinkRate } = editing
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: baseCompartment.reconfigure(defaultExtensions(editingRef.current)),
+    })
+  }, [lineNumbers, foldGutter, highlightActiveLine, indentUnit, indentOnInput, tabIndents, history, search, brackets, cursorBlinkRate])
 
   return <div ref={containerRef} className={className} />
 }

@@ -1,3 +1,4 @@
+import { javascript } from '@codemirror/lang-javascript'
 import { DEFAULT_APPEARANCE } from './default/appearance'
 import { TXFLOW } from './txflow'
 import { type LanguageMap, type ResolvedLanguage } from './types'
@@ -9,14 +10,19 @@ export const DEFAULT_LANGUAGE = 'txflow'
 
 /**
  * The default language pack, used by the editor when `languages` is not given.
- * Standard code languages are added by the consumer (so the parsers stay out of
- * this bundle) and inherit the default appearance by leaving `appearance` unset:
+ * Ships txflow, plain text, and JavaScript/TypeScript (with JSX variants). Other
+ * code languages are added by the consumer (so their parsers stay out of this
+ * bundle) and inherit the default appearance by leaving `appearance` unset:
  *
  *   const LANGUAGES = { ...BUILTIN_LANGUAGES, python: { support: python() } }
  */
 export const BUILTIN_LANGUAGES: LanguageMap = {
   txflow: TXFLOW,
   text: {},
+  javascript: { support: javascript(), wrapLines: false },
+  jsx: { support: javascript({ jsx: true }), wrapLines: false },
+  typescript: { support: javascript({ typescript: true }), wrapLines: false },
+  tsx: { support: javascript({ jsx: true, typescript: true }), wrapLines: false },
 }
 
 /** Fills in the defaults for a language key, including unknown ones. */

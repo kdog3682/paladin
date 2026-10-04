@@ -19,15 +19,16 @@
   },
   "dependencies": {
     "@bklearn/shadcn": "^0.1.2",
-    "lucide-react": "^0.563.0",
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/search": "^6.7.2",
     "@codemirror/state": "^6.7.0",
     "@codemirror/view": "^6.43.5",
-    "@codemirror/language": "^6.12.4",
+    "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
-    "@codemirror/commands": "^6.10.4",
-    "@codemirror/search": "^6.7.2",
-    "@codemirror/autocomplete": "^6.20.3",
-    "@lezer/common": "^1.5.2"
+    "lucide-react": "^0.563.0"
   },
   "peerDependencies": {
     "react": "^18.0.0",

@@ -10,7 +10,7 @@ export type LanguageSpec = {
   appearance?: Extension
   /**
    * Behaviour specific to this language, eg txflow's input rules. Sits on top of
-   * the editor's `baseExtensions`, which every language gets.
+   * the editor's default extensions, which every language gets.
    */
   extensions?: Extension
   /** Soft-wrap long lines. Defaults to true. */
