@@ -1,11 +1,3 @@
-// @paladin/shadcn/scripts/build-css.ts
-//
-// compiles the package's own tailwind output to dist/styles.css, which the
-// barrel imports - so a consumer gets styles just by importing a component.
-//
-// also emits src/styles/source.css: the same graph minus the tailwind import,
-// for apps that would rather compile this package with their own build.
-
 import {join} from 'node:path'
 
 const PKG = join(import.meta.dir, '..')
@@ -29,13 +21,4 @@ const header = [
 
 await Bun.write(SOURCE, header + stripped)
 
-const proc = Bun.spawn(
-  ['bunx', '--bun', '@tailwindcss/cli', '-i', './src/styles/globals.css', '-o', './dist/styles.css', '--minify'],
-  {cwd: PKG, stdout: 'inherit', stderr: 'inherit'},
-)
-
-const code = await proc.exited
-if (code !== 0) process.exit(code)
-
-const size = Bun.file(join(PKG, 'dist', 'styles.css')).size
-console.log('css: dist/styles.css (' + Math.round(size / 1024) + 'kb) + src/styles/source.css')
+console.log('css: src/styles/source.css')

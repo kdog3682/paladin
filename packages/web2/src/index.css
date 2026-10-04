@@ -1,3 +1,4 @@
 @import "tailwindcss";
+@import "@paladin/shadcn/source.css";
 /* workspace packages that ship tailwind classes; tailwind does not scan them on its own */
 @source "../../ui/src";
