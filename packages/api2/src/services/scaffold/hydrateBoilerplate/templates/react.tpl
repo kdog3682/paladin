@@ -39,6 +39,8 @@ src/index.css
 ================================================================
 @import "tailwindcss";
 @import "@paladin/shadcn/source.css";
+@import "@paladin/ui/source.css";
+@import "@paladin/ui/source.css";
 
 ================================================================
 src/main.tsx

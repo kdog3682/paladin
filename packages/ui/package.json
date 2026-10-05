@@ -8,7 +8,8 @@
     "./CodeBlock.tsx": "./src/components/CodeBlock.tsx",
     "./TreeView": "./src/components/TreeView.tsx",
     "./TreeView.tsx": "./src/components/TreeView.tsx",
-    "./styles": "./index.css"
+    "./styles": "./index.css",
+    "./source.css": "./source.css"
   },
   "scripts": {
     "dev": "vite --open",
