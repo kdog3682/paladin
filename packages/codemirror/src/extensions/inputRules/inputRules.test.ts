@@ -165,6 +165,13 @@ describe('brackets', () => {
     expect(type('|', '9')).toBe('(|)')
   })
 
+  test('9 before an opener or quote is a bare paren', () => {
+    for (const next of ['(', '[', '{', '"', "'"]) {
+      expect(type(`|${next}x`, '9')).toBe(`(|${next}x`)
+    }
+    expect(type('|x', '9')).toBe('(|)x')
+  })
+
   test('the shifted paren key swaps back to a bare 9', () => {
     expect(type('|', '(')).toBe('9|')
   })
