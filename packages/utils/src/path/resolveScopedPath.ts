@@ -174,12 +174,13 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
  * specifier round-trips.
  * @example /base/paladin/packages/web/src/Foo.tsx -> @paladin/web/Foo.tsx
  * @example /base/paladin/packages/web/package.json -> @paladin/web/package.json
+ * @example /base/paladin/packages/web/docs/SPEC.md -> @paladin/web/SPEC.md
  * @example /base/paladin/packages/web/src/package.json -> @paladin/web/src/package.json
  */
 export function toScopedPath(input: string, opts: ResolveScopedPathOptions = {}): string {
   const {
     base = '~/projects',
-    srcDirs = ['src', 'docs', 'scripts', 'corpus'],
+    srcDirs = ['src', 'docs', 'scripts', 'corpus', 'dev'],
     packagesDir = 'packages',
     rootFiles = pkgRootFiles,
     capitalizedPrefix = '@paladin/web2/src/applets'
@@ -227,6 +228,8 @@ function toFullScopedPath(input: string, opts: ResolveScopedPathOptions): string
   const tail = (hasExplicitDir ? rest.slice(1) : rest).join('/')
 
   if (!tail) return `@${scope}/${pkg}/${dir}`
+  /* resolveScopedPath routes bare .md tails into docs/, so docs/foo.md round-trips as foo.md */
+  if (dir === 'docs' && tail.endsWith('.md') && !isPkgRootFile(tail, rootFiles)) return `@${scope}/${pkg}/${tail}`
   if (dir !== defaultDir) return `@${scope}/${pkg}/${dir}/${tail}`
   if (hasExplicitDir && isPkgRootFile(tail, rootFiles)) return `@${scope}/${pkg}/${dir}/${tail}`
   return `@${scope}/${pkg}/${tail}`
