@@ -1,5 +1,22 @@
-import { docgenPackage } from './docgen'
+import { clip } from "@paladin/utils"
+import { docgenText, docgenSymbols } from "./docgenSymbols"
 
-const target = '/home/kdog3682/projects/paladin/packages/codemod/'
+const text = `
+@mathpen/manim
 
-console.log(await docgenPackage(target, { barrel: false }))
+Markup Grid Flex Recipe
+
+
+
+
+`
+
+// const markdown = await docgenText(text, { exclude: [] })
+// console.log(markdown)
+const markdown = await docgenSymbols("@mathpen/manim", [
+    'typeset', 'paginate'
+])
+clip(markdown)
+
+
+
