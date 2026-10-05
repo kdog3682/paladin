@@ -1,10 +1,10 @@
 /** every `*.examples.ts` under the manim package, found without importing any of them */
-const SOURCES = import.meta.glob("../../../../../../mathpen/packages/manim/src/**/*.examples.ts", {
+const SOURCES = import.meta.glob("../../../../../../../mathpen/packages/manim/src/**/*.examples.ts", {
   query: "?raw",
   import: "default",
 }) as Record<string, () => Promise<string>>
 
-const MODULES = import.meta.glob("../../../../../../mathpen/packages/manim/src/**/*.examples.ts") as Record<
+const MODULES = import.meta.glob("../../../../../../../mathpen/packages/manim/src/**/*.examples.ts") as Record<
   string,
   () => Promise<Record<string, unknown>>
 >

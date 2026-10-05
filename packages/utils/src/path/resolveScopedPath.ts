@@ -29,6 +29,7 @@ export const pkgRootFiles: (string | RegExp)[] = [
   /^readme(\..+)?$/i,
   /^license(\..+)?$/i,
   /^changelog(\..+)?$/i,
+  /^(claude|agents)\.md$/i,
   /^dockerfile$/i,
   /^makefile$/i,
   /\.config\.[cm]?[jt]sx?$/ // vite.config.ts, tailwind.config.js
@@ -72,11 +73,12 @@ function splitSrcDir(tail: string, srcDirs: string[]): { dir: string; tail: stri
  * Resolve a specifier into an absolute filesystem path. Absolute and '~' paths pass through,
  * single-segment and './' paths resolve against relativeTo, everything else must be scoped
  * as '@scope/pkg/tail'. Manifest-style files (package.json, tsconfig.json, dotfiles, ...)
- * land at the package root; prefix them with a src-like dir to override. A '@Capitalized' name
+ * land at the package root; prefix them with a src-like dir to override. Other .md files
+ * land in docs/ instead of src/ (foobar.md -> docs/foobar.md). A '@Capitalized' name
  * is a shorthand for a dir under capitalizedPrefix.
  * example: @mathpen/manim -> ~/projects/mathpen/packages/manim
  * example: @mathpen/manim/package.json -> ~/projects/mathpen/packages/manim/package.json
- * example: @SymbolViewerApplet/index.ts -> ~/projects/paladin/packages/web2/src/SymbolViewerApplet/index.ts
+ * example: @ManimViewer/index.ts -> ~/projects/paladin/packages/web2/src/applets/ManimViewer/index.ts
  */
 export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions = {}): string {
   const {
@@ -85,7 +87,7 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
     srcDirs = ['src', 'docs', 'scripts', 'corpus', 'dev'],
     packagesDir = 'packages',
     rootFiles = pkgRootFiles,
-    capitalizedPrefix = '@paladin/web2/src',
+    capitalizedPrefix = '@paladin/web2/src/applets',
     aliases = {
       '@ui': '@paladin/ui',
       '@web': '@paladin/web',
@@ -95,17 +97,7 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
       '@services': '@paladin/api/services',
       paladin: '@paladin'
     },
-    routers = [
-      ({ pkg, dir, tail }) => {
-        /* inject components/ for web and ui packages */
-        if (dir !== 'src') return
-        if (!['web', 'ui'].includes(pkg)) return
-        if (tail.split('/').includes('components')) return
-        if (tail.includes('App')) return
-        if (!tail.endsWith('.tsx')) return
-        return join('components', tail)
-      }
-    ]
+    routers = []
   } = opts
 
   let raw = input.trim()
@@ -160,7 +152,9 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
 
   if (isPkgRootFile(rawTail, rootFiles)) return join(pkgDir, rawTail)
 
-  const { dir, tail: split } = splitSrcDir(rawTail, srcDirs)
+  const { dir: splitDir, tail: split } = splitSrcDir(rawTail, srcDirs)
+  /* markdown never lives in src/: it goes in docs/ (root-level ones were handled above) */
+  const dir = splitDir === 'src' && split.endsWith('.md') ? 'docs' : splitDir
   let tail = split
 
   for (const route of routers) {
@@ -187,8 +181,24 @@ export function toScopedPath(input: string, opts: ResolveScopedPathOptions = {})
     base = '~/projects',
     srcDirs = ['src', 'docs', 'scripts', 'corpus'],
     packagesDir = 'packages',
-    rootFiles = pkgRootFiles
+    rootFiles = pkgRootFiles,
+    capitalizedPrefix = '@paladin/web2/src/applets'
   } = opts
+
+  const scoped = toFullScopedPath(input, { base, srcDirs, packagesDir, rootFiles })
+  if (!capitalizedPrefix) return scoped
+
+  /* @paladin/web2/applets/ManimViewer/x.ts -> @ManimViewer/x.ts */
+  const defaultDir = srcDirs[0] ?? 'src'
+  const prefix =
+    capitalizedPrefix.replace(new RegExp(`^(@[^/]+/[^/]+)/${defaultDir}(/|$)`), '$1$2').replace(/\/?$/, '/')
+  if (!scoped.startsWith(prefix)) return scoped
+  const rest = scoped.slice(prefix.length)
+  return /^[A-Z][A-Za-z0-9]*(\/|$)/.test(rest) ? `@${rest}` : scoped
+}
+
+function toFullScopedPath(input: string, opts: ResolveScopedPathOptions): string {
+  const { base = '~/projects', srcDirs = ['src'], packagesDir = 'packages', rootFiles = pkgRootFiles } = opts
 
   const raw = input.trim()
   if (!raw) throw new Error('toScopedPath: empty path')

@@ -13,13 +13,12 @@ const cases: [input: string, expected: string][] = [
   ['@paladin', '/base/paladin'],
   ['@paladin/web', web],
   ['@paladin/packages/web', web],
-  ['@web/Foobar.tsx', `${web}/src/components/Foobar.tsx`],
+  ['@web/Foobar.tsx', `${web}/src/Foobar.tsx`],
 
-  /* dangerous*/
-  ['@paladin/web/src', `${web}/src/components`],
+  ['@paladin/web/src', `${web}/src`],
 
-  ['@paladin/web/Foo/useFoo.ts', `${web}/src/components/Foo/useFoo.ts`],
-  ['@paladin/web/src/Foo.tsx', `${web}/src/components/Foo.tsx`],
+  ['@paladin/web/Foo/useFoo.ts', `${web}/src/Foo/useFoo.ts`],
+  ['@paladin/web/src/Foo.tsx', `${web}/src/Foo.tsx`],
   ['@paladin/web/components/Foo.tsx', `${web}/src/components/Foo.tsx`],
   ['@paladin/web/src/components/Foo.tsx', `${web}/src/components/Foo.tsx`],
   ['@paladin/web/App.tsx', `${web}/src/App.tsx`],
@@ -28,22 +27,22 @@ const cases: [input: string, expected: string][] = [
   ['@paladin/web/scripts/build.ts', `${web}/scripts/build.ts`],
   ['@paladin/api/services/mail.ts', '/base/paladin/packages/api/src/services/mail.ts'],
   ['@paladin/api/src/services/mail.ts', '/base/paladin/packages/api/src/services/mail.ts'],
-  ['@other/web/Foo.tsx', '/base/other/packages/web/src/components/Foo.tsx'],
+  ['@other/web/Foo.tsx', '/base/other/packages/web/src/Foo.tsx'],
   ['  @paladin/web  ', web],
-  ['@web/Foo.tsx', `${web}/src/components/Foo.tsx`],
-  ['@ui/Button.tsx', `${web}/src/components/ui/Button.tsx`],
+  ['@web/Foo.tsx', `${web}/src/Foo.tsx`],
+  ['@ui/Button.tsx', '/base/paladin/packages/ui/src/Button.tsx'],
   ['@services/mail.ts', '/base/paladin/packages/api/src/services/mail.ts'],
-  ['@SymbolViewerApplet', '/base/paladin/packages/web2/src/SymbolViewerApplet'],
+  ['@ManimViewer', '/base/paladin/packages/web2/src/applets/ManimViewer'],
   [
-    '@SymbolViewerApplet/useSymbols.ts',
-    '/base/paladin/packages/web2/src/SymbolViewerApplet/useSymbols.ts'
+    '@ManimViewer/useManim.ts',
+    '/base/paladin/packages/web2/src/applets/ManimViewer/useManim.ts'
   ],
   [
-    '@SymbolViewerApplet/SymbolViewer.tsx',
-    '/base/paladin/packages/web2/src/SymbolViewerApplet/SymbolViewer.tsx'
+    '@ManimViewer/Viewer.tsx',
+    '/base/paladin/packages/web2/src/applets/ManimViewer/Viewer.tsx'
   ],
   ['paladin', '/base/paladin'],
-  ['paladin/web/Foo.tsx', `${web}/src/components/Foo.tsx`],
+  ['paladin/web/Foo.tsx', `${web}/src/Foo.tsx`],
   ['/etc/hosts', '/etc/hosts'],
   ['~/notes.md', join(homedir(), 'notes.md')],
   ['x.ts', `${relativeTo}/x.ts`],
@@ -82,7 +81,7 @@ const optionCases: [name: string, input: string, opts: ResolveScopedPathOptions,
       'flat layout',
       '@paladin/web/Foo.tsx',
       { base, packagesDir: null },
-      '/base/paladin/web/src/components/Foo.tsx'
+      '/base/paladin/web/src/Foo.tsx'
     ],
     [
       'custom srcDirs leave the head dir alone',
@@ -96,7 +95,7 @@ const optionCases: [name: string, input: string, opts: ResolveScopedPathOptions,
       { base, srcDirs: ['app'], routers: [] },
       `${web}/app/Foo.tsx`
     ],
-    ['no routers, no components dir', '@paladin/web/Foo.tsx', { base, routers: [] }, `${web}/src/Foo.tsx`],
+    ['no routers by default', '@paladin/web/Foo.tsx', { base, routers: [] }, `${web}/src/Foo.tsx`],
     [
       'router sees the dir-relative tail',
       '@paladin/web/src/Foo.tsx',
