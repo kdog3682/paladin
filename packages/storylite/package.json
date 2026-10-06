@@ -1,0 +1,28 @@
+{
+  "name": "@paladin/storylite",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@paladin/utils": "workspace:*",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4",
+    "puppeteer": "^24.37.5",
+    "vite": "^5.4.21"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "bin": {
+    "storylite": "src/cli.ts"
+  }
+}

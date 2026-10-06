@@ -1,0 +1,45 @@
+/* the chrome around the canvas. every class is `sl-` prefixed and sets its own colours,
+   since the project's global styles (tailwind's preflight, a body background) apply to this page too */
+.sl-app { display: grid; grid-template-columns: 280px minmax(0, 1fr); height: 100vh; font: 13px/1.4 system-ui, sans-serif; color: #18181b; }
+.sl-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #e4e4e7; background: #fafafa; }
+.sl-head { padding: 12px; border-bottom: 1px solid #e4e4e7; display: flex; align-items: center; gap: 8px; }
+.sl-head b { font: 600 13px ui-monospace, monospace; flex: 1; }
+.sl-btn { font: 12px system-ui, sans-serif; padding: 3px 10px; border: 1px solid #d4d4d8; border-radius: 6px; background: #fff; color: #18181b; cursor: pointer; }
+.sl-btn:hover { background: #f4f4f5; }
+.sl-summary { padding: 8px 12px; border-bottom: 1px solid #e4e4e7; font: 12px ui-monospace, monospace; display: flex; gap: 12px; }
+.sl-tree { overflow: auto; padding: 8px 0; flex: 1; }
+.sl-group { padding: 8px 12px 2px; font: 600 11px ui-monospace, monospace; color: #71717a; text-transform: none; word-break: break-all; }
+.sl-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 3px 12px 3px 20px; border: 0; background: none; text-align: left; font: 13px system-ui, sans-serif; color: #18181b; cursor: pointer; }
+.sl-row:hover { background: #f0f0f2; }
+.sl-row[aria-current="true"] { background: #18181b; color: #fff; }
+.sl-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #d4d4d8; }
+.sl-dot[data-status="pass"] { background: #16a34a; }
+.sl-dot[data-status="fail"] { background: #dc2626; }
+.sl-dot[data-status="running"] { background: #ca8a04; }
+.sl-main { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; min-height: 0; background: #fff; }
+.sl-bar { padding: 8px 16px; border-bottom: 1px solid #e4e4e7; display: flex; align-items: center; gap: 12px; font: 12px ui-monospace, monospace; }
+.sl-bar span { color: #71717a; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-bar strong { flex: none; }
+.sl-canvas { overflow: auto; padding: 16px; min-height: 0; }
+.sl-panel { border-top: 1px solid #e4e4e7; max-height: 40vh; overflow: auto; padding: 8px 16px 12px; font: 12px ui-monospace, monospace; background: #fafafa; }
+.sl-panel h3 { margin: 0 0 6px; font: 600 12px ui-monospace, monospace; }
+.sl-panel h3[data-status="pass"] { color: #15803d; }
+.sl-panel h3[data-status="fail"] { color: #b91c1c; }
+.sl-step { display: flex; gap: 8px; padding: 1px 0; }
+.sl-step[data-status="pass"] { color: #15803d; }
+.sl-step[data-status="fail"] { color: #b91c1c; }
+.sl-error { margin: 6px 0 0; padding: 8px; border-radius: 6px; background: #fef2f2; color: #991b1b; white-space: pre-wrap; word-break: break-word; font: 12px ui-monospace, monospace; }
+.sl-muted { color: #71717a; padding: 12px; }
+/* the stage background runs live in. same width as a real canvas so layout-dependent stories behave */
+.sl-stage { position: fixed; left: -10000px; top: 0; width: 900px; }
+
+.sl-step { display: flex; gap: 8px; align-items: baseline; }
+.sl-step[data-status="idle"] { opacity: 0.55; }
+.sl-step[data-status="running"] { background: rgba(245, 158, 11, 0.15); }
+.sl-desc { display: block; font-size: 11px; opacity: 0.7; font-family: system-ui, sans-serif; }
+.sl-fail { color: #b91c1c; opacity: 1; }
+.sl-play { margin-left: 8px; }
+.sl-busy { padding: 8px 12px; }
+
+/* portalled dialogs during a run-all: invisible but still there, since hidden elements can't take focus */
+body.sl-running > :not(#root) { opacity: 0 !important; }
