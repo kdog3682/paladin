@@ -1,11 +1,11 @@
 import puppeteer, { type Page } from "puppeteer"
 import { parseCombo } from "./keys"
-import type { Action } from "./actions"
+import type { Check, Step } from "./actions"
 import { PREVIEW_MAX_LINES, readOutline } from "./preview"
 
 export type ProbeOpts = {
   url: string
-  actions?: Action[]
+  actions?: Step[]
   /** how long `expect` waits for its selector. @default 2000 */
   timeout?: number
   /** also capture a compact outline of the page after the actions have run */
@@ -85,7 +85,7 @@ async function readText(page: Page, sel: string) {
     els.map((el) => ((el as HTMLElement).innerText ?? el.textContent ?? "").trim().replace(/\s+/g, " ")),
   )
   if (!texts.length) throw new Error(`${sel} matched nothing`)
-  return clip(texts.join(" | "), 400)
+  return texts.join(" | ")
 }
 
 const STYLE_DEFAULTS = [
@@ -181,12 +181,24 @@ async function awaitReload(page: Page, ms: number) {
 }
 
 /** runs one action, records it in `out`, and rethrows on failure so the caller can skip the rest */
-async function runAction(page: Page, action: Action, timeout: number, out: ActionResult[]) {
+/** the first assertion the value breaks, as a message; undefined when it holds */
+function failedCheck(value: string, check: Check) {
+  if (check.equals !== undefined && value !== String(check.equals))
+    return `expected ${JSON.stringify(String(check.equals))}, got ${JSON.stringify(clip(value, 200))}`
+  if (check.contains !== undefined && !value.includes(check.contains))
+    return `expected to contain ${JSON.stringify(check.contains)}, got ${JSON.stringify(clip(value, 200))}`
+  if (check.matches !== undefined && !new RegExp(check.matches).test(value))
+    return `expected to match /${check.matches}/, got ${JSON.stringify(clip(value, 200))}`
+}
+
+async function runAction(page: Page, action: Step, timeout: number, out: ActionResult[]) {
   const did = async (label: string, fn: () => Promise<string | void>, settle = false) => {
     try {
-      const detail = (await fn()) || undefined
+      const value = (await fn()) || undefined
       if (settle) await sleep(ACTION_SLEEP)
-      out.push({ label, status: "ok", detail })
+      const broken = value === undefined ? undefined : failedCheck(value, action)
+      if (broken) throw new Error(broken)
+      out.push({ label, status: "ok", detail: value === undefined ? undefined : clip(value, 600) })
     } catch (e) {
       out.push({ label, status: "fail", detail: (e as Error).message })
       throw e
@@ -197,6 +209,12 @@ async function runAction(page: Page, action: Action, timeout: number, out: Actio
   if ("type" in action)
     return did(`type ${JSON.stringify(action.type)}`, () => page.keyboard.type(action.type), true)
   if ("keypress" in action) return did(`keypress ${action.keypress}`, () => press(page, action.keypress), true)
+  if ("hash" in action)
+    return did(
+      `hash #${action.hash}`,
+      () => page.evaluate((h) => void (location.hash = h), action.hash),
+      true,
+    )
   if ("sleep" in action) return did(`sleep ${action.sleep}ms`, () => sleep(action.sleep))
   if ("expect" in action) return did(`expect ${action.expect}`, () => expectSelector(page, action.expect, timeout))
   if ("text" in action) return did(`text ${action.text}`, () => readText(page, action.text))
@@ -206,7 +224,7 @@ async function runAction(page: Page, action: Action, timeout: number, out: Actio
   if ("eval" in action)
     return did(`eval ${clip(action.eval)}`, async () => {
       const r = await page.evaluate(`(async () => (${action.eval}))()`)
-      return r === undefined ? "undefined" : clip(typeof r === "string" ? r : JSON.stringify(r), 400)
+      return r === undefined ? "undefined" : typeof r === "string" ? r : JSON.stringify(r)
     })
   if ("screenshot" in action)
     return did(

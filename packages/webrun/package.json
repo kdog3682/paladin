@@ -13,7 +13,8 @@
   "dependencies": {
     "@paladin/commands": "workspace:*",
     "@paladin/utils": "workspace:*",
-    "puppeteer": "^24.37.5"
+    "puppeteer": "^24.37.5",
+    "yaml": "^2.9.1"
   },
   "bin": {
     "webrun": "src/cli.ts"

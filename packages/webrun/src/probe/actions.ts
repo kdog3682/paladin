@@ -49,6 +49,12 @@ export const ACTIONS = {
     parse: int({ min: 0 }),
     help: "wait (clicks, types and keypresses already wait 300ms)",
   },
+  hash: {
+    seq: true,
+    arg: "name",
+    eg: "pickerExample",
+    help: "go to #name: picks an example in a name.examples.tsx gallery",
+  },
   screenshot: { seq: true, arg: "path", eg: "/tmp/shot.png", help: "save a screenshot" },
 } as const satisfies Record<string, Kwarg>
 
@@ -56,5 +62,20 @@ export type ActionKey = keyof typeof ACTIONS
 
 /** one action, as a single-key object: `{click: "..."}`, `{sleep: 500}` */
 export type Action = SeqItem<typeof ACTIONS>
+
+/**
+ * what a step in a script may assert about the value its action produced
+ * (eval's result, the joined text of `text`, the detail of `expect`), all compared as strings
+ */
+export type Check = {
+  equals?: string | number | boolean
+  contains?: string
+  matches?: string
+}
+
+/** an action plus optional assertions, which is what a yaml script step is */
+export type Step = Action & Check
+
+export const CHECK_KEYS = ["equals", "contains", "matches"] as const satisfies (keyof Check)[]
 
 export const ACTION_KEYS = Object.keys(ACTIONS) as ActionKey[]

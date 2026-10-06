@@ -58,7 +58,7 @@ filename, `--no-open` skips the browser.
 
 ## Examples files
 
-`<name>.examples.tsx` renders each exported function as a card, in source order:
+`<name>.examples.tsx` renders one exported function at a time, with a clickable index of all of them in source order (`#<name>` picks one, default the first):
 
 ```tsx
 export function primary() { return <Button>Save</Button> }

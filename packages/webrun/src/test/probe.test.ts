@@ -140,3 +140,26 @@ describe("probe", () => {
     expect(r.actions[1].status).toBe("skipped")
   }, 30_000)
 })
+
+describe("probe checks", () => {
+  test("equals, contains and matches fail with expected vs got", async () => {
+    const url = page(`<p id="a">hello world</p>`)
+    const r = await probe({
+      url,
+      actions: [
+        { text: "#a", contains: "world" },
+        { text: "#a", matches: "^hello" },
+        { eval: "1 + 1", equals: 2 },
+        { text: "#a", equals: "nope" },
+        { sleep: 1 },
+      ],
+    })
+    expect(r.actions.map((a) => a.status)).toEqual(["ok", "ok", "ok", "fail", "skipped"])
+    expect(r.actions[3]!.detail).toContain('expected "nope", got "hello world"')
+  })
+
+  test("hash action sets the location hash", async () => {
+    const r = await probe({ url: page("<p>x</p>"), actions: [{ hash: "foo" }, { eval: "location.hash", equals: "#foo" }] })
+    expect(r.ok).toBe(true)
+  })
+})

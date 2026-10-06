@@ -41,11 +41,11 @@ function Run({ name }: { name: string }) {
   return <pre style={{ margin: 0 }}>{JSON.stringify(out, null, 2)}</pre>
 }
 
-function Example({ name, solo }: { name: string; solo: boolean }) {
+function Example({ name }: { name: string }) {
   return (
     <section data-example={name} style={{ border: "1px solid #d4d4d8", borderRadius: 8, marginBottom: 16 }}>
       <header style={{ padding: "6px 12px", borderBottom: "1px solid #e4e4e7", fontFamily: "ui-monospace, monospace", fontSize: 13 }}>
-        {solo ? name : <a href={"#" + encodeURIComponent(name)}>{name}</a>}
+        {name}
       </header>
       <div style={{ padding: 12 }}>
         <Boundary key={name}>
@@ -64,18 +64,36 @@ function Gallery() {
     return () => removeEventListener("hashchange", sync)
   }, [])
 
-  const solo = names.includes(picked) ? picked : null
+  // one example at a time: several mounted together would fight over global
+  // listeners (hotkeys, focus). no valid #name falls back to the first.
+  const current = names.includes(picked) ? picked : names[0]
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: 16, fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: 14, fontFamily: "ui-monospace, monospace", margin: "0 0 16px" }}>
+      <h1 style={{ fontSize: 14, fontFamily: "ui-monospace, monospace", margin: "0 0 8px" }}>
         {"{{title}}"} · {names.length} example{names.length === 1 ? "" : "s"}
-        {solo && <> · <a href="#">all</a></>}
       </h1>
-      <p style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: "#888", margin: "-12px 0 16px" }}>{"{{dir}}"}</p>
+      <p style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: "#888", margin: "0 0 8px" }}>{"{{dir}}"}</p>
+      <nav data-index style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "0 0 16px", fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+        {names.map((name) => (
+          <a
+            key={name}
+            href={"#" + encodeURIComponent(name)}
+            aria-current={name === current ? "page" : undefined}
+            style={{
+              padding: "2px 8px",
+              borderRadius: 999,
+              border: "1px solid #d4d4d8",
+              textDecoration: "none",
+              color: name === current ? "#fff" : "inherit",
+              background: name === current ? "#18181b" : "transparent",
+            }}
+          >
+            {name}
+          </a>
+        ))}
+      </nav>
       {names.length === 0 && <p>no exported functions in {"{{title}}"}</p>}
-      {(solo ? [solo] : names).map((name) => (
-        <Example key={name} name={name} solo={solo !== null} />
-      ))}
+      {current && <Example key={current} name={current} />}
     </main>
   )
 }
