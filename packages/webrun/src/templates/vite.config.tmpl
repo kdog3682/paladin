@@ -99,6 +99,11 @@ export default defineConfig(async (env) => {
       host: "127.0.0.1",
       open: false,
       fs: { allow: {{allow}} },
+      // every api2 route lives under /api, so one entry covers the lot. their own
+      // /api entry wins, and WEBRUN_API repoints it
+      proxy: base.server?.proxy?.["/api"]
+        ? {}
+        : { "/api": { target: process.env.WEBRUN_API ?? "http://127.0.0.1:3000", changeOrigin: true } },
     },
   })
 })

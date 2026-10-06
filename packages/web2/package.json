@@ -10,16 +10,18 @@
   },
   "dependencies": {
     "@bklearn/shadcn": "^0.1.2",
+    "@codemirror/view": "^6.43.5",
+    "@paladin/codemirror": "workspace:*",
+    "@paladin/shadcn": "workspace:*",
+    "@paladin/ui": "workspace:*",
+    "@tanstack/react-query": "^5.104.0",
+    "lucide-react": "^0.563.0",
     "react": "^18",
     "react-dom": "^18",
-    "zustand": "^5",
-    "@paladin/codemirror": "workspace:*",
-    "@paladin/ui": "workspace:*",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.8",
-    "@codemirror/view": "^6.43.5",
-    "@paladin/shadcn": "workspace:*",
-    "@tanstack/react-query": "^5.104.0",
-    "lucide-react": "^0.563.0"
+    "zustand": "^5"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.0.10",
