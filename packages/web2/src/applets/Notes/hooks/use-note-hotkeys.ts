@@ -15,6 +15,37 @@ export type UseNoteHotkeysOpts = {
   enabled?: boolean
 }
 
+/* the editor only reports on a debounce, so sync it before reading notes */
+const syncEditor = () => {
+  const { activeId, setContent } = useNotes.getState()
+  const view = useEditorStore.getState().view
+  if (activeId && view) setContent(activeId, readDoc(view))
+}
+
+const exportNotes = () => {
+  syncEditor()
+  const { notes, bookmarks } = useNotes.getState()
+  downloadJson('notes.json', { version: 1, notes, bookmarks })
+  toast(`exported ${notes.length} notes`)
+}
+
+const importNotes = () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'application/json,.json'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const n = useNotes.getState().importNotes(JSON.parse(await file.text()))
+      toast(`imported ${n} notes`)
+    } catch (err) {
+      toast(`could not import: ${(err as Error).message}`)
+    }
+  }
+  input.click()
+}
+
 const activeNote = () => {
   const s = useNotes.getState()
   return s.notes.find(n => n.id === s.activeId)
@@ -38,7 +69,11 @@ export const useNoteHotkeys = ({ onSearch, onHelp, enabled = true }: UseNoteHotk
         useNotes.getState().setStatus(note.id, 'deleted')
         toast(`deleted ${noteTitle(note)}`)
       },
-      'alt+e': () => downloadJson('notes.json', useNotes.getState().notes),
+      'alt+e': exportNotes,
+      'cmd+e': exportNotes,
+      'ctrl+e': exportNotes,
+      'cmd+o': importNotes,
+      'ctrl+o': importNotes,
       'alt+c': async () => {
         const note = activeNote()
         if (!note) return

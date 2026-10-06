@@ -23,6 +23,7 @@ import {
   indentUnit,
 } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
+import { tabCompletion } from './extensions/autotab'
 import { bracketIndent } from './extensions/bracketIndent'
 import { exportTextBeneathCursor } from './extensions/exportText'
 import { inoremap } from './extensions/inoremap'
@@ -127,6 +128,7 @@ export function defaultExtensions(
 
   return [
     EDITING,
+    Prec.highest(tabCompletion()),
     codeFolding(),
     indentUnit.of(indent),
     drawSelection({ cursorBlinkRate }),

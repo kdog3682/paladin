@@ -8,3 +8,5 @@
   - `src/services/scaffold/apply.ts` and `ops.ts`: how the runner's `bash` ops are merged, ordered (`BASH_ORDER`) and executed.
   - `src/services/scaffold/print.ts`: reads example runs off `result.data` (only `<BASH>` payloads; plain stdout is never scanned for paths).
   - `docs/runners/recast-spec.md`: the recast-spec runner.
+
+- Current focus: @WHEREAMI.md. When told "finished", remove that entry from `WHEREAMI.md`.

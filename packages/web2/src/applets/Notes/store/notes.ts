@@ -22,6 +22,8 @@ export type NotesState = {
   step: (dir: 1 | -1) => void
   bookmark: (slot: BookmarkSlot, id?: string) => void
   jump: (slot: BookmarkSlot) => boolean
+  /* merge notes (and bookmarks) from an export; per id, the newer updatedAt wins. returns how many notes were added or updated */
+  importNotes: (data: unknown) => number
   /* guarantees at least one active note and a valid activeId */
   ensure: () => void
 }
@@ -31,6 +33,24 @@ const touch = (note: Note, patch: Partial<Note>): Note => ({
   ...patch,
   updatedAt: new Date().toISOString(),
 })
+
+/* an export is { notes, bookmarks }; a bare array of notes is accepted too */
+export const parseNotesExport = (data: unknown): { notes: Note[]; bookmarks: NotesState['bookmarks'] } => {
+  const raw = Array.isArray(data) ? { notes: data } : (data as { notes?: unknown; bookmarks?: unknown })
+  if (!raw || !Array.isArray(raw.notes)) throw new Error('not a notes export')
+  const now = new Date().toISOString()
+  const notes = raw.notes
+    .filter((n): n is Partial<Note> => !!n && typeof n === 'object' && typeof (n as Note).id === 'string')
+    .map(n => ({
+      ...newNote(),
+      createdAt: now,
+      updatedAt: now,
+      ...n,
+      content: typeof n.content === 'string' ? n.content : '',
+    }))
+  const bookmarks = (raw as { bookmarks?: NotesState['bookmarks'] }).bookmarks ?? {}
+  return { notes, bookmarks }
+}
 
 const first = newNote()
 
@@ -98,6 +118,23 @@ export const useNotes = create<NotesState>()(
             : s.notes.map(n => (n.id === note.id ? touch(n, { status: 'active' }) : n)),
         })
         return true
+      },
+
+      importNotes: data => {
+        const incoming = parseNotesExport(data)
+        let changed = 0
+        set(s => {
+          const byId = new Map(s.notes.map(n => [n.id, n]))
+          for (const n of incoming.notes) {
+            const cur = byId.get(n.id)
+            if (cur && cur.updatedAt >= n.updatedAt) continue
+            byId.set(n.id, n)
+            changed++
+          }
+          return { notes: [...byId.values()], bookmarks: { ...incoming.bookmarks, ...s.bookmarks } }
+        })
+        get().ensure()
+        return changed
       },
 
       ensure: () =>
