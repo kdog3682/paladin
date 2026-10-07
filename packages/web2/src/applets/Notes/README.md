@@ -8,9 +8,10 @@ Local-first notes app (CodeMirror editor, zustand store persisted to `localStora
 
 ## Keys
 
-- alt+n new, alt+r rename, alt+d delete, alt+c copy
+- alt+n new, alt+r rename, alt+d delete, alt+c copy the current block (heading to the next same-or-higher heading, first line without its `#`s)
 - cmd/ctrl+e (or alt+e) export `notes.json`; cmd/ctrl+o import it
-- cmd/ctrl+k or alt+f search, alt+up/down step, alt+1-0 jump to bookmark, alt+shift+1-0 set it
+- cmd/ctrl+k or alt+f search, alt+up/down step
+- vim normal mode: `e1`-`e0` jump to bookmark, `m1`-`m0` set it (so `e` is no longer word-end), `zf` toggle fold
 - cmd/ctrl+/ help
 
 ## Build

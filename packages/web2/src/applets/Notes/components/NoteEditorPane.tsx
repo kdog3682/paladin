@@ -2,6 +2,7 @@ import { Editor } from '@paladin/codemirror'
 import { cn } from '@paladin/shadcn'
 import { useNotes, useActiveNote } from '../store/notes'
 import { useEditorStore } from '../store/editor'
+import { NOTE_VIM_COMMANDS } from '../lib/vim'
 
 /* the Editor owns loading and saving; both ends are the notes store rather
    than its localStorage default, so nothing is persisted twice. */
@@ -31,6 +32,7 @@ export const NoteEditorPane = ({ className }: NoteEditorPaneProps) => {
       onLeave={save}
       onViewReady={setView}
       font="inconsolata"
+      vimCommands={NOTE_VIM_COMMANDS}
       className={cn('min-w-0 flex-1 px-10 py-8', className)}
     />
   )

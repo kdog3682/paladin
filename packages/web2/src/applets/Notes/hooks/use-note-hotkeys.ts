@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { toast } from '@paladin/shadcn'
 import { downloadJson, useClipboard, useHotkeys, type HotkeyMap } from '@paladin/ui'
-import { BOOKMARK_SLOTS, useNotes } from '../store/notes'
+import { headingBlockAt } from '@paladin/codemirror'
+import { useNotes } from '../store/notes'
 import { useEditorStore } from '../store/editor'
 import { focusTitle, readDoc } from '../lib/editor'
 import { noteTitle } from '../lib/note'
@@ -75,9 +76,11 @@ export const useNoteHotkeys = ({ onSearch, onHelp, enabled = true }: UseNoteHotk
       'cmd+o': importNotes,
       'ctrl+o': importNotes,
       'alt+c': async () => {
-        const note = activeNote()
-        if (!note) return
-        toast((await copy(readDoc(useEditorStore.getState().view) || note.content)) ? 'copied to clipboard' : 'could not reach the clipboard')
+        const view = useEditorStore.getState().view
+        const block = view && headingBlockAt(view.state, view.state.selection.main.head)
+        if (!block) return toast('nothing to copy')
+        const lines = `${block.lines} ${block.lines === 1 ? 'line' : 'lines'}`
+        toast((await copy(block.text)) ? `copied ${lines}` : 'could not reach the clipboard')
       },
       'alt+f': onSearch,
       'cmd+Slash': onHelp,
@@ -86,18 +89,6 @@ export const useNoteHotkeys = ({ onSearch, onHelp, enabled = true }: UseNoteHotk
       'ctrl+k': onSearch,
       'alt+ArrowUp': () => useNotes.getState().step(-1),
       'alt+ArrowDown': () => useNotes.getState().step(1),
-    }
-
-    for (const slot of BOOKMARK_SLOTS) {
-      m[`alt+shift+${slot}`] = () => {
-        const note = activeNote()
-        if (!note) return
-        useNotes.getState().bookmark(slot)
-        toast(`bookmark ${slot} → ${noteTitle(note)}`)
-      }
-      m[`alt+${slot}`] = () => {
-        if (!useNotes.getState().jump(slot)) toast(`bookmark ${slot} is empty`)
-      }
     }
 
     return m
