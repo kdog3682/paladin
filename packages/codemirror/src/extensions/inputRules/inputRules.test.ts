@@ -22,6 +22,11 @@ function type(spec: string, keys: string, cfg: ResolvedConfig = config): string 
 }
 
 describe('swaps', () => {
+  test('[ at a line start opens a checked box', () => {
+    expect(type('|', '[')).toBe('[✓] |')
+    expect(type('- |', '[')).toBe('- [✓] |')
+  })
+
   test('translate the character before anything else sees it', () => {
     expect(type('|', '4')).toBe('$|')
     expect(type('|', '$')).toBe('4|')

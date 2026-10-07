@@ -34,8 +34,8 @@ export type ListPrefix = LinePrefix & {
   next: string
 }
 
-/* `1. ` / `1) `, or a checklist box `[ ] ` / `[x] ` / `[] ` with an optional `- ` or `* ` bullet */
-const LIST_RE = /^(?:(\d+)([.)]) |([-*] )?\[([ xX]?)\] )/
+/* `1. ` / `1) `, or a checklist box `[ ] ` / `[x] ` / `[✓] ` / `[✗] ` / `[] ` with an optional `- ` or `* ` bullet */
+const LIST_RE = /^(?:(\d+)([.)]) |([-*] )?\[([ xX✓✗]?)\] )/
 
 /** like {@link parseLinePrefix}, but numbered and checklist items count as markers
  * too. the next line's marker bumps the number and clears the box */
@@ -50,7 +50,7 @@ export function parseListPrefix(text: string): ListPrefix {
   const [marker, num, delim, bullet = '', box] = list
   const next = num !== undefined
     ? `${Number(num) + 1}${delim} `
-    : `${bullet}[${box ? ' ' : ''}] `
+    : `${bullet}[${box === '✓' || box === '✗' ? '✓' : box ? ' ' : ''}] `
   return { indent, marker, rest: body.slice(marker.length), next }
 }
 

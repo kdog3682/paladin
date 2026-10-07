@@ -17,7 +17,7 @@ export { notIn, onlyIn, atLineEnd } from './guards'
 export type { InputRule, Insert, RuleContext, RuleResult, WrapSpec, ResolvedWrap } from './types'
 
 export { punctuationSwaps, punctuationRules, punctuationAbbrevSource } from './presets/punctuation'
-export { markdownRules, dashRules, headingRules, HORIZONTAL_RULE } from './presets/markdown'
+export { markdownRules, dashRules, headingRules, checkboxRules, HORIZONTAL_RULE } from './presets/markdown'
 export { bracketWraps, bracketRules } from './presets/brackets'
 export { codeRules, codeWraps, codeTemplateSource } from './presets/code'
 export { snippetRules, snippetSource, today, type Snippet } from './presets/snippets'

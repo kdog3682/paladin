@@ -87,6 +87,9 @@ const cycleWordText = (word: string, dir: 1 | -1, lookup: Map<string, string[]>)
   return matchCase(word, group[(i + dir + group.length) % group.length])
 }
 
+/* a checklist box at the line start: only the two marks flip, `[✓]` <-> `[✗]` */
+const BOX = /^[ \t]*(?:[-*] )?\[([✓✗])\]/
+
 /** find the first cyclable token under or after col and compute its replacement */
 export const cycleToken = (
   text: string,
@@ -94,6 +97,11 @@ export const cycleToken = (
   dir: 1 | -1 = 1,
   cycles: string[][] = DEFAULT_CYCLES,
 ): CycleToken | null => {
+  const box = BOX.exec(text)
+  if (box && box[0].length > col) {
+    const to = box[0].length - 1
+    return { from: to - 1, to, insert: box[1] === '✓' ? '✗' : '✓' }
+  }
   const lookup = lookupFor(cycles)
   for (const m of text.matchAll(TOKEN)) {
     const from = m.index!

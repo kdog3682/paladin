@@ -61,3 +61,14 @@ describe('incrementNumber', () => {
     expect(incrementNumber(true, '0.1', 1)).toBe('0.0')
   })
 })
+
+describe('checklist boxes', () => {
+  test('the mark flips between check and cross', () => {
+    expect(cycleToken('[✓] foo', 0)).toEqual({ from: 1, to: 2, insert: '✗' })
+    expect(cycleToken('- [✗] foo', 0)).toEqual({ from: 3, to: 4, insert: '✓' })
+  })
+
+  test('past the box the words cycle as usual', () => {
+    expect(cycle('[✓] width', 5)).toBe('height')
+  })
+})

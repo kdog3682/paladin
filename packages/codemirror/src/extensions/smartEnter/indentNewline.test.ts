@@ -15,6 +15,8 @@ describe('insertIndentedNewline', () => {
     expect(enter('[x] foo|')).toBe('[x] foo\n[ ] |')
     expect(enter('[] foo|')).toBe('[] foo\n[] |')
     expect(enter('- [x] foo|')).toBe('- [x] foo\n- [ ] |')
+    expect(enter('[✓] foo|')).toBe('[✓] foo\n[✓] |')
+    expect(enter('[✗] foo|')).toBe('[✗] foo\n[✓] |')
   })
 
   test('an empty item drops its marker', () => {

@@ -41,4 +41,14 @@ export const headingRules: InputRule[] = [
   { on: '3', before: /^$/, insert: '## ' },
 ]
 
-export const markdownRules: InputRule[] = [...dashRules, ...headingRules]
+/* '[' at a line start (after an optional bullet) opens a checked box, ready for its text */
+export const checkboxRules: InputRule[] = [
+  {
+    on: '[',
+    before: /^([ \t]*(?:[-*] )?)$/,
+    after: /^\s*$/,
+    insert: (m) => m[1] + '[✓] ',
+  },
+]
+
+export const markdownRules: InputRule[] = [...dashRules, ...headingRules, ...checkboxRules]
