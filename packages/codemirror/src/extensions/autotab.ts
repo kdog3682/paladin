@@ -9,7 +9,7 @@ import {
   currentCompletions,
 } from '@codemirror/autocomplete'
 import type { CompletionContext, Completion } from '@codemirror/autocomplete'
-import type { Extension } from '@codemirror/state'
+import type { EditorState, Extension } from '@codemirror/state'
 
 function isPascal(w: string): boolean {
   return /^[A-Z][a-z]/.test(w)
@@ -64,18 +64,31 @@ function getMatchType(word: string, prefix: string): MatchType | null {
   return null
 }
 
-function getViewportCompletions(view: EditorView, prefix: string): Completion[] {
-  const text = view.visibleRanges
-    .map(r => view.state.doc.sliceString(r.from, r.to))
-    .join(' ')
+type Candidate = { word: string; distance: number }
 
-  const words = text.match(/[a-zA-Z][\w]*(?:-[a-zA-Z][\w]*)*/g) ?? []
-  const unique = [...new Set(words)]
+/** every distinct word in the viewport with its distance (in characters) to the cursor */
+function viewportWords(view: EditorView): Candidate[] {
+  const head = view.state.selection.main.head
+  const best = new Map<string, number>()
+  for (const r of view.visibleRanges) {
+    const text = view.state.doc.sliceString(r.from, r.to)
+    for (const m of text.matchAll(/[a-zA-Z][\w]*(?:-[a-zA-Z][\w]*)*/g)) {
+      const at = r.from + m.index!
+      const distance = at > head ? at - head : head - (at + m[0].length)
+      const prev = best.get(m[0])
+      if (prev === undefined || Math.abs(distance) < prev) best.set(m[0], Math.abs(distance))
+    }
+  }
+  return [...best].map(([word, distance]) => ({ word, distance }))
+}
+
+function getViewportCompletions(view: EditorView, prefix: string): Completion[] {
+  const words = viewportWords(view)
 
   type Match = { label: string; priority: number }
   const matches: Match[] = []
 
-  for (const word of unique) {
+  for (const { word } of words) {
     if (word.length < 5) continue
     if (!hasStructure(word) && word.length < 10) continue
 
@@ -85,8 +98,59 @@ function getViewportCompletions(view: EditorView, prefix: string): Completion[] 
     matches.push({ label: word, priority: MATCH_PRIORITY[mt] })
   }
 
-  matches.sort((a, b) => a.priority - b.priority || a.label.length - b.label.length)
-  return matches.map(m => ({ label: m.label }))
+  if (matches.length > 0) {
+    matches.sort((a, b) => a.priority - b.priority || a.label.length - b.label.length)
+    return matches.map(m => ({ label: m.label }))
+  }
+
+  // nothing structured matched: fall back to any longish plain word that starts with the
+  // prefix (`r` / `ret` -> retrieve), nearest to the cursor first
+  return words
+    .filter(({ word }) => word.length >= 5 && word.toLowerCase() !== prefix && word.toLowerCase().startsWith(prefix))
+    .sort((a, b) => a.distance - b.distance || a.word.length - b.word.length)
+    .map(({ word }) => ({ label: word }))
+}
+
+/** the tooltip: compact, rounded, with the 1-9 quick-pick digit in front of each option */
+const completionTheme = EditorView.theme({
+  '.cm-tooltip.cm-tooltip-autocomplete': {
+    backgroundColor: '#ffffff',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+    padding: '2px',
+    overflow: 'hidden',
+  },
+  '.cm-tooltip-autocomplete > ul': {
+    fontFamily: 'inherit',
+    maxHeight: '12em',
+  },
+  '.cm-tooltip-autocomplete > ul > li': {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '8px',
+    padding: '1px 8px 1px 6px',
+    borderRadius: '4px',
+    color: '#111827',
+  },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+    backgroundColor: '#dbeafe',
+    color: '#111827',
+  },
+  '.cm-completionIcon': { display: 'none' },
+  '.cm-completionMatchedText': { textDecoration: 'none', fontWeight: '600' },
+  '.cm-completionIndex': { color: '#9ca3af', fontSize: '0.85em', minWidth: '1ch', textAlign: 'right' },
+})
+
+const indexOption = {
+  position: 10,
+  render(completion: Completion, state: EditorState) {
+    const el = document.createElement('span')
+    el.className = 'cm-completionIndex'
+    const i = currentCompletions(state).indexOf(completion)
+    el.textContent = i >= 0 && i < 9 ? String(i + 1) : ''
+    return el
+  },
 }
 
 export function tabCompletion(): Extension {
@@ -156,7 +220,10 @@ export function tabCompletion(): Extension {
       override: [source],
       activateOnTyping: false,
       defaultKeymap: false,
+      icons: false,
+      addToOptions: [indexOption],
     }),
+    completionTheme,
     EditorView.updateListener.of(update => {
       currentView = update.view
     }),
