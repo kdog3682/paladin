@@ -12,6 +12,8 @@ export {
   jump,
   NORMAL_COMMANDS,
   normalCommands,
+  type NormalCommand,
+  type NormalCommands,
   VISUAL_COMMANDS,
   visualCommands,
 } from './commands'

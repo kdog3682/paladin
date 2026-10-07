@@ -6,3 +6,5 @@ export { type SerializedState, serializeEditorState } from './state'
 // FONT_STACKS is here so a settings UI can enumerate the choices; FontKey alone
 // is a type and disappears at runtime
 export { FONT_STACKS, type FontKey } from './fonts'
+export { headingBlockAt, type HeadingBlock } from './extensions/headingFold'
+export { type NormalCommand, type NormalCommands } from './extensions/vim'

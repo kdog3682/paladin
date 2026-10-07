@@ -38,7 +38,7 @@ import {
 import { executeSmartEnter } from './extensions/smartEnter'
 import { handleSmartPaste } from './extensions/smartPaste'
 import { toggleIndentedBlockComment, toggleIndentedLineComment } from './extensions/toggleComment'
-import { cycleWord, insertCommand, vim } from './extensions/vim'
+import { cycleWord, insertCommand, vim, type NormalCommands } from './extensions/vim'
 
 const toggleBlockComment = toggleIndentedBlockComment()
 
@@ -49,13 +49,14 @@ const toggleBlockComment = toggleIndentedBlockComment()
  * enter, indent-aware comment toggling, export / cut below the cursor, and
  * reflowing paste.
  */
-const EDITING: Extension = [
+const editing = (vimCommands: NormalCommands = {}): Extension => [
   vim({
     commands: {
       'Space': cycleWord(),
       'Shift-Space': cycleWord({ dir: -1 }),
       'q w': insertCommand(executeNewlineIndent),
       'q e': insertCommand(executeNewlineDedent),
+      ...vimCommands,
     },
   }),
   inputRules(baseInputRules),
@@ -80,6 +81,8 @@ const EDITING: Extension = [
 ]
 
 export type DefaultExtensionOptions = {
+  /** Extra normal-mode bindings merged over the defaults (null removes one). Hoist it to module scope. */
+  vimCommands?: NormalCommands
   /** Line-number gutter. Defaults to false — wanted for code, not for prose. */
   lineNumbers?: boolean
   /** Fold arrows in the gutter. Folding itself is always on; this is just the UI. Defaults to false. */
@@ -124,10 +127,11 @@ export function defaultExtensions(
     search: find = true,
     brackets = true,
     cursorBlinkRate = 1400,
+    vimCommands,
   } = options
 
   return [
-    EDITING,
+    editing(vimCommands),
     Prec.highest(tabCompletion()),
     codeFolding(),
     indentUnit.of(indent),

@@ -8,7 +8,14 @@ import {
   type SelectionRange,
   type Text,
 } from '@codemirror/state'
-import { getIndentUnit, indentString } from '@codemirror/language'
+import {
+  foldable,
+  foldedRanges,
+  foldEffect,
+  getIndentUnit,
+  indentString,
+  unfoldEffect,
+} from '@codemirror/language'
 import type { Command, EditorView } from '@codemirror/view'
 import { leadingWhitespace, selectedLines } from '../lineUtils'
 import {
@@ -268,6 +275,27 @@ const enterVisual = (linewise: boolean) => (view: EditorView) => {
   })
 }
 
+/** `z f`: unfold the fold that starts on the cursor's line, otherwise fold the nearest
+ * foldable line at or above it that still covers the cursor, parking the cursor on that line */
+const toggleFold = (view: EditorView) => {
+  const { state } = view
+  const l = line(view)
+  const folded: { from: number, to: number }[] = []
+  foldedRanges(state).between(l.from, l.to, (from, to) => void folded.push({ from, to }))
+  if (folded.length) return view.dispatch({ effects: folded.map(r => unfoldEffect.of(r)) })
+  for (let n = l.number; n >= 1; n--) {
+    const candidate = state.doc.line(n)
+    const range = foldable(state, candidate.from, candidate.to)
+    if (!range || range.to < l.to) continue
+    return view.dispatch({
+      effects: foldEffect.of(range),
+      selection: { anchor: clampNormal(state.doc, candidate.from) },
+      scrollIntoView: true,
+    })
+  }
+  message(view, 'no fold here')
+}
+
 /** the built-in normal-mode bindings */
 export const NORMAL_COMMANDS: Record<string, NormalCommand> = {
   // modes
@@ -371,6 +399,9 @@ export const NORMAL_COMMANDS: Record<string, NormalCommand> = {
   'p': view => put(view, true),
   'P': view => put(view, false),
   'Ctrl-v': putClipboard(true),
+
+  // folds
+  'z f': toggleFold,
 
   'u': view => {
     if (undo(view)) moveTo(view, head(view))

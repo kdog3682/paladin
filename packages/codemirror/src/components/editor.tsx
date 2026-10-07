@@ -288,12 +288,12 @@ export function Editor(props: EditorProps) {
     })
   }, [language, languages, font, fontSize, lineHeight])
 
-  const { lineNumbers, foldGutter, highlightActiveLine, indentUnit, indentOnInput, tabIndents, history, search, brackets, cursorBlinkRate } = editing
+  const { lineNumbers, foldGutter, highlightActiveLine, indentUnit, indentOnInput, tabIndents, history, search, brackets, cursorBlinkRate, vimCommands } = editing
   useEffect(() => {
     viewRef.current?.dispatch({
       effects: baseCompartment.reconfigure(defaultExtensions(editingRef.current)),
     })
-  }, [lineNumbers, foldGutter, highlightActiveLine, indentUnit, indentOnInput, tabIndents, history, search, brackets, cursorBlinkRate])
+  }, [lineNumbers, foldGutter, highlightActiveLine, indentUnit, indentOnInput, tabIndents, history, search, brackets, cursorBlinkRate, vimCommands])
 
   return <div ref={containerRef} className={className} />
 }

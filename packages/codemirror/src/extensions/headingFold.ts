@@ -28,17 +28,53 @@ export function headingFoldRange(state: EditorState, lineStart: number): { from:
   return last.number > start.number ? { from: start.to, to: last.to } : null
 }
 
+export type HeadingBlock = {
+  /* the block's text, its heading line without the leading hashmarks */
+  text: string
+  /* how many lines the text spans */
+  lines: number
+}
+
+/** the block the cursor is in: the nearest heading at or above `pos` (or the doc start when
+ * there is none) through to the line before the next heading of the same or a higher level,
+ * subheadings included. only the first line loses its `#` marks, and trailing blank lines are dropped */
+export function headingBlockAt(state: EditorState, pos: number): HeadingBlock | null {
+  const { doc } = state
+  let start = doc.lineAt(pos).number
+  while (start > 1 && !headingLevel(doc.line(start).text)) start--
+  const level = headingLevel(doc.line(start).text)
+  let end = start
+  for (let n = start + 1; n <= doc.lines; n++) {
+    const sub = headingLevel(doc.line(n).text)
+    if (sub && (!level || sub <= level)) break
+    if (doc.line(n).text.trim()) end = n
+  }
+  const lines = []
+  for (let n = start; n <= end; n++) lines.push(doc.line(n).text)
+  lines[0] = lines[0]!.replace(/^#{1,6} +/, '')
+  const text = lines.join('\n')
+  return text.trim() ? { text, lines: lines.length } : null
+}
+
+/* an svg chevron rather than the ▾ / ▸ glyphs, which sit at different heights and baselines */
 const marker = (open: boolean) => {
   const el = document.createElement('span')
   el.className = 'cm-headingFoldMarker'
-  el.textContent = open ? '▾' : '▸'
+  el.innerHTML = `<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${open ? 'M1 2.5 4 5.5 7 2.5' : 'M2.5 1 5.5 4 2.5 7'}"/></svg>`
   return el
 }
 
 const headingFoldTheme = EditorView.theme({
   '.cm-gutters': { backgroundColor: 'transparent', border: 'none' },
-  '.cm-foldGutter .cm-gutterElement': { padding: '0 4px', cursor: 'pointer' },
-  '.cm-headingFoldMarker': { color: '#9ca3af' },
+  '.cm-foldGutter .cm-gutterElement': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0',
+    cursor: 'pointer',
+  },
+  '.cm-foldGutter': { marginRight: '-5px' },
+  '.cm-headingFoldMarker': { display: 'flex', width: '12px', justifyContent: 'center', color: '#9ca3af' },
   '.cm-headingFoldMarker:hover': { color: '#000000' },
   // sublime-style yellow `…` badge after a folded heading
   '.cm-foldPlaceholder': {
