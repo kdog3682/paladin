@@ -140,6 +140,9 @@ export function resolveScopedPath(input: string, opts: ResolveScopedPathOptions 
   const [scope, ...rest] = raw.slice(1).split('/').filter(Boolean)
   if (!rest.length) return join(baseDir, scope)
 
+  /* `@paladin/scripts/x.ts` is the scope's own scripts dir, not a package named scripts */
+  if (rest[0] === 'scripts' && rest.length > 1) return join(baseDir, scope, ...rest)
+
   const isPrefixed = packagesDir !== null && rest[0] === packagesDir
   const pkg = isPrefixed ? rest[1] : rest[0]
   if (!pkg) throw new Error(`resolveScopedPath: missing package in "${input}"`)

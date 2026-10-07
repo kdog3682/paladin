@@ -63,12 +63,7 @@ export class CodeRunner {
   }
 
   register(registration: Registration): this {
-    const at = registration.id
-      ? this.registrations.findIndex((existing) => existing.id === registration.id)
-      : -1
-
-    if (at >= 0) this.registrations[at] = registration
-    else this.registrations.push(registration)
+    this.registrations.push(registration)
     return this
   }
 
@@ -108,7 +103,7 @@ export class CodeRunner {
     for (const path of targets) {
       const registration = this.match(path, disabled)
       if (!registration) continue
-      if (registration.kind === "test" && inPackage(path)) continue
+      if (registration.purpose === "test" && inPackage(path)) continue
 
       const group = groups.get(registration)
       if (group) group.push(path)
@@ -122,7 +117,7 @@ export class CodeRunner {
 
       for (const batch of batches) {
         out.push(
-          bashOp(SOURCE, [...registration.command, ...serializeOpts(registration.opts), ...batch], registration.kind, {
+          bashOp(SOURCE, [...registration.command, ...serializeOpts(registration.opts), ...batch], registration.purpose, {
             cwd: opts.cwd,
             strict: registration.strict ?? false,
           }),
@@ -148,7 +143,6 @@ export class CodeRunner {
   private match(path: string, disabled: Set<string>): Registration | null {
     for (const registration of this.registrations) {
       if (registration.enabled === false) continue
-      if (registration.id && disabled.has(registration.id)) continue
       if (matches(registration.matches, path)) return registration
     }
     return null
